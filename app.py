@@ -18,6 +18,26 @@ CALENDAR_PATH  = Path(__file__).with_name("calendar.html")
 
 st.set_page_config(page_title="Limitless", layout="wide", page_icon="⬛")
 
+# ── Database mode: PostgreSQL (Supabase) or SQLite ─────────────────────────
+try:
+    DB_URL = st.secrets.get("DB_URL", "")
+except:
+    DB_URL = ""
+USE_POSTGRES = bool(DB_URL)
+
+if USE_POSTGRES:
+    try:
+        import psycopg2
+        import psycopg2.extras
+    except ImportError:
+        USE_POSTGRES = False
+        DB_URL = ""
+
+def adapt_query(query):
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
+    return query
+
 # ─── Global dark theme ────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -327,6 +347,10 @@ details summary {
 #  DATABASE
 # ─────────────────────────────────────────────
 def get_conn():
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DB_URL)
+        conn.autocommit = False
+        return conn
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
