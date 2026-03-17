@@ -2002,6 +2002,18 @@ def load_catalogue():
     df["UOM"]          = df["UOM"].fillna("").astype(str)
     df["MaterialCost"] = pd.to_numeric(df["MaterialCost"], errors="coerce").fillna(0.0)
     df["LabourCost"]   = pd.to_numeric(df["LabourCost"],   errors="coerce").fillna(0.0)
+    # Merge custom catalogue items from database
+    try:
+        custom = fetch_df("""
+            SELECT category AS Category, description AS Description,
+                   uom AS UOM, material_cost AS MaterialCost,
+                   labour_cost AS LabourCost, sell_unit_rate AS SellUnitRate
+            FROM custom_catalogue ORDER BY category, description
+        """)
+        if not custom.empty:
+            df = pd.concat([df, custom], ignore_index=True)
+    except:
+        pass
     return df
 
 
@@ -2690,20 +2702,76 @@ elif page == "Quote Builder":
 # ─────────────────────────────────────────────
 elif page == "Catalogue":
     st.title("Catalogue")
-    st.caption(f"Loaded from: {CATALOGUE_PATH.name}")
-    try:
-        cat_display = load_catalogue()
-        # Only show key columns
-        show_cols = [c for c in ["Category","Description","UOM","MaterialCost","LabourCost","SellUnitRate"] 
-                     if c in cat_display.columns]
-        st.metric("Total items", len(cat_display))
-        st.dataframe(cat_display[show_cols], width="stretch", hide_index=True)
-    except FileNotFoundError:
-        st.error(f"Catalogue file not found: {CATALOGUE_PATH.name}")
-        st.info(f"Expected location: {CATALOGUE_PATH}")
-    except Exception as e:
-        st.error(f"Error loading catalogue: {e}")
-        st.info("Check the terminal for details.")
+
+    # ── Add custom item ───────────────────────────────────────────────
+    with st.expander("+ Add custom item", expanded=False):
+        with st.form("add_custom_cat"):
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                cc_cat  = st.text_input("Category", placeholder="e.g. Roofing Installation")
+                cc_desc = st.text_input("Description *", placeholder="e.g. Supply and Install Custom Flashing")
+                cc_uom  = st.selectbox("UOM", ["lm","m2","Ea","each","m3","hr","item","allow"])
+            with cc2:
+                cc_mat  = st.number_input("Material cost ($/UOM)", min_value=0.0, value=0.0, step=1.0)
+                cc_lab  = st.number_input("Labour cost ($/UOM)",   min_value=0.0, value=0.0, step=1.0)
+                cc_sell = st.number_input("Sell rate ($/UOM)",     min_value=0.0, value=0.0, step=1.0)
+            if st.form_submit_button("Add to catalogue", type="primary"):
+                if cc_desc.strip():
+                    execute("""INSERT INTO custom_catalogue
+                        (category, description, uom, material_cost, labour_cost, sell_unit_rate, created_by, created_at)
+                        VALUES (?,?,?,?,?,?,?,?)""",
+                        (cc_cat.strip(), cc_desc.strip(), cc_uom,
+                         cc_mat, cc_lab, cc_sell,
+                         st.session_state.get("username","admin"),
+                         date.today().isoformat()))
+                    st.success(f"✅ '{cc_desc}' added to catalogue!")
+                    st.rerun()
+                else:
+                    st.error("Description required.")
+
+    # ── Display catalogue ─────────────────────────────────────────────
+    tab_base, tab_custom = st.tabs(["📦 Base catalogue", "⭐ My custom items"])
+
+    with tab_base:
+        st.caption(f"Loaded from: {CATALOGUE_PATH.name}")
+        try:
+            cat_display = load_catalogue()
+            show_cols = [c for c in ["Category","Description","UOM","MaterialCost","LabourCost","SellUnitRate"]
+                         if c in cat_display.columns]
+            st.metric("Total items", len(cat_display))
+            search_cat = st.text_input("🔍 Search", placeholder="Search catalogue...", key="cat_search")
+            if search_cat:
+                mask = cat_display["Description"].str.contains(search_cat, case=False, na=False)
+                cat_display = cat_display[mask]
+            st.dataframe(cat_display[show_cols], width="stretch", hide_index=True)
+        except FileNotFoundError:
+            st.error(f"Catalogue file not found: {CATALOGUE_PATH.name}")
+        except Exception as e:
+            st.error(f"Error loading catalogue: {e}")
+
+    with tab_custom:
+        custom_df = fetch_df("SELECT * FROM custom_catalogue ORDER BY category, description")
+        if custom_df.empty:
+            st.info("No custom items yet — add one above.")
+        else:
+            st.metric("Custom items", len(custom_df))
+            for _, cr in custom_df.iterrows():
+                cid = int(cr["id"])
+                c1, c2 = st.columns([5,1])
+                with c1:
+                    st.markdown(
+                        "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;"
+                        "padding:10px 16px;margin-bottom:6px'>"
+                        "<div style='font-weight:700;color:#e2e8f0'>" + str(cr["description"]) + "</div>"
+                        "<div style='font-size:12px;color:#64748b'>" + str(cr.get("category","")) + " · " + str(cr.get("uom","")) +
+                        " · Mat: $" + f"{float(cr.get('material_cost',0)):,.2f}" +
+                        " · Lab: $" + f"{float(cr.get('labour_cost',0)):,.2f}" +
+                        " · Sell: $" + f"{float(cr.get('sell_unit_rate',0)):,.2f}" + "</div>"
+                        "</div>", unsafe_allow_html=True)
+                with c2:
+                    if st.button("🗑", key=f"del_cc_{cid}", help="Delete"):
+                        execute("DELETE FROM custom_catalogue WHERE id=?", (cid,))
+                        st.rerun()
 
 
 # ─────────────────────────────────────────────
