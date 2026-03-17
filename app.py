@@ -2705,11 +2705,24 @@ elif page == "Catalogue":
 
     # ── Add custom item ───────────────────────────────────────────────
     with st.expander("+ Add custom item", expanded=False):
+        # Get existing categories from base catalogue + custom
+        try:
+            base_cats = load_catalogue()["Category"].dropna().unique().tolist()
+        except:
+            base_cats = []
+        try:
+            custom_cats = fetch_df("SELECT DISTINCT category FROM custom_catalogue WHERE category != ''")["category"].tolist()
+        except:
+            custom_cats = []
+        all_cats = sorted(set(base_cats + custom_cats)) + ["+ New category"]
+
         with st.form("add_custom_cat"):
             cc1, cc2 = st.columns(2)
             with cc1:
-                cc_cat  = st.text_input("Category", placeholder="e.g. Roofing Installation")
-                cc_desc = st.text_input("Description *", placeholder="e.g. Supply and Install Custom Flashing")
+                cc_cat_pick = st.selectbox("Category", all_cats)
+                cc_cat_new  = st.text_input("New category name", placeholder="e.g. Plumbing Installation",
+                    help="Only used if '+ New category' selected above")
+                cc_desc = st.text_input("Description *", placeholder="e.g. Supply and Install 15mm Copper Pipe")
                 cc_uom  = st.selectbox("UOM", ["lm","m2","Ea","each","m3","hr","item","allow"])
             with cc2:
                 cc_mat  = st.number_input("Material cost ($/UOM)", min_value=0.0, value=0.0, step=1.0)
@@ -2717,14 +2730,15 @@ elif page == "Catalogue":
                 cc_sell = st.number_input("Sell rate ($/UOM)",     min_value=0.0, value=0.0, step=1.0)
             if st.form_submit_button("Add to catalogue", type="primary"):
                 if cc_desc.strip():
+                    cc_cat = cc_cat_new.strip() if cc_cat_pick == "+ New category" else cc_cat_pick
                     execute("""INSERT INTO custom_catalogue
                         (category, description, uom, material_cost, labour_cost, sell_unit_rate, created_by, created_at)
                         VALUES (?,?,?,?,?,?,?,?)""",
-                        (cc_cat.strip(), cc_desc.strip(), cc_uom,
+                        (cc_cat, cc_desc.strip(), cc_uom,
                          cc_mat, cc_lab, cc_sell,
                          st.session_state.get("username","admin"),
                          date.today().isoformat()))
-                    st.success(f"✅ '{cc_desc}' added to catalogue!")
+                    st.success(f"✅ '{cc_desc}' added to {cc_cat}!")
                     st.rerun()
                 else:
                     st.error("Description required.")
