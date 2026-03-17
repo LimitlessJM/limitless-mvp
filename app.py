@@ -2750,6 +2750,15 @@ elif page == "Catalogue":
             st.error(f"Error loading catalogue: {e}")
 
     with tab_custom:
+        # Ensure table exists before querying
+        try:
+            execute("""CREATE TABLE IF NOT EXISTS custom_catalogue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT DEFAULT '', description TEXT NOT NULL,
+                uom TEXT DEFAULT 'lm', material_cost REAL DEFAULT 0,
+                labour_cost REAL DEFAULT 0, sell_unit_rate REAL DEFAULT 0,
+                created_by TEXT DEFAULT '', created_at TEXT DEFAULT '')""")
+        except: pass
         custom_df = fetch_df("SELECT * FROM custom_catalogue ORDER BY category, description")
         if custom_df.empty:
             st.info("No custom items yet — add one above.")
