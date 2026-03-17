@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;background:#0f172a;color:#e2e8f0;padding:0}
+
+.board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 12px;align-items:flex-start;min-height:400px}
+.board::-webkit-scrollbar{height:6px}
+.board::-webkit-scrollbar-track{background:#0f172a}
+.board::-webkit-scrollbar-thumb{background:#2a3d4f;border-radius:3px}
+
+.col{min-width:200px;width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:0}
+.col-header{background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px 10px 0 0;padding:10px 12px;border-bottom:none}
+.col-header.is-current{border-top:3px solid #2dd4bf}
+.col-month{font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:3px}
+.col-stats{display:flex;gap:8px;font-size:10px}
+.col-total{color:#94a3b8}
+.col-wtd{color:#2dd4bf;font-weight:600}
+
+.col-body{
+    background:#161f2e;
+    border:1px solid #2a3d4f;
+    border-top:none;
+    border-radius:0 0 10px 10px;
+    padding:8px;
+    min-height:120px;
+    transition:background .15s;
+    flex:1;
+}
+.col-body.drag-over{background:#1a2d3a;outline:2px dashed #2dd4bf;outline-offset:-2px}
+
+.card{
+    background:#1e2d3d;
+    border:1px solid #2a3d4f;
+    border-radius:8px;
+    padding:10px 11px;
+    margin-bottom:6px;
+    cursor:grab;
+    user-select:none;
+    transition:transform .1s,box-shadow .1s,opacity .1s;
+    position:relative;
+}
+.card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.4);border-color:#3a4d5f}
+.card:active{cursor:grabbing;opacity:.6}
+.card.dragging{opacity:.3;transform:scale(.97)}
+
+.card-prob-bar{height:3px;border-radius:999px;background:#0f172a;margin-bottom:8px;overflow:hidden}
+.card-prob-fill{height:100%;border-radius:999px;transition:width .3s}
+
+.card-job{font-weight:700;font-size:12px;color:#e2e8f0;margin-bottom:2px}
+.card-client{font-size:11px;color:#64748b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-value{font-size:13px;font-weight:700;color:#2dd4bf}
+.card-prob{font-size:10px;font-weight:600;margin-left:6px}
+.card-notes{font-size:10px;color:#475569;font-style:italic;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.card-del{position:absolute;top:7px;right:8px;background:none;border:none;color:#334155;cursor:pointer;font-size:14px;line-height:1;padding:0;opacity:0;transition:opacity .15s}
+.card:hover .card-del{opacity:1}
+.card-del:hover{color:#f43f5e!important}
+
+.empty-col{font-size:11px;color:#334155;text-align:center;padding:16px 8px;font-style:italic}
+
+/* Stats bar */
+.stats{display:flex;gap:20px;padding:10px 2px 0;font-size:12px;color:#64748b;flex-wrap:wrap}
+.stats strong{color:#2dd4bf}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#1e2d3d;border:1px solid #2a3d4f;border-radius:12px;padding:20px;width:340px;max-width:96vw;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.modal-title{font-size:15px;font-weight:700;color:#e2e8f0;margin-bottom:14px}
+.form-row{margin-bottom:10px}
+.form-row label{display:block;font-size:10px;font-weight:700;color:#475569;margin-bottom:3px;letter-spacing:.06em;text-transform:uppercase}
+.form-row input,.form-row select{width:100%;font-size:13px;padding:7px 9px;border:1px solid #2a3d4f;border-radius:6px;background:#161f2e;color:#e2e8f0;outline:none}
+.form-row input:focus,.form-row select:focus{border-color:#2dd4bf;box-shadow:0 0 0 3px rgba(45,212,191,.15)}
+.form-row input[type=range]{padding:4px 0;accent-color:#2dd4bf}
+.prob-display{font-size:13px;font-weight:700;color:#2dd4bf;margin-left:8px}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.btn-primary{flex:1;padding:8px;border-radius:7px;border:none;background:#2dd4bf;color:#0f172a;font-size:13px;font-weight:700;cursor:pointer}
+.btn-primary:hover{background:#14b8a6}
+.btn-danger{padding:8px 13px;border-radius:7px;border:1px solid #f43f5e44;background:transparent;color:#f43f5e;font-size:13px;cursor:pointer}
+.btn-danger:hover{background:#f43f5e22}
+.btn-ghost{padding:8px 13px;border-radius:7px;border:1px solid #2a3d4f;background:transparent;color:#64748b;font-size:13px;cursor:pointer}
+.btn-ghost:hover{background:#2a3d4f}
+</style>
+</head>
+<body>
+
+<div class="board" id="board"></div>
+<div class="stats" id="stats"></div>
+<div id="modal-root"></div>
+
+<script>
+const MONTHS_DATA = PIPELINE_MONTHS;
+const CARDS_DATA  = PIPELINE_CARDS;
+const MONTH_NAMES = MONTH_NAMES_MAP;
+
+let cards  = JSON.parse(JSON.stringify(CARDS_DATA));
+let months = MONTHS_DATA;
+
+let dragging     = null;
+let draggingFrom = null;
+
+function probColor(p){
+    if(p>=75) return "#2dd4bf";
+    if(p>=40) return "#f59e0b";
+    return "#f43f5e";
+}
+
+function render(){
+    const board = document.getElementById("board");
+    board.innerHTML = "";
+
+    const today = new Date();
+    const curMo = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;
+
+    months.forEach(mo=>{
+        const moCards = cards.filter(c=>c.target_month===mo);
+        const total   = moCards.reduce((s,c)=>s+c.value,0);
+        const wtd     = moCards.reduce((s,c)=>s+c.value*c.probability_pct/100,0);
+        const isCur   = mo===curMo;
+
+        const col = document.createElement("div");
+        col.className = "col";
+
+        const hdr = document.createElement("div");
+        hdr.className = "col-header"+(isCur?" is-current":"");
+        hdr.innerHTML = `
+            <div class="col-month">${MONTH_NAMES[mo]||mo}</div>
+            <div class="col-stats">
+                <span class="col-total">$${total.toLocaleString()}</span>
+                <span class="col-wtd">$${Math.round(wtd).toLocaleString()} wtd</span>
+            </div>`;
+        col.appendChild(hdr);
+
+        const body = document.createElement("div");
+        body.className = "col-body";
+        body.dataset.month = mo;
+
+        if(moCards.length===0){
+            body.innerHTML = `<div class="empty-col">Drop jobs here</div>`;
+        } else {
+            moCards.forEach(card=>{
+                body.appendChild(makeCard(card));
+            });
+        }
+
+        body.addEventListener("dragover",e=>{
+            e.preventDefault();
+            body.classList.add("drag-over");
+        });
+        body.addEventListener("dragleave",e=>{
+            if(!body.contains(e.relatedTarget)) body.classList.remove("drag-over");
+        });
+        body.addEventListener("drop",e=>{
+            e.preventDefault();
+            body.classList.remove("drag-over");
+            if(!dragging) return;
+            const c = cards.find(x=>x.id===dragging);
+            if(c && c.target_month !== mo){
+                c.target_month = mo;
+                sendUpdate("move", c);
+                render();
+            }
+            dragging = null; draggingFrom = null;
+        });
+
+        col.appendChild(body);
+        board.appendChild(col);
+    });
+
+    buildStats();
+}
+
+function makeCard(card){
+    const c    = document.createElement("div");
+    c.className = "card";
+    c.draggable = true;
+    c.dataset.id = card.id;
+
+    const pc = probColor(card.probability_pct);
+
+    c.innerHTML = `
+        <div class="card-prob-bar">
+            <div class="card-prob-fill" style="width:${card.probability_pct}%;background:${pc}"></div>
+        </div>
+        <div class="card-job">${card.job_id}</div>
+        <div class="card-client">${card.client||""}</div>
+        <div style="display:flex;align-items:baseline">
+            <span class="card-value">$${card.value.toLocaleString()}</span>
+            <span class="card-prob" style="color:${pc}">${card.probability_pct}%</span>
+            ${card.secured ? '<span style="background:#2dd4bf22;color:#2dd4bf;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:4px">SECURED</span>' : ''}
+        </div>
+        ${card.notes?`<div class="card-notes">${card.notes}</div>`:""}
+        <button class="card-del" title="Remove">&#x2715;</button>`;
+
+    c.addEventListener("dragstart",e=>{
+        dragging = card.id;
+        draggingFrom = card.target_month;
+        e.dataTransfer.effectAllowed="move";
+        setTimeout(()=>c.classList.add("dragging"),0);
+    });
+    c.addEventListener("dragend",()=>{
+        c.classList.remove("dragging");
+        dragging = null; draggingFrom = null;
+    });
+    c.querySelector(".card-del").addEventListener("click",e=>{
+        e.stopPropagation();
+        if(confirm(`Remove ${card.job_id} from pipeline?`)){
+            cards = cards.filter(x=>x.id!==card.id);
+            sendUpdate("delete", card);
+            render();
+        }
+    });
+    c.addEventListener("click",e=>{
+        if(e.target.classList.contains("card-del")) return;
+        openModal(card);
+    });
+    return c;
+}
+
+function buildStats(){
+    const active = cards.filter(c=>months.includes(c.target_month));
+    const total  = active.reduce((s,c)=>s+c.value,0);
+    const wtd    = active.reduce((s,c)=>s+c.value*c.probability_pct/100,0);
+    document.getElementById("stats").innerHTML =
+        `<span><strong>${active.length}</strong> jobs in pipeline</span>
+         <span>Total value: <strong>$${total.toLocaleString()}</strong></span>
+         <span>Weighted: <strong>$${Math.round(wtd).toLocaleString()}</strong></span>`;
+}
+
+function openModal(card){
+    const root = document.getElementById("modal-root");
+    root.innerHTML = `
+    <div class="modal-overlay" id="m-overlay">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-title">${card.job_id} — ${card.client||""}</div>
+        <div class="form-row">
+          <label>Estimated value ($)</label>
+          <input type="number" id="m-val" value="${card.value}" min="0" step="1000">
+        </div>
+        <div class="form-row">
+          <label>Probability %&nbsp;<span class="prob-display" id="prob-disp">${card.probability_pct}%</span></label>
+          <input type="range" id="m-prob" min="0" max="100" step="5" value="${card.probability_pct}"
+            oninput="document.getElementById('prob-disp').textContent=this.value+'%'">
+        </div>
+        <div class="form-row">
+          <label>Target month</label>
+          <select id="m-month">
+            ${months.map(m=>`<option value="${m}" ${m===card.target_month?"selected":""}>${MONTH_NAMES[m]||m}</option>`).join("")}
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Notes</label>
+          <input type="text" id="m-notes" value="${card.notes||""}" placeholder="Optional">
+        </div>
+        <div class="form-row" style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <input type="checkbox" id="m-secured" ${card.secured?'checked':''} style="width:20px;height:20px;accent-color:#2dd4bf;cursor:pointer">
+          <label for="m-secured" style="font-size:15px;font-weight:700;color:#2dd4bf;cursor:pointer;margin:0">
+            Secured / Confirmed
+          </label>
+        </div>
+        <div class="modal-btns">
+          <button class="btn-primary" id="m-save">Save</button>
+          <button class="btn-danger"  id="m-del">Remove</button>
+          <button class="btn-ghost"   id="m-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+
+    document.getElementById("m-save").onclick = ()=>{
+        card.value           = parseFloat(document.getElementById("m-val").value)||0;
+        card.probability_pct = parseInt(document.getElementById("m-prob").value)||0;
+        card.target_month    = document.getElementById("m-month").value;
+        card.notes           = document.getElementById("m-notes").value.trim();
+        card.secured         = document.getElementById("m-secured").checked ? 1 : 0;
+        sendUpdate("update", card);
+        closeModal(); render();
+    };
+    document.getElementById("m-del").onclick = ()=>{
+        if(confirm(`Remove ${card.job_id} from pipeline?`)){
+            cards = cards.filter(x=>x.id!==card.id);
+            sendUpdate("delete", card);
+            closeModal(); render();
+        }
+    };
+    document.getElementById("m-cancel").onclick = closeModal;
+    document.getElementById("m-overlay").onclick = closeModal;
+}
+
+function closeModal(){ document.getElementById("modal-root").innerHTML=""; }
+
+function sendUpdate(action, card){
+    if(window.Streamlit) window.Streamlit.setComponentValue({action, card});
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://unpkg.com/streamlit-component-lib@2.0.0/dist/streamlit-component-lib.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;color:#1a1a1a;background:#fff}
+
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #e5e7eb;flex-wrap:wrap}
+.nav-btn{background:none;border:1px solid #d1d5db;border-radius:6px;padding:5px 11px;cursor:pointer;font-size:13px;color:#374151;font-weight:500}
+.nav-btn:hover{background:#f3f4f6}
+.today-btn{background:#378ADD;color:#fff;border:none;border-radius:6px;padding:5px 13px;cursor:pointer;font-size:13px;font-weight:600}
+.today-btn:hover{background:#185FA5}
+.date-label{font-size:15px;font-weight:700;min-width:200px;text-align:center;color:#111827}
+.view-tabs{display:flex;gap:2px;background:#f3f4f6;border-radius:7px;padding:2px;margin-left:auto}
+.view-tab{padding:4px 12px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:none;color:#6b7280;font-weight:500}
+.view-tab.active{background:#fff;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.add-btn{background:#059669;color:#fff;border:none;border-radius:6px;padding:5px 13px;cursor:pointer;font-size:13px;font-weight:600}
+.add-btn:hover{background:#047857}
+
+.cal-outer{display:flex;overflow:hidden;height:calc(100vh - 108px)}
+
+.jobs-panel{width:210px;min-width:210px;border-right:1px solid #e5e7eb;display:flex;flex-direction:column}
+.jobs-panel-header{padding:8px 10px 6px;font-size:11px;font-weight:700;letter-spacing:.06em;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between}
+.jobs-search{font-size:11px;padding:3px 7px;border:1px solid #e5e7eb;border-radius:5px;width:88px;outline:none}
+.jobs-list{overflow-y:auto;flex:1;padding:5px}
+.job-chip{padding:7px 9px;border-radius:7px;margin-bottom:4px;cursor:grab;font-size:11px;font-weight:600;line-height:1.4;border-left:3px solid transparent;user-select:none;transition:transform .1s}
+.job-chip:hover{transform:translateY(-1px)}
+.job-chip:active{cursor:grabbing;opacity:.6}
+.chip-id{font-weight:700;font-size:11px}
+.chip-client{font-size:10px;color:#6b7280;font-weight:400}
+
+.cal-main{flex:1;overflow:auto}
+.cal-grid{width:100%;border-collapse:collapse;table-layout:fixed}
+thead th{position:sticky;top:0;z-index:10;background:#fff;border-bottom:2px solid #e5e7eb}
+.header-emp{width:150px;padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;letter-spacing:.05em;text-transform:uppercase;background:#f9fafb;border-right:1px solid #e5e7eb;position:sticky;left:0;z-index:20}
+.header-day{min-width:120px;padding:6px 8px 8px;text-align:center;border-right:1px solid #e5e7eb;cursor:pointer}
+.header-day:hover{background:#f9fafb}
+.hd-dow{font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:.05em;text-transform:uppercase}
+.hd-num{font-size:22px;font-weight:700;color:#111827;line-height:1.1}
+.hd-num.is-today{background:#378ADD;color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:16px}
+.is-weekend-col{background:#fafafa}
+.is-weekend-col .hd-dow{color:#d1d5db}
+.is-weekend-col .hd-num{color:#d1d5db}
+
+.row-emp td{border-bottom:1px solid #f3f4f6;border-right:1px solid #f3f4f6;vertical-align:top}
+.row-unassigned td{background:#fffbeb!important;border-bottom:2px solid #fde68a}
+.emp-name-cell{padding:6px 10px;position:sticky;left:0;background:#fff;z-index:5;border-right:1px solid #e5e7eb!important;width:150px;min-width:150px}
+.row-unassigned .emp-name-cell{background:#fffbeb!important}
+.emp-avatar{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.e-name{font-size:12px;font-weight:600;color:#111827}
+.e-role{font-size:10px;color:#9ca3af}
+
+.day-cell{min-width:120px;min-height:64px;padding:4px;vertical-align:top;transition:background .1s;position:relative}
+.day-cell.is-weekend{background:#fafafa}
+.day-cell.drag-over{background:#dbeafe!important;outline:2px dashed #378ADD;outline-offset:-2px}
+.day-cell.stretch-over{background:#dcfce7!important;outline:2px dashed #059669;outline-offset:-2px}
+
+/* ── Schedule block ── */
+.sched-block{
+  border-radius:6px;
+  padding:5px 22px 5px 9px;
+  font-size:11px;font-weight:600;line-height:1.35;
+  cursor:pointer;margin-bottom:2px;
+  position:relative;display:flex;flex-direction:column;
+  user-select:none;
+}
+.sched-block:hover{filter:brightness(1.06)}
+.sb-job{font-weight:700}
+.sb-client{font-size:10px;opacity:.75;font-weight:400}
+.sb-note{font-size:10px;opacity:.65;font-style:italic}
+
+/* delete × */
+.sb-del{position:absolute;top:3px;right:20px;font-size:12px;cursor:pointer;opacity:0;background:none;border:none;padding:0;line-height:1;color:rgba(0,0,0,.5)}
+.sched-block:hover .sb-del{opacity:.7}
+.sb-del:hover{opacity:1!important}
+
+/* stretch + handle */
+.sb-stretch{
+  position:absolute;top:0;right:0;bottom:0;
+  width:16px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:col-resize;
+  border-left:1px dashed rgba(0,0,0,.15);
+  border-radius:0 6px 6px 0;
+  font-size:11px;font-weight:700;
+  opacity:0;
+  transition:opacity .15s;
+  background:rgba(0,0,0,.06);
+  color:rgba(0,0,0,.4);
+}
+.sched-block:hover .sb-stretch{opacity:1}
+.sb-stretch:hover{background:rgba(0,0,0,.12)!important;opacity:1!important}
+
+/* continuation pill (days after first) */
+.sched-block.is-continuation{
+  opacity:.55;
+  border-left-width:2px!important;
+  padding-left:6px;
+}
+.sched-block.is-continuation .sb-del{display:none}
+.sched-block.is-continuation .sb-stretch{display:none}
+
+.stats-bar{padding:8px 14px;background:#f9fafb;border-top:1px solid #e5e7eb;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#6b7280}
+.stats-bar strong{color:#111827}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#fff;border-radius:12px;padding:20px;width:360px;max-width:96vw;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:14px}
+.form-row{margin-bottom:10px}
+.form-row label{display:block;font-size:11px;font-weight:700;color:#6b7280;margin-bottom:3px;letter-spacing:.03em;text-transform:uppercase}
+.form-row input,.form-row select{width:100%;font-size:13px;padding:7px 9px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#1a1a1a;outline:none}
+.form-row input:focus,.form-row select:focus{border-color:#378ADD;box-shadow:0 0 0 3px #dbeafe}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.btn-primary{flex:1;padding:8px;border-radius:7px;border:none;background:#378ADD;color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+.btn-primary:hover{background:#185FA5}
+.btn-danger{padding:8px 13px;border-radius:7px;border:1px solid #fca5a5;background:#fff;color:#dc2626;font-size:13px;cursor:pointer}
+.btn-danger:hover{background:#fef2f2}
+.btn-ghost{padding:8px 13px;border-radius:7px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:13px;cursor:pointer}
+.btn-ghost:hover{background:#f9fafb}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="nav-btn" id="prev">&#8592;</button>
+  <button class="today-btn" id="go-today">Today</button>
+  <button class="nav-btn" id="next">&#8594;</button>
+  <span class="date-label" id="date-label"></span>
+  <div class="view-tabs">
+    <button class="view-tab active" id="tab-day"  onclick="setView('day')">Day</button>
+    <button class="view-tab"        id="tab-week" onclick="setView('week')">Week</button>
+  </div>
+  <button class="add-btn" id="add-btn">+ Schedule</button>
+</div>
+
+<div class="cal-outer">
+  <div class="jobs-panel">
+    <div class="jobs-panel-header">
+      <span>Jobs</span>
+      <input class="jobs-search" id="job-search" placeholder="Search...">
+    </div>
+    <div class="jobs-list" id="jobs-list"></div>
+  </div>
+  <div class="cal-main">
+    <table class="cal-grid">
+      <thead id="cal-head"></thead>
+      <tbody id="cal-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+<div id="modal-root"></div>
+
+<script>
+const EMPLOYEES  = EMPLOYEES_DATA;
+const JOBS_DATA  = JOBS_LIST;
+let   schedules  = SCHEDULES_DATA;
+let   nextId     = Math.max(1, ...schedules.map(s=>(s.id||0)+1));
+let   viewMode   = 'day';
+let   curDate    = new Date(); curDate.setHours(0,0,0,0);
+
+// drag state
+let draggingJob    = null;
+let draggingBlock  = null;
+let stretchBlock   = null;   // block being stretched
+let stretchEmp     = null;   // employee row being stretched on
+
+const JOB_COLORS = ['#2563eb','#059669','#d97706','#7c3aed','#0891b2','#dc2626','#65a30d','#c2410c','#db2777','#4f46e5'];
+const EMP_COLORS = ['#4f46e5','#059669','#d97706','#0891b2','#7c3aed','#dc2626','#65a30d','#c2410c','#db2777','#374151'];
+const jobColor={}; JOBS_DATA.forEach((j,i)=>{jobColor[j.job_id]=JOB_COLORS[i%JOB_COLORS.length]});
+const empColor={}; EMPLOYEES.forEach((e,i)=>{empColor[e.name]=EMP_COLORS[i%EMP_COLORS.length]});
+
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function fmtD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
+function initials(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+function isWeekend(d){return d.getDay()===0||d.getDay()===6}
+
+function getDays(){
+  if(viewMode==='day') return [new Date(curDate)];
+  const dow=curDate.getDay();
+  const mon=addDays(curDate,-(dow===0?6:dow-1));
+  return Array.from({length:7},(_,i)=>addDays(mon,i));
+}
+
+function setView(v){
+  viewMode=v;
+  document.getElementById('tab-day').className ='view-tab'+(v==='day' ?' active':'');
+  document.getElementById('tab-week').className='view-tab'+(v==='week'?' active':'');
+  render();
+}
+
+// ── Jobs panel ───────────────────────────────
+function buildJobsPanel(){
+  const q=document.getElementById('job-search').value.toLowerCase();
+  const list=document.getElementById('jobs-list');
+  list.innerHTML='';
+  JOBS_DATA.forEach(j=>{
+    if(q&&!j.job_id.toLowerCase().includes(q)&&!(j.client||'').toLowerCase().includes(q)) return;
+    const c=jobColor[j.job_id]||'#6b7280';
+    const div=document.createElement('div');
+    div.className='job-chip';
+    div.draggable=true;
+    div.style.cssText=`border-left-color:${c};background:${c}18;`;
+    div.innerHTML=`<div class="chip-id" style="color:${c}">${j.job_id}</div><div class="chip-client">${j.client||''}</div>`;
+    div.addEventListener('dragstart',e=>{draggingJob=j;draggingBlock=null;stretchBlock=null;e.dataTransfer.effectAllowed='copy';});
+    div.addEventListener('dragend',()=>{draggingJob=null;});
+    div.addEventListener('click',()=>openModal('__unassigned__',fmtD(curDate),j,null));
+    list.appendChild(div);
+  });
+}
+
+// ── Render ───────────────────────────────────
+function render(){
+  const days=getDays();
+  const today=new Date(); today.setHours(0,0,0,0);
+
+  if(viewMode==='day'){
+    const d=days[0];
+    document.getElementById('date-label').textContent=DOW[d.getDay()]+', '+d.getDate()+' '+MONTHS[d.getMonth()]+' '+d.getFullYear();
+  } else {
+    const s=days[0],e=days[6];
+    document.getElementById('date-label').textContent=s.getDate()+' '+MONTHS[s.getMonth()]+' – '+e.getDate()+' '+MONTHS[e.getMonth()]+' '+e.getFullYear();
+  }
+
+  // Header
+  const head=document.getElementById('cal-head');
+  head.innerHTML='';
+  const htr=document.createElement('tr');
+  const th0=document.createElement('th'); th0.className='header-emp'; th0.textContent='Staff'; htr.appendChild(th0);
+  days.forEach(d=>{
+    const th=document.createElement('th');
+    const isTD=d.getTime()===today.getTime();
+    th.className='header-day'+(isWeekend(d)?' is-weekend-col':'');
+    const num=document.createElement('div'); num.className='hd-num'+(isTD?' is-today':''); num.textContent=d.getDate();
+    th.innerHTML=`<div class="hd-dow">${DOW[d.getDay()]}</div>`; th.appendChild(num);
+    th.addEventListener('click',()=>{curDate=new Date(d);if(viewMode==='week')setView('day');else render();});
+    htr.appendChild(th);
+  });
+  head.appendChild(htr);
+
+  // Body
+  const body=document.getElementById('cal-body');
+  body.innerHTML='';
+  body.appendChild(makeRow(null,days,today));
+  EMPLOYEES.forEach(emp=>body.appendChild(makeRow(emp,days,today)));
+  buildStats(days);
+}
+
+function makeRow(emp,days,today){
+  const empKey=emp?emp.name:'__unassigned__';
+  const tr=document.createElement('tr');
+  tr.className=emp?'row-emp':'row-unassigned';
+
+  const ntd=document.createElement('td'); ntd.className='emp-name-cell';
+  if(emp){
+    const c=empColor[emp.name]||'#6b7280';
+    ntd.innerHTML=`<div style="display:flex;align-items:center;gap:8px">
+      <span class="emp-avatar" style="background:${c}">${initials(emp.name)}</span>
+      <span><div class="e-name">${emp.name}</div><div class="e-role">${emp.role||''}</div></span>
+    </div>`;
+  } else {
+    ntd.innerHTML=`<div style="font-size:11px;font-weight:700;color:#b45309;padding:6px 0 6px 4px">Unassigned</div>`;
+  }
+  tr.appendChild(ntd);
+
+  days.forEach(d=>{
+    const ds=fmtD(d);
+    const td=document.createElement('td');
+    td.className='day-cell'+(isWeekend(d)?' is-weekend':'');
+    td.dataset.date=ds; td.dataset.emp=empKey;
+
+    // Blocks for this cell
+    const cellBlocks=schedules.filter(s=>s.employee===empKey&&s.date===ds);
+    cellBlocks.forEach(s=>td.appendChild(makeBlock(s)));
+
+    // Drop: job drag or block drag
+    td.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(stretchBlock&&stretchEmp===empKey){
+        td.classList.add('stretch-over');
+      } else if(!stretchBlock){
+        td.classList.add('drag-over');
+      }
+    });
+    td.addEventListener('dragleave',e=>{
+      if(!td.contains(e.relatedTarget)){
+        td.classList.remove('drag-over');
+        td.classList.remove('stretch-over');
+      }
+    });
+    td.addEventListener('drop',e=>{
+      e.preventDefault();
+      td.classList.remove('drag-over');
+      td.classList.remove('stretch-over');
+
+      if(stretchBlock&&stretchEmp===empKey){
+        // Stretch: fill days from stretchBlock.date to ds
+        handleStretchDrop(stretchBlock,empKey,ds);
+      } else if(draggingJob){
+        const s={id:nextId++,job_id:draggingJob.job_id,client:draggingJob.client||'',employee:empKey,date:ds,note:''};
+        schedules.push(s); sendUpdate('create',s); render();
+      } else if(draggingBlock){
+        draggingBlock.employee=empKey; draggingBlock.date=ds;
+        sendUpdate('update',draggingBlock); render();
+      }
+      draggingJob=null; draggingBlock=null; stretchBlock=null; stretchEmp=null;
+    });
+
+    td.addEventListener('click',e=>{if(e.target===td)openModal(empKey,ds,null,null);});
+    tr.appendChild(td);
+  });
+  return tr;
+}
+
+// ── Stretch handler ──────────────────────────
+function handleStretchDrop(originBlock, empKey, endDateStr){
+  const startD = new Date(originBlock.date+'T00:00:00');
+  const endD   = new Date(endDateStr+'T00:00:00');
+  if(endD < startD){ stretchBlock=null; stretchEmp=null; return; }
+
+  // Collect all dates from start to end (inclusive)
+  const dates=[];
+  for(let d=new Date(startD); d<=endD; d=addDays(d,1)){
+    dates.push(fmtD(d));
+  }
+
+  // Remove any existing blocks for this job+employee in that range (avoid dupes)
+  const toRemove=schedules.filter(s=>
+    s.employee===empKey &&
+    s.job_id===originBlock.job_id &&
+    dates.includes(s.date) &&
+    s.id!==originBlock.id
+  );
+  toRemove.forEach(s=>{
+    schedules=schedules.filter(x=>x.id!==s.id);
+    sendUpdate('delete',s);
+  });
+
+  // Create a new block for each date that doesn't already have one
+  const existing=new Set(schedules.filter(s=>s.employee===empKey&&s.job_id===originBlock.job_id).map(s=>s.date));
+  dates.forEach(ds=>{
+    if(!existing.has(ds)){
+      const ns={id:nextId++,job_id:originBlock.job_id,client:originBlock.client||'',employee:empKey,date:ds,note:originBlock.note||''};
+      schedules.push(ns);
+      sendUpdate('create',ns);
+    }
+  });
+
+  stretchBlock=null; stretchEmp=null;
+  render();
+}
+
+// ── Block element ────────────────────────────
+function makeBlock(s){
+  const c=jobColor[s.job_id]||'#6b7280';
+
+  // Check if there's a block for same job+employee on the previous day (continuation)
+  const prevDay=fmtD(addDays(new Date(s.date+'T00:00:00'),-1));
+  const isContinuation=schedules.some(x=>x.employee===s.employee&&x.job_id===s.job_id&&x.date===prevDay);
+
+  const el=document.createElement('div');
+  el.className='sched-block'+(isContinuation?' is-continuation':'');
+  el.style.cssText=`background:${c}1a;border-left:3px solid ${c};`;
+  el.draggable=true;
+
+  if(isContinuation){
+    el.innerHTML=`<div class="sb-job" style="color:${c};font-size:10px;opacity:.7">↳ ${s.job_id}</div>`;
+  } else {
+    el.innerHTML=`
+      <div class="sb-job" style="color:${c}">${s.job_id}</div>
+      <div class="sb-client">${s.client||''}</div>
+      ${s.note?`<div class="sb-note">${s.note}</div>`:''}
+      <button class="sb-del" title="Remove this day">&#x2715;</button>
+      <div class="sb-stretch" title="Drag to fill days">+</div>`;
+  }
+
+  // Drag to move
+  el.addEventListener('dragstart',e=>{
+    if(e.target.classList.contains('sb-stretch')) return;
+    draggingBlock=s; draggingJob=null; stretchBlock=null;
+    e.dataTransfer.effectAllowed='move';
+    e.stopPropagation();
+    setTimeout(()=>el.style.opacity='.3',0);
+  });
+  el.addEventListener('dragend',()=>{draggingBlock=null;el.style.opacity='1';});
+
+  // Stretch handle drag
+  const stretchHandle=el.querySelector('.sb-stretch');
+  if(stretchHandle){
+    stretchHandle.addEventListener('mousedown',e=>e.stopPropagation());
+    stretchHandle.addEventListener('dragstart',e=>{
+      e.stopPropagation();
+      stretchBlock=s; stretchEmp=s.employee;
+      draggingJob=null; draggingBlock=null;
+      e.dataTransfer.effectAllowed='copy';
+      e.dataTransfer.setDragImage(el,0,0);
+    });
+    stretchHandle.draggable=true;
+  }
+
+  // Delete
+  el.addEventListener('click',e=>{
+    if(e.target.classList.contains('sb-del')){
+      e.stopPropagation();
+      schedules=schedules.filter(x=>x.id!==s.id);
+      sendUpdate('delete',s); render();
+    } else if(!e.target.classList.contains('sb-stretch')){
+      e.stopPropagation(); openModal(s.employee,s.date,null,s);
+    }
+  });
+
+  return el;
+}
+
+// ── Stats ────────────────────────────────────
+function buildStats(days){
+  const dates=days.map(fmtD);
+  const active=schedules.filter(s=>dates.includes(s.date)&&s.employee!=='__unassigned__');
+  const unasgn=schedules.filter(s=>dates.includes(s.date)&&s.employee==='__unassigned__').length;
+  const people=new Set(active.map(s=>s.employee)).size;
+  const empRate={}; EMPLOYEES.forEach(e=>{empRate[e.name]=(e.hourly_rate||0)*8;});
+  const cost=active.reduce((t,s)=>t+(empRate[s.employee]||0),0);
+  document.getElementById('stats-bar').innerHTML=
+    `<span><strong>${people}</strong> people on jobs</span>
+     <span><strong>${active.length}</strong> day assignment${active.length!==1?'s':''}</span>
+     ${unasgn?`<span style="color:#d97706"><strong>${unasgn}</strong> unassigned</span>`:''}
+     <span style="margin-left:auto;font-weight:700;color:#059669">Est. labour: $${cost.toLocaleString()}</span>`;
+}
+
+// ── Modal ─────────────────────────────────────
+function openModal(empKey,dateStr,job,existing){
+  const s=existing||{};
+  const root=document.getElementById('modal-root');
+  root.innerHTML=`<div class="modal-overlay" id="m-overlay">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-title">${existing?'Edit schedule':'Schedule a job'}</div>
+      <div class="form-row"><label>Job</label>
+        <select id="m-job">${JOBS_DATA.map(j=>`<option value="${j.job_id}" ${(s.job_id||job?.job_id)===j.job_id?'selected':''}>${j.job_id}${j.client?' — '+j.client:''}</option>`).join('')}</select>
+      </div>
+      <div class="form-row"><label>Employee</label>
+        <select id="m-emp">
+          <option value="__unassigned__" ${(s.employee||empKey)==='__unassigned__'?'selected':''}>Unassigned</option>
+          ${EMPLOYEES.map(e=>`<option value="${e.name}" ${(s.employee||empKey)===e.name?'selected':''}>${e.name}${e.role?' ('+e.role+')':''}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-row"><label>Start date</label><input type="date" id="m-start" value="${s.date||dateStr||fmtD(new Date())}"></div>
+        <div class="form-row"><label>End date</label><input type="date" id="m-end" value="${s.date||dateStr||fmtD(new Date())}"></div>
+      </div>
+      <div class="form-row"><label>Note</label><input type="text" id="m-note" value="${s.note||''}" placeholder="Optional"></div>
+      <div class="modal-btns">
+        <button class="btn-primary" id="m-save">Save</button>
+        ${existing?'<button class="btn-danger" id="m-del">Remove</button>':''}
+        <button class="btn-ghost" id="m-cancel">Cancel</button>
+      </div>
+    </div></div>`;
+
+  document.getElementById('m-save').onclick=()=>{
+    const jid  =document.getElementById('m-job').value;
+    const emp  =document.getElementById('m-emp').value;
+    const start=document.getElementById('m-start').value;
+    const end  =document.getElementById('m-end').value;
+    const note =document.getElementById('m-note').value.trim();
+    if(!jid||!start) return alert('Job and start date are required.');
+
+    const startD=new Date(start+'T00:00:00');
+    const endD  =new Date((end||start)+'T00:00:00');
+    if(endD<startD) return alert('End date must be on or after start date.');
+
+    const jObj=JOBS_DATA.find(j=>j.job_id===jid)||{};
+    const client=jObj.client||'';
+
+    // If editing single block, update it and handle date change
+    if(existing){
+      existing.job_id=jid; existing.client=client;
+      existing.employee=emp; existing.date=start; existing.note=note;
+      sendUpdate('update',existing);
+    }
+
+    // Fill range if end > start
+    const dates=[];
+    for(let d=new Date(startD);d<=endD;d=addDays(d,1)) dates.push(fmtD(d));
+
+    if(!existing){
+      // Create blocks for all dates in range
+      dates.forEach(ds=>{
+        const ns={id:nextId++,job_id:jid,client,employee:emp,date:ds,note};
+        schedules.push(ns); sendUpdate('create',ns);
+      });
+    } else if(dates.length>1){
+      // Extend range from the edited block
+      const existingDates=new Set(schedules.filter(s=>s.employee===emp&&s.job_id===jid).map(s=>s.date));
+      dates.slice(1).forEach(ds=>{
+        if(!existingDates.has(ds)){
+          const ns={id:nextId++,job_id:jid,client,employee:emp,date:ds,note};
+          schedules.push(ns); sendUpdate('create',ns);
+        }
+      });
+    }
+
+    closeModal(); render();
+  };
+
+  if(existing) document.getElementById('m-del').onclick=()=>{
+    schedules=schedules.filter(x=>x.id!==existing.id);
+    sendUpdate('delete',existing); closeModal(); render();
+  };
+  document.getElementById('m-cancel').onclick=closeModal;
+  document.getElementById('m-overlay').onclick=closeModal;
+}
+
+function closeModal(){document.getElementById('modal-root').innerHTML='';}
+function sendUpdate(action,s){
+  // Use Streamlit component API if available, otherwise postMessage
+  const payload = {action, schedule:s};
+  if(window.Streamlit){
+    window.Streamlit.setComponentValue(payload);
+  } else {
+    // Fallback: postMessage to parent
+    window.parent.postMessage({
+      type: "streamlit:setComponentValue",
+      value: payload
+    }, "*");
+  }
+}
+
+// Initialise Streamlit component
+function initStreamlit(){
+  if(window.Streamlit){
+    window.Streamlit.setComponentReady();
+    window.Streamlit.setFrameHeight(document.body.scrollHeight || 780);
+  }
+}
+
+// Call on load
+window.addEventListener("load", function(){
+  initStreamlit();
+  // Also try after a short delay for slower loads
+  setTimeout(initStreamlit, 500);
+});
+
+// ── Nav ───────────────────────────────────────
+document.getElementById('prev').onclick    =()=>{curDate=addDays(curDate,viewMode==='day'?-1:-7);render();};
+document.getElementById('next').onclick    =()=>{curDate=addDays(curDate,viewMode==='day'? 1: 7);render();};
+document.getElementById('go-today').onclick=()=>{curDate=new Date();curDate.setHours(0,0,0,0);render();};
+document.getElementById('add-btn').onclick =()=>openModal('__unassigned__',fmtD(curDate),null,null);
+document.getElementById('job-search').addEventListener('input',buildJobsPanel);
+
+buildJobsPanel();
+render();
+initStreamlit();
+
+// Re-report height after render
+setTimeout(function(){
+  if(window.Streamlit){
+    window.Streamlit.setFrameHeight(document.documentElement.scrollHeight || 780);
+  }
+}, 200);
+</script>
+</body>
+</html>
