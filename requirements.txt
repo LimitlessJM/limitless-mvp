@@ -4,4 +4,4 @@ openpyxl
 reportlab
 pillow
 anthropic
- 
+psycopg2-binary
