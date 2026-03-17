@@ -2766,7 +2766,7 @@ elif page == "Catalogue":
             st.metric("Custom items", len(custom_df))
             for _, cr in custom_df.iterrows():
                 cid = int(cr["id"])
-                c1, c2 = st.columns([5,1])
+                c1, c2, c3 = st.columns([5,1,1])
                 with c1:
                     st.markdown(
                         "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;"
@@ -2778,9 +2778,45 @@ elif page == "Catalogue":
                         " · Sell: $" + f"{float(cr.get('sell_unit_rate',0)):,.2f}" + "</div>"
                         "</div>", unsafe_allow_html=True)
                 with c2:
+                    if st.button("✏️", key=f"edit_cc_{cid}", help="Edit"):
+                        st.session_state[f"editing_cc"] = cid
+                        st.rerun()
+                with c3:
                     if st.button("🗑", key=f"del_cc_{cid}", help="Delete"):
                         execute("DELETE FROM custom_catalogue WHERE id=?", (cid,))
+                        st.session_state.pop("editing_cc", None)
                         st.rerun()
+
+                # Inline edit form
+                if st.session_state.get("editing_cc") == cid:
+                    with st.form(f"edit_cc_form_{cid}"):
+                        ec1, ec2 = st.columns(2)
+                        with ec1:
+                            e_cat  = st.text_input("Category",    value=str(cr.get("category","") or ""))
+                            e_desc = st.text_input("Description", value=str(cr.get("description","") or ""))
+                            e_uom  = st.selectbox("UOM", ["lm","m2","Ea","each","m3","hr","item","allow"],
+                                index=["lm","m2","Ea","each","m3","hr","item","allow"].index(str(cr.get("uom","lm")))
+                                if str(cr.get("uom","lm")) in ["lm","m2","Ea","each","m3","hr","item","allow"] else 0)
+                        with ec2:
+                            e_mat  = st.number_input("Material cost", value=float(cr.get("material_cost",0) or 0), step=1.0)
+                            e_lab  = st.number_input("Labour cost",   value=float(cr.get("labour_cost",0)   or 0), step=1.0)
+                            e_sell = st.number_input("Sell rate",     value=float(cr.get("sell_unit_rate",0) or 0), step=1.0)
+                        es1, es2 = st.columns(2)
+                        with es1:
+                            if st.form_submit_button("💾 Save", type="primary"):
+                                execute("""UPDATE custom_catalogue SET
+                                    category=?, description=?, uom=?,
+                                    material_cost=?, labour_cost=?, sell_unit_rate=?
+                                    WHERE id=?""",
+                                    (e_cat.strip(), e_desc.strip(), e_uom,
+                                     e_mat, e_lab, e_sell, cid))
+                                st.session_state.pop("editing_cc", None)
+                                st.success("✅ Updated!")
+                                st.rerun()
+                        with es2:
+                            if st.form_submit_button("Cancel"):
+                                st.session_state.pop("editing_cc", None)
+                                st.rerun()
 
 
 # ─────────────────────────────────────────────
