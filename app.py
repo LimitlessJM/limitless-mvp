@@ -1973,6 +1973,10 @@ def get_estimate(job_id):
 
 
 def load_catalogue():
+    try:
+        import openpyxl  # noqa — ensure it's available
+    except ImportError:
+        raise ImportError("openpyxl not installed — add to requirements.txt")
     # Read with header=2 then promote row 0 to column names
     df = pd.read_excel(CATALOGUE_PATH, sheet_name="Catalogue_Clean", header=2)
     df.columns = df.iloc[0].tolist()
@@ -2868,6 +2872,10 @@ elif page == "Jobs":
                 cat = load_catalogue()
             except FileNotFoundError:
                 st.error(f"Catalogue not found: {CATALOGUE_PATH.name}"); st.stop()
+            except ImportError:
+                st.error("Missing dependency — run: pip install openpyxl"); st.stop()
+            except Exception as _cat_err:
+                st.error(f"Catalogue error: {_cat_err}"); st.stop()
 
             # Load saved estimate lines for this job
             saved_est = get_estimate(open_job)
