@@ -1881,7 +1881,7 @@ def seed_admin():
     if count == 0:
         execute("""INSERT INTO users (username, password_hash, full_name, role, active, created_date)
                    VALUES (?,?,?,?,?,?)""",
-                ("admin", hash_password("limitless2024"),
+                ("admin", hash_password("LeviNashMikaela181889!"),
                  "Administrator", "Admin", 1, date.today().isoformat()))
 
 ROLE_PAGES = {
@@ -2175,7 +2175,7 @@ if not st.session_state["authenticated_user"]:
     st.markdown("""
     <div style="text-align:center;margin-top:2rem;font-size:11px;color:#475569">
         Default login: <strong style="color:#64748b">admin</strong> /
-        <strong style="color:#64748b">limitless2024</strong><br>
+        <strong style="color:#64748b">contact admin for access</strong><br>
         Change your password in User Management after first login.
     </div>
     """, unsafe_allow_html=True)
