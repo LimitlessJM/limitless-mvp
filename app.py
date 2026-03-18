@@ -2251,56 +2251,9 @@ def profit_metrics(job_id):
 # ─────────────────────────────────────────────
 #  INIT + SIDEBAR
 # ─────────────────────────────────────────────
-if not USE_POSTGRES:
-    init_db()
-    seed_admin()
-else:
-    try:
-        _pg = get_conn()
-        _c  = _pg.cursor()
-        for _sql in [
-            """CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, role TEXT DEFAULT 'Estimator', created_at TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS jobs (job_id TEXT PRIMARY KEY, client TEXT DEFAULT '', address TEXT DEFAULT '', estimator TEXT DEFAULT '', stage TEXT DEFAULT 'Lead', sell_price REAL DEFAULT 0, archived INTEGER DEFAULT 0, job_type TEXT DEFAULT 'Residential', job_finish TEXT DEFAULT 'Steel', parent_job TEXT DEFAULT '', is_variation INTEGER DEFAULT 0, variation_title TEXT DEFAULT '', running_cost_pct REAL DEFAULT 0.11, tender_material_budget REAL DEFAULT 0, tender_labour_budget REAL DEFAULT 0, tender_profit_pct REAL DEFAULT 0)""",
-            """CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, company TEXT DEFAULT '', name TEXT DEFAULT '', email TEXT DEFAULT '', phone TEXT DEFAULT '', address TEXT DEFAULT '', client_type TEXT DEFAULT 'Builder', notes TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS employees (id SERIAL PRIMARY KEY, name TEXT UNIQUE, role TEXT DEFAULT 'Roofer', hourly_rate REAL DEFAULT 0, phone TEXT DEFAULT '', active INTEGER DEFAULT 1, pin TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS estimate_lines (id SERIAL PRIMARY KEY, job_id TEXT, section TEXT DEFAULT '', item TEXT DEFAULT '', uom TEXT DEFAULT '', qty REAL DEFAULT 0, material_cost REAL DEFAULT 0, labour_cost REAL DEFAULT 0)""",
-            """CREATE TABLE IF NOT EXISTS labour_logs (id SERIAL PRIMARY KEY, work_date TEXT, job_id TEXT, employee TEXT, hours REAL DEFAULT 8, hourly_rate REAL DEFAULT 0, note TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS material_invoices (id SERIAL PRIMARY KEY, invoice_date TEXT, job_id TEXT, supplier TEXT DEFAULT '', invoice_number TEXT DEFAULT '', amount REAL DEFAULT 0, status TEXT DEFAULT 'Entered', note TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS client_invoices (id SERIAL PRIMARY KEY, invoice_number TEXT, job_id TEXT, milestone_id INTEGER DEFAULT 0, issue_date TEXT, due_date TEXT DEFAULT '', amount_ex_gst REAL DEFAULT 0, gst REAL DEFAULT 0, total_inc_gst REAL DEFAULT 0, status TEXT DEFAULT 'Issued', milestone TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS payment_schedule (id SERIAL PRIMARY KEY, job_id TEXT, milestone TEXT DEFAULT '', pct REAL DEFAULT 0, amount REAL DEFAULT 0, status TEXT DEFAULT 'Unpaid', due_date TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS variations (id SERIAL PRIMARY KEY, job_id TEXT, var_number TEXT DEFAULT '', description TEXT DEFAULT '', value REAL DEFAULT 0, status TEXT DEFAULT 'Pending', date_raised TEXT DEFAULT '', approved_by TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS pipeline (id SERIAL PRIMARY KEY, job_id TEXT UNIQUE, client TEXT DEFAULT '', sell_price REAL DEFAULT 0, probability INTEGER DEFAULT 50, stage TEXT DEFAULT 'Tender', expected_date TEXT DEFAULT '', notes TEXT DEFAULT '', secured INTEGER DEFAULT 0, archived INTEGER DEFAULT 0)""",
-            """CREATE TABLE IF NOT EXISTS day_assignments (id SERIAL PRIMARY KEY, job_id TEXT DEFAULT '', client TEXT DEFAULT '', employee TEXT DEFAULT '__unassigned__', date TEXT DEFAULT '', note TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS company_settings (id SERIAL PRIMARY KEY, company_name TEXT DEFAULT 'Limitless Estimation Services', abn TEXT DEFAULT '', address TEXT DEFAULT '', phone TEXT DEFAULT '', email TEXT DEFAULT '', bank_name TEXT DEFAULT '', bsb TEXT DEFAULT '', account_number TEXT DEFAULT '', account_name TEXT DEFAULT '', payment_terms TEXT DEFAULT '14 days', logo_text TEXT DEFAULT 'LIMITLESS', overhead_pct REAL DEFAULT 11.0, markup_default REAL DEFAULT 30.0, logo_data BYTEA DEFAULT NULL, logo_filename TEXT DEFAULT '', terms_conditions TEXT DEFAULT '', website TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS invoice_counter (id SERIAL PRIMARY KEY, last_number INTEGER DEFAULT 0)""",
-            """CREATE TABLE IF NOT EXISTS job_counter (id SERIAL PRIMARY KEY, prefix TEXT UNIQUE, last_number INTEGER DEFAULT 0)""",
-            """CREATE TABLE IF NOT EXISTS site_diary (id SERIAL PRIMARY KEY, job_id TEXT, diary_date TEXT, weather TEXT DEFAULT '', temp TEXT DEFAULT '', workers_on_site TEXT DEFAULT '', hours_worked REAL DEFAULT 0, notes TEXT DEFAULT '', created_by TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS job_photos (id SERIAL PRIMARY KEY, job_id TEXT, photo_date TEXT, caption TEXT DEFAULT '', photo_data BYTEA, uploaded_by TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS job_files (id SERIAL PRIMARY KEY, job_id TEXT, filename TEXT, filetype TEXT DEFAULT '', filedata BYTEA, uploaded_at TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS custom_catalogue (id SERIAL PRIMARY KEY, category TEXT DEFAULT '', description TEXT NOT NULL, uom TEXT DEFAULT 'lm', material_cost REAL DEFAULT 0, labour_cost REAL DEFAULT 0, sell_unit_rate REAL DEFAULT 0, created_by TEXT DEFAULT '', created_at TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS clock_events (id SERIAL PRIMARY KEY, employee TEXT NOT NULL, job_id TEXT DEFAULT '', event_type TEXT NOT NULL, event_time TEXT NOT NULL, event_date TEXT NOT NULL, note TEXT DEFAULT '')""",
-            """CREATE TABLE IF NOT EXISTS mobile_variations (id SERIAL PRIMARY KEY, employee TEXT NOT NULL, job_id TEXT NOT NULL, description TEXT NOT NULL, submitted_at TEXT NOT NULL, status TEXT DEFAULT 'Pending', photo_data BYTEA DEFAULT NULL)""",
-        ]:
-            _c.execute(_sql)
-        _pg.commit()
-        # Seed defaults
-        _c.execute("SELECT COUNT(*) FROM company_settings")
-        if _c.fetchone()[0] == 0:
-            _c.execute("INSERT INTO company_settings (id) VALUES (1)")
-        _c.execute("SELECT COUNT(*) FROM invoice_counter")
-        if _c.fetchone()[0] == 0:
-            _c.execute("INSERT INTO invoice_counter (last_number) VALUES (0)")
-        _c.execute("SELECT COUNT(*) FROM users")
-        if _c.fetchone()[0] == 0:
-            import hashlib as _hl
-            _h = _hl.sha256("limitless2024".encode()).hexdigest()
-            _c.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", ("admin", _h, "Director"))
-        _pg.commit()
-        _pg.close()
-    except Exception as _pg_err:
-        st.error(f"Database setup error: {_pg_err}")
+init_db()
+seed_admin()
 
-# ─────────────────────────────────────────────
 #  LOGIN GATE
 # ─────────────────────────────────────────────
 if "authenticated_user" not in st.session_state:
