@@ -2338,6 +2338,24 @@ if st.sidebar.button("Sign Out", key="signout"):
     st.session_state["authenticated_user"] = None
     st.rerun()
 
+# Supabase sync buttons
+if USE_SUPABASE:
+    st.sidebar.divider()
+    if st.sidebar.button("🔄 Sync to mobile", use_container_width=True):
+        try:
+            sync_to_mobile()
+            st.sidebar.success("✅ Pushed to mobile!")
+        except Exception as _e:
+            st.sidebar.error(str(_e))
+    if st.sidebar.button("📥 Pull from mobile", use_container_width=True):
+        try:
+            sync_from_mobile()
+            st.sidebar.success("✅ Pulled clock-ins!")
+        except Exception as _e:
+            st.sidebar.error(str(_e))
+else:
+    st.sidebar.caption("⚠️ Supabase not connected — check secrets")
+
 st.sidebar.markdown("<div style='font-size:10px;font-weight:600;letter-spacing:0.1em;color:#666;text-transform:uppercase;margin-bottom:4px'>Navigation</div>", unsafe_allow_html=True)
 # Group pages with dividers
 SIDEBAR_GROUPS = {
