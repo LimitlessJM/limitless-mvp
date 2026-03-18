@@ -2346,7 +2346,11 @@ if USE_SUPABASE:
             if not _supa_client:
                 st.sidebar.error("Supabase client not initialized")
             else:
-                emps = fetch_df("SELECT id, name, role, hourly_rate, active, pin FROM employees WHERE active=1")
+                # Add pin column if missing
+                try:
+                    execute("ALTER TABLE employees ADD COLUMN pin TEXT DEFAULT ''")
+                except: pass
+                emps = fetch_df("SELECT id, name, role, hourly_rate, active, COALESCE(pin,'') as pin FROM employees WHERE active=1")
                 st.sidebar.write(f"Found {len(emps)} employees to sync")
                 for _, r in emps.iterrows():
                     result = _supa_client.table("employees").upsert({
