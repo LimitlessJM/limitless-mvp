@@ -826,10 +826,20 @@ def fetch_df(query, params=()):
     conn = get_conn()
     query = adapt_query(query)
     try:
-        df = pd.read_sql_query(query, conn, params=list(params) if params else [])
-    finally:
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(query, list(params) if params else None)
+            rows = cur.fetchall()
+            df = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame()
+            conn.close()
+            return df
+        else:
+            df = pd.read_sql_query(query, conn, params=list(params) if params else [])
+            conn.close()
+            return df
+    except Exception as _e:
         conn.close()
-    return df
+        raise _e
 
 
 def execute(query, params=()):
@@ -837,7 +847,7 @@ def execute(query, params=()):
     query = adapt_query(query)
     try:
         cur = conn.cursor()
-        cur.execute(query, list(params) if params else [])
+        cur.execute(query, list(params) if params else None)
         conn.commit()
     finally:
         conn.close()
