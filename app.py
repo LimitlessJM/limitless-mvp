@@ -18,27 +18,38 @@ CALENDAR_PATH  = Path(__file__).with_name("calendar.html")
 
 st.set_page_config(page_title="Limitless", layout="wide", page_icon="⬛")
 
-# ── Database: Supabase or SQLite fallback ──────────────────────────────────
+# ── Database config ────────────────────────────────────────────────────────
 try:
     SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
     SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+    DB_URL       = st.secrets.get("DB_URL", "")
 except:
     SUPABASE_URL = ""
     SUPABASE_KEY = ""
+    DB_URL       = ""
 
+USE_POSTGRES = bool(DB_URL)
 USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_KEY)
 
 if USE_SUPABASE:
     try:
         from supabase import create_client
         _supa_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as _se:
-        USE_SUPABASE = False
+    except:
         _supa_client = None
 else:
     _supa_client = None
 
+if USE_POSTGRES:
+    try:
+        import psycopg2
+        import psycopg2.extras
+    except ImportError:
+        USE_POSTGRES = False
+
 def adapt_query(query):
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
     return query
 
 # ─── Global dark theme ────────────────────────────────────────────────────────
@@ -350,6 +361,10 @@ details summary {
 #  DATABASE
 # ─────────────────────────────────────────────
 def get_conn():
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DB_URL, connect_timeout=10)
+        conn.autocommit = False
+        return conn
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
@@ -379,7 +394,7 @@ def init_db():
                     tender_profit_pct      REAL DEFAULT 0,
                     archived               INTEGER DEFAULT 0
                 );
-                INSERT OR IGNORE INTO jobs
+                INSERT INTO jobs
                     SELECT
                         job_id,
                         COALESCE(client,''),
@@ -784,7 +799,7 @@ def init_db():
                 hourly_rate REAL DEFAULT 0,
                 note        TEXT DEFAULT ''
             );
-            INSERT OR IGNORE INTO labour_logs
+            INSERT INTO labour_logs
                 SELECT id, work_date, job_id,
                        COALESCE(crew_name, ''),
                        COALESCE(hours, 0),
@@ -809,8 +824,9 @@ def init_db():
 
 def fetch_df(query, params=()):
     conn = get_conn()
+    query = adapt_query(query)
     try:
-        df = pd.read_sql_query(query, conn, params=params)
+        df = pd.read_sql_query(query, conn, params=list(params) if params else [])
     finally:
         conn.close()
     return df
@@ -818,9 +834,10 @@ def fetch_df(query, params=()):
 
 def execute(query, params=()):
     conn = get_conn()
+    query = adapt_query(query)
     try:
         cur = conn.cursor()
-        cur.execute(query, params)
+        cur.execute(query, list(params) if params else [])
         conn.commit()
     finally:
         conn.close()
@@ -890,7 +907,7 @@ def sync_from_mobile():
         for e in events:
             existing = fetch_df("SELECT id FROM clock_events WHERE id=?", (e["id"],))
             if existing.empty:
-                execute("""INSERT OR IGNORE INTO clock_events
+                execute("""INSERT INTO clock_events
                     (id, employee, job_id, event_type, event_time, event_date, note)
                     VALUES (?,?,?,?,?,?,?)""",
                     (e["id"], e.get("employee",""), e.get("job_id",""),
@@ -901,7 +918,7 @@ def sync_from_mobile():
         for v in vars_data:
             existing = fetch_df("SELECT id FROM mobile_variations WHERE id=?", (v["id"],))
             if existing.empty:
-                execute("""INSERT OR IGNORE INTO mobile_variations
+                execute("""INSERT INTO mobile_variations
                     (id, employee, job_id, description, submitted_at, status)
                     VALUES (?,?,?,?,?,?)""",
                     (v["id"], v.get("employee",""), v.get("job_id",""),
@@ -2052,7 +2069,7 @@ def upsert_job(job_id, client, address, estimator, stage):
     existing = fetch_df("SELECT job_id FROM jobs WHERE job_id=?", (job_id,))
     if existing.empty:
         execute(
-            "INSERT OR IGNORE INTO jobs (job_id, client, address, estimator, stage, archived) VALUES (?,?,?,?,?,0)",
+            "INSERT INTO jobs (job_id, client, address, estimator, stage, archived) VALUES (?,?,?,?,?,0)",
             (job_id, client, address, estimator, stage),
         )
     else:
@@ -2251,8 +2268,27 @@ def profit_metrics(job_id):
 # ─────────────────────────────────────────────
 #  INIT + SIDEBAR
 # ─────────────────────────────────────────────
-init_db()
-seed_admin()
+if not USE_POSTGRES:
+    init_db()
+    seed_admin()
+else:
+    # PostgreSQL — tables already created in Supabase
+    # Just seed admin user if needed
+    try:
+        existing = fetch_df("SELECT COUNT(*) as c FROM users")
+        if existing.iloc[0]["c"] == 0:
+            import hashlib as _hl
+            _h = _hl.sha256("limitless2024".encode()).hexdigest()
+            execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
+                ("admin", _h, "Director"))
+        existing_s = fetch_df("SELECT COUNT(*) as c FROM company_settings")
+        if existing_s.iloc[0]["c"] == 0:
+            execute("INSERT INTO company_settings (id) VALUES (1)")
+        existing_i = fetch_df("SELECT COUNT(*) as c FROM invoice_counter")
+        if existing_i.iloc[0]["c"] == 0:
+            execute("INSERT INTO invoice_counter (last_number) VALUES (0)")
+    except Exception as _pg_init_err:
+        st.error(f"DB init error: {_pg_init_err}")
 
 #  LOGIN GATE
 # ─────────────────────────────────────────────
