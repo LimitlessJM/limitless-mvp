@@ -18,38 +18,24 @@ CALENDAR_PATH  = Path(__file__).with_name("calendar.html")
 
 st.set_page_config(page_title="Limitless", layout="wide", page_icon="⬛")
 
-# ── Database config ────────────────────────────────────────────────────────
+# ── Database: SQLite ───────────────────────────────────────────────────────
+USE_POSTGRES = False
+USE_SUPABASE = False
+_supa_client = None
+
+# Supabase sync (optional - for mobile sync only)
 try:
     SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
     SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
-    DB_URL       = st.secrets.get("DB_URL", "")
+    if SUPABASE_URL and SUPABASE_KEY:
+        from supabase import create_client
+        _supa_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        USE_SUPABASE = True
 except:
     SUPABASE_URL = ""
     SUPABASE_KEY = ""
-    DB_URL       = ""
-
-USE_POSTGRES = bool(DB_URL)
-USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_KEY)
-
-if USE_SUPABASE:
-    try:
-        from supabase import create_client
-        _supa_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    except:
-        _supa_client = None
-else:
-    _supa_client = None
-
-if USE_POSTGRES:
-    try:
-        import psycopg2
-        import psycopg2.extras
-    except ImportError:
-        USE_POSTGRES = False
 
 def adapt_query(query):
-    if USE_POSTGRES:
-        return query.replace("?", "%s")
     return query
 
 # ─── Global dark theme ────────────────────────────────────────────────────────
@@ -360,29 +346,11 @@ details summary {
 # ─────────────────────────────────────────────
 #  DATABASE
 # ─────────────────────────────────────────────
-@st.cache_resource
-def get_pg_pool():
-    """Create a persistent connection pool for PostgreSQL."""
-    from psycopg2 import pool
-    return pool.SimpleConnectionPool(1, 10, DB_URL, connect_timeout=10)
-
 def get_conn():
-    if USE_POSTGRES:
-        try:
-            pool = get_pg_pool()
-            return pool.getconn()
-        except:
-            return psycopg2.connect(DB_URL, connect_timeout=10)
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def release_conn(conn):
-    if USE_POSTGRES:
-        try:
-            get_pg_pool().putconn(conn)
-        except:
-            conn.close()
-    else:
-        conn.close()
+    conn.close()
 
 
 def init_db():
@@ -841,32 +809,21 @@ def init_db():
 
 def fetch_df(query, params=()):
     conn = get_conn()
-    query = adapt_query(query)
     try:
-        if USE_POSTGRES:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute(query, list(params) if params else None)
-            rows = cur.fetchall()
-            df = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame()
-            return df
-        else:
-            df = pd.read_sql_query(query, conn, params=list(params) if params else [])
-            return df
-    except Exception as _e:
-        raise _e
+        df = pd.read_sql_query(query, conn, params=list(params) if params else [])
+        return df
     finally:
-        release_conn(conn)
+        conn.close()
 
 
 def execute(query, params=()):
     conn = get_conn()
-    query = adapt_query(query)
     try:
         cur = conn.cursor()
-        cur.execute(query, list(params) if params else None)
+        cur.execute(query, list(params) if params else [])
         conn.commit()
     finally:
-        release_conn(conn)
+        conn.close()
 
 
 # ── Supabase sync helpers ──────────────────────────────────────────────────
@@ -2294,27 +2251,8 @@ def profit_metrics(job_id):
 # ─────────────────────────────────────────────
 #  INIT + SIDEBAR
 # ─────────────────────────────────────────────
-if not USE_POSTGRES:
-    init_db()
-    seed_admin()
-else:
-    # PostgreSQL — tables already created in Supabase
-    # Just seed admin user if needed
-    try:
-        existing = fetch_df("SELECT COUNT(*) as c FROM users")
-        if existing.iloc[0]["c"] == 0:
-            import hashlib as _hl
-            _h = _hl.sha256("limitless2024".encode()).hexdigest()
-            execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
-                ("admin", _h, "Director"))
-        existing_s = fetch_df("SELECT COUNT(*) as c FROM company_settings")
-        if existing_s.iloc[0]["c"] == 0:
-            execute("INSERT INTO company_settings (id) VALUES (1)")
-        existing_i = fetch_df("SELECT COUNT(*) as c FROM invoice_counter")
-        if existing_i.iloc[0]["c"] == 0:
-            execute("INSERT INTO invoice_counter (last_number) VALUES (0)")
-    except Exception as _pg_init_err:
-        st.error(f"DB init error: {_pg_init_err}")
+init_db()
+seed_admin()
 
 #  LOGIN GATE
 # ─────────────────────────────────────────────
@@ -2401,18 +2339,7 @@ if st.sidebar.button("Sign Out", key="signout"):
     st.rerun()
 
 # DB status indicator
-if USE_POSTGRES:
-    st.sidebar.success("🗄️ Supabase PostgreSQL")
-else:
-    st.sidebar.warning("⚠️ SQLite (data lost on reboot)")
-    try:
-        import psycopg2
-        st.sidebar.caption("psycopg2 OK")
-        conn = psycopg2.connect(DB_URL, connect_timeout=5)
-        conn.close()
-        st.sidebar.caption("Connection OK — reload needed")
-    except Exception as _de:
-        st.sidebar.caption(f"psycopg2 error: {_de}")
+
 
 # Supabase sync buttons
 if USE_SUPABASE:
@@ -2751,7 +2678,7 @@ if page == "Dashboard":
         st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 10px'>Recent activity</div>", unsafe_allow_html=True)
         recent = fetch_df("""
             SELECT ll.work_date, ll.job_id, ll.employee,
-                   ll.hours, ROUND((ll.hours*ll.hourly_rate)::NUMERIC,2) AS cost
+                   ll.hours, ROUND(ll.hours*ll.hourly_rate,2) AS cost
             FROM labour_logs ll ORDER BY ll.work_date DESC, ll.id DESC LIMIT 6
         """)
         if not recent.empty:
@@ -3747,7 +3674,7 @@ elif page == "Jobs":
         with wtab5:
             wlog = fetch_df("""
                 SELECT id,work_date,employee,hours,hourly_rate,
-                       ROUND((hours*hourly_rate)::NUMERIC,2) AS cost,note
+                       ROUND(hours*hourly_rate,2) AS cost,note
                 FROM labour_logs WHERE job_id=? ORDER BY work_date
             """, (open_job,))
 
@@ -5421,7 +5348,7 @@ elif page == "Actual Labour Log":
 
     log_df = fetch_df("""
         SELECT id, work_date, job_id, employee, hours, hourly_rate,
-               ROUND((hours * hourly_rate)::NUMERIC,2) AS cost, note
+               ROUND(hours * hourly_rate,2) AS cost, note
         FROM labour_logs WHERE job_id=? ORDER BY work_date
     """, (selected_job,))
 
@@ -7182,7 +7109,7 @@ elif page == "Timesheets":
     # Load all labour logs for this week
     week_logs = fetch_df("""
         SELECT ll.employee, ll.work_date, ll.job_id, ll.hours, ll.hourly_rate,
-               ROUND((ll.hours*ll.hourly_rate)::NUMERIC,2) AS cost, ll.note
+               ROUND(ll.hours*ll.hourly_rate,2) AS cost, ll.note
         FROM labour_logs ll
         WHERE ll.work_date >= ? AND ll.work_date <= ?
         ORDER BY ll.employee, ll.work_date
@@ -7340,7 +7267,7 @@ elif page == "Company Settings":
         with cs2:
             s_logo  = st.text_input("Logo text (shown on PDFs)", value=settings.get("logo_text","LIMITLESS"))
             s_terms = st.number_input("Payment terms (days)", min_value=1, max_value=90,
-                        value=int(settings.get("payment_terms",14)), step=1)
+                        value=int(settings.get("payment_terms",14) or 14), step=1)
 
         st.divider()
         st.subheader("Bank details")
@@ -7539,7 +7466,7 @@ elif page == "Company P&L":
     # Labour costs
     lab_pl = fetch_df("""
         SELECT ll.work_date, ll.hours, ll.hourly_rate,
-               ROUND((ll.hours*ll.hourly_rate)::NUMERIC,2) AS cost, ll.job_id, ll.employee
+               ROUND(ll.hours*ll.hourly_rate,2) AS cost, ll.job_id, ll.employee
         FROM labour_logs ll
         WHERE ll.work_date >= ? AND ll.work_date <= ?
     """, (ds, de))
