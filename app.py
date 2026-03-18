@@ -2374,6 +2374,12 @@ if st.sidebar.button("Sign Out", key="signout"):
     st.session_state["authenticated_user"] = None
     st.rerun()
 
+# DB status indicator
+if USE_POSTGRES:
+    st.sidebar.success("🗄️ Supabase PostgreSQL")
+else:
+    st.sidebar.warning("⚠️ SQLite (data lost on reboot)")
+
 # Supabase sync buttons
 if USE_SUPABASE:
     st.sidebar.divider()
