@@ -5,3 +5,4 @@ reportlab
 pillow
 anthropic
 supabase
+psycopg2-binary
