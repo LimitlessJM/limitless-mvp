@@ -2799,7 +2799,7 @@ if page == "Dashboard":
         st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 10px'>Recent activity</div>", unsafe_allow_html=True)
         recent = fetch_df("""
             SELECT ll.work_date, ll.job_id, ll.employee,
-                   ll.hours, ROUND(ll.hours*ll.hourly_rate,2) AS cost
+                   ll.hours, ROUND((ll.hours*ll.hourly_rate)::NUMERIC,2) AS cost
             FROM labour_logs ll ORDER BY ll.work_date DESC, ll.id DESC LIMIT 6
         """)
         if not recent.empty:
@@ -3795,7 +3795,7 @@ elif page == "Jobs":
         with wtab5:
             wlog = fetch_df("""
                 SELECT id,work_date,employee,hours,hourly_rate,
-                       ROUND(hours*hourly_rate,2) AS cost,note
+                       ROUND((hours*hourly_rate)::NUMERIC,2) AS cost,note
                 FROM labour_logs WHERE job_id=? ORDER BY work_date
             """, (open_job,))
 
@@ -5469,7 +5469,7 @@ elif page == "Actual Labour Log":
 
     log_df = fetch_df("""
         SELECT id, work_date, job_id, employee, hours, hourly_rate,
-               ROUND(hours * hourly_rate,2) AS cost, note
+               ROUND((hours * hourly_rate)::NUMERIC,2) AS cost, note
         FROM labour_logs WHERE job_id=? ORDER BY work_date
     """, (selected_job,))
 
@@ -7230,7 +7230,7 @@ elif page == "Timesheets":
     # Load all labour logs for this week
     week_logs = fetch_df("""
         SELECT ll.employee, ll.work_date, ll.job_id, ll.hours, ll.hourly_rate,
-               ROUND(ll.hours*ll.hourly_rate,2) AS cost, ll.note
+               ROUND((ll.hours*ll.hourly_rate)::NUMERIC,2) AS cost, ll.note
         FROM labour_logs ll
         WHERE ll.work_date >= ? AND ll.work_date <= ?
         ORDER BY ll.employee, ll.work_date
@@ -7587,7 +7587,7 @@ elif page == "Company P&L":
     # Labour costs
     lab_pl = fetch_df("""
         SELECT ll.work_date, ll.hours, ll.hourly_rate,
-               ROUND(ll.hours*ll.hourly_rate,2) AS cost, ll.job_id, ll.employee
+               ROUND((ll.hours*ll.hourly_rate)::NUMERIC,2) AS cost, ll.job_id, ll.employee
         FROM labour_logs ll
         WHERE ll.work_date >= ? AND ll.work_date <= ?
     """, (ds, de))
