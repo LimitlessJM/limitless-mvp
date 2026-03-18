@@ -868,8 +868,8 @@ def sync_to_mobile():
                 "job_id": str(r["job_id"]), "client": str(r.get("client","")),
                 "address": str(r.get("address","")), "stage": str(r.get("stage",""))
             })
-        # Sync day assignments for next 14 days
-        assigns = fetch_df("SELECT id, job_id, client, employee, date, note FROM day_assignments WHERE date >= date('now')")
+        # Sync day assignments — last 7 days and next 30 days
+        assigns = fetch_df("SELECT id, job_id, client, employee, date, note FROM day_assignments WHERE date >= date('now', '-7 days')")
         for _, r in assigns.iterrows():
             supa_push("day_assignments", {
                 "id": int(r["id"]), "job_id": str(r.get("job_id","")),
