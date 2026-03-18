@@ -3677,7 +3677,53 @@ elif page == "Jobs":
 
             if not wlog.empty:
                 st.metric("Total logged labour", f"${(wlog['hours']*wlog['hourly_rate']).sum():,.2f}")
-                st.dataframe(wlog, width="stretch")
+
+                for _, lr in wlog.iterrows():
+                    lid = int(lr["id"])
+                    lc1, lc2, lc3 = st.columns([5,1,1])
+                    with lc1:
+                        st.markdown(
+                            "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;"
+                            "padding:10px 16px;margin-bottom:4px;display:flex;gap:16px;align-items:center'>"
+                            "<span style='color:#2dd4bf;font-weight:700;min-width:90px'>" + str(lr["work_date"]) + "</span>"
+                            "<span style='color:#e2e8f0'>" + str(lr["employee"]) + "</span>"
+                            "<span style='color:#64748b'>" + f"{float(lr['hours']):.1f}h @ ${float(lr['hourly_rate']):.0f}/hr" + "</span>"
+                            "<span style='color:#2dd4bf;font-weight:700;margin-left:auto'>$" + f"{float(lr['cost']):,.2f}" + "</span>"
+                            + (f"<span style='color:#475569;font-size:12px'>{lr['note']}</span>" if lr.get('note') else "") +
+                            "</div>", unsafe_allow_html=True)
+                    with lc2:
+                        if st.button("✏️", key=f"edit_lab_{lid}", help="Edit"):
+                            st.session_state[f"editing_lab"] = lid
+                            st.rerun()
+                    with lc3:
+                        if st.button("🗑", key=f"del_lab_{lid}", help="Delete"):
+                            execute("DELETE FROM labour_logs WHERE id=?", (lid,))
+                            st.rerun()
+
+                    # Inline edit form
+                    if st.session_state.get("editing_lab") == lid:
+                        with st.form(f"edit_lab_{lid}"):
+                            el1, el2, el3 = st.columns(3)
+                            with el1:
+                                e_date = st.text_input("Date", value=str(lr["work_date"]))
+                                e_emp  = st.text_input("Employee", value=str(lr["employee"]))
+                            with el2:
+                                e_hrs  = st.number_input("Hours", value=float(lr["hours"]), step=0.5)
+                                e_rate = st.number_input("Rate ($/hr)", value=float(lr["hourly_rate"]), step=5.0)
+                            with el3:
+                                e_note = st.text_input("Note", value=str(lr.get("note","") or ""))
+                                st.metric("Cost", f"${e_hrs*e_rate:,.2f}")
+                            es1, es2 = st.columns(2)
+                            with es1:
+                                if st.form_submit_button("💾 Save", type="primary"):
+                                    execute("UPDATE labour_logs SET work_date=?,employee=?,hours=?,hourly_rate=?,note=? WHERE id=?",
+                                        (e_date, e_emp, e_hrs, e_rate, e_note, lid))
+                                    st.session_state.pop("editing_lab", None)
+                                    st.rerun()
+                            with es2:
+                                if st.form_submit_button("Cancel"):
+                                    st.session_state.pop("editing_lab", None)
+                                    st.rerun()
             else:
                 st.info("No labour entries yet.")
 
