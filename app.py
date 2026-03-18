@@ -2343,10 +2343,21 @@ if USE_SUPABASE:
     st.sidebar.divider()
     if st.sidebar.button("🔄 Sync to mobile", use_container_width=True):
         try:
-            sync_to_mobile()
-            st.sidebar.success("✅ Pushed to mobile!")
+            if not _supa_client:
+                st.sidebar.error("Supabase client not initialized")
+            else:
+                emps = fetch_df("SELECT id, name, role, hourly_rate, active, pin FROM employees WHERE active=1")
+                st.sidebar.write(f"Found {len(emps)} employees to sync")
+                for _, r in emps.iterrows():
+                    result = _supa_client.table("employees").upsert({
+                        "id": int(r["id"]), "name": str(r["name"]),
+                        "role": str(r.get("role","")), "hourly_rate": float(r.get("hourly_rate",0)),
+                        "active": int(r.get("active",1)), "pin": str(r.get("pin",""))
+                    }).execute()
+                    st.sidebar.write(f"Synced: {r['name']}")
+                st.sidebar.success("✅ Done!")
         except Exception as _e:
-            st.sidebar.error(str(_e))
+            st.sidebar.error(f"Error: {_e}")
     if st.sidebar.button("📥 Pull from mobile", use_container_width=True):
         try:
             sync_from_mobile()
