@@ -18,9 +18,25 @@ CALENDAR_PATH  = Path(__file__).with_name("calendar.html")
 
 st.set_page_config(page_title="Limitless", layout="wide", page_icon="⬛")
 
-# ── Database mode: SQLite (local) ──────────────────────────────────────────
-USE_POSTGRES = False
-DB_URL = ""
+# ── Database: Supabase or SQLite fallback ──────────────────────────────────
+try:
+    SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+    SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+except:
+    SUPABASE_URL = ""
+    SUPABASE_KEY = ""
+
+USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_KEY)
+
+if USE_SUPABASE:
+    try:
+        from supabase import create_client
+        _supa_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as _se:
+        USE_SUPABASE = False
+        _supa_client = None
+else:
+    _supa_client = None
 
 def adapt_query(query):
     return query
@@ -793,7 +809,6 @@ def init_db():
 
 def fetch_df(query, params=()):
     conn = get_conn()
-    query = adapt_query(query)
     try:
         df = pd.read_sql_query(query, conn, params=params)
     finally:
@@ -803,13 +818,97 @@ def fetch_df(query, params=()):
 
 def execute(query, params=()):
     conn = get_conn()
-    query = adapt_query(query)
     try:
         cur = conn.cursor()
         cur.execute(query, params)
         conn.commit()
     finally:
         conn.close()
+
+
+# ── Supabase sync helpers ──────────────────────────────────────────────────
+def supa_push(table, data):
+    """Push a record to Supabase."""
+    if not USE_SUPABASE or not _supa_client:
+        return
+    try:
+        _supa_client.table(table).upsert(data).execute()
+    except Exception as _e:
+        pass  # Fail silently — local DB is source of truth
+
+
+def supa_pull(table):
+    """Pull all records from Supabase table as list of dicts."""
+    if not USE_SUPABASE or not _supa_client:
+        return []
+    try:
+        result = _supa_client.table(table).select("*").execute()
+        return result.data or []
+    except:
+        return []
+
+
+def sync_to_mobile():
+    """Push employees, jobs, day_assignments to Supabase for mobile to read."""
+    if not USE_SUPABASE:
+        return
+    try:
+        # Sync employees
+        emps = fetch_df("SELECT id, name, role, hourly_rate, active, pin FROM employees WHERE active=1")
+        for _, r in emps.iterrows():
+            supa_push("employees", {
+                "id": int(r["id"]), "name": str(r["name"]),
+                "role": str(r.get("role","")), "hourly_rate": float(r.get("hourly_rate",0)),
+                "active": int(r.get("active",1)), "pin": str(r.get("pin",""))
+            })
+        # Sync jobs
+        jobs = fetch_df("SELECT job_id, client, address, stage FROM jobs WHERE archived=0 AND COALESCE(is_variation,0)=0")
+        for _, r in jobs.iterrows():
+            supa_push("jobs", {
+                "job_id": str(r["job_id"]), "client": str(r.get("client","")),
+                "address": str(r.get("address","")), "stage": str(r.get("stage",""))
+            })
+        # Sync day assignments for next 14 days
+        assigns = fetch_df("SELECT id, job_id, client, employee, date, note FROM day_assignments WHERE date >= date('now')")
+        for _, r in assigns.iterrows():
+            supa_push("day_assignments", {
+                "id": int(r["id"]), "job_id": str(r.get("job_id","")),
+                "client": str(r.get("client","")), "employee": str(r.get("employee","")),
+                "date": str(r.get("date","")), "note": str(r.get("note",""))
+            })
+    except Exception as _se:
+        pass
+
+
+def sync_from_mobile():
+    """Pull clock events and variations from Supabase into local DB."""
+    if not USE_SUPABASE:
+        return
+    try:
+        # Pull clock events
+        events = supa_pull("clock_events")
+        for e in events:
+            existing = fetch_df("SELECT id FROM clock_events WHERE id=?", (e["id"],))
+            if existing.empty:
+                execute("""INSERT OR IGNORE INTO clock_events
+                    (id, employee, job_id, event_type, event_time, event_date, note)
+                    VALUES (?,?,?,?,?,?,?)""",
+                    (e["id"], e.get("employee",""), e.get("job_id",""),
+                     e.get("event_type",""), e.get("event_time",""),
+                     e.get("event_date",""), e.get("note","")))
+        # Pull mobile variations
+        vars_data = supa_pull("mobile_variations")
+        for v in vars_data:
+            existing = fetch_df("SELECT id FROM mobile_variations WHERE id=?", (v["id"],))
+            if existing.empty:
+                execute("""INSERT OR IGNORE INTO mobile_variations
+                    (id, employee, job_id, description, submitted_at, status)
+                    VALUES (?,?,?,?,?,?)""",
+                    (v["id"], v.get("employee",""), v.get("job_id",""),
+                     v.get("description",""), v.get("submitted_at",""),
+                     v.get("status","Pending")))
+    except Exception as _se:
+        pass
 
 
 def generate_quote_pdf(job, estimate_df, quote_opts=None):
@@ -2241,6 +2340,12 @@ if not st.session_state["authenticated_user"]:
                 if user and verify_password(password.strip(), user["password_hash"]):
                     st.session_state["authenticated_user"] = user
                     st.success(f"Welcome back, {user['full_name'] or user['username']}!")
+                    # Sync from mobile on login
+                    try: sync_from_mobile()
+                    except: pass
+                    # Sync to mobile
+                    try: sync_to_mobile()
+                    except: pass
                     st.rerun()
                 else:
                     st.error("Invalid username or password.")
