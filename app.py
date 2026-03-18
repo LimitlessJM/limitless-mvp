@@ -18,24 +18,43 @@ CALENDAR_PATH  = Path(__file__).with_name("calendar.html")
 
 st.set_page_config(page_title="Limitless", layout="wide", page_icon="⬛")
 
-# ── Database: SQLite ───────────────────────────────────────────────────────
-USE_POSTGRES = False
-USE_SUPABASE = False
-_supa_client = None
+# ── Database config ────────────────────────────────────────────────────────
+import os as _os
 
-# Supabase sync (optional - for mobile sync only)
+# Railway PostgreSQL or SQLite fallback
+DATABASE_URL = _os.environ.get("DATABASE_URL", "")
 try:
     SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
     SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
-    if SUPABASE_URL and SUPABASE_KEY:
-        from supabase import create_client
-        _supa_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        USE_SUPABASE = True
+    if not DATABASE_URL:
+        DATABASE_URL = st.secrets.get("DATABASE_URL", "")
 except:
     SUPABASE_URL = ""
     SUPABASE_KEY = ""
 
+USE_POSTGRES = bool(DATABASE_URL)
+USE_SUPABASE = False
+_supa_client = None
+
+# Supabase for mobile sync only
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        from supabase import create_client
+        _supa_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        USE_SUPABASE = True
+    except:
+        pass
+
+if USE_POSTGRES:
+    try:
+        import psycopg2
+        import psycopg2.extras
+    except ImportError:
+        USE_POSTGRES = False
+
 def adapt_query(query):
+    if USE_POSTGRES:
+        return query.replace("?", "%s")
     return query
 
 # ─── Global dark theme ────────────────────────────────────────────────────────
@@ -346,11 +365,28 @@ details summary {
 # ─────────────────────────────────────────────
 #  DATABASE
 # ─────────────────────────────────────────────
+@st.cache_resource
+def get_pg_pool():
+    from psycopg2 import pool as _pool
+    return _pool.ThreadedConnectionPool(1, 5, DATABASE_URL, connect_timeout=10)
+
 def get_conn():
+    if USE_POSTGRES:
+        try:
+            return get_pg_pool().getconn()
+        except:
+            return psycopg2.connect(DATABASE_URL, connect_timeout=10)
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def release_conn(conn):
-    conn.close()
+    if USE_POSTGRES:
+        try:
+            get_pg_pool().putconn(conn)
+        except:
+            try: conn.close()
+            except: pass
+    else:
+        conn.close()
 
 
 def init_db():
@@ -809,21 +845,28 @@ def init_db():
 
 def fetch_df(query, params=()):
     conn = get_conn()
+    q = adapt_query(query)
     try:
-        df = pd.read_sql_query(query, conn, params=list(params) if params else [])
-        return df
+        if USE_POSTGRES:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(q, list(params) if params else None)
+            rows = cur.fetchall()
+            return pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame()
+        else:
+            return pd.read_sql_query(q, conn, params=list(params) if params else [])
     finally:
-        conn.close()
+        release_conn(conn)
 
 
 def execute(query, params=()):
     conn = get_conn()
+    q = adapt_query(query)
     try:
         cur = conn.cursor()
-        cur.execute(query, list(params) if params else [])
+        cur.execute(q, list(params) if params else None)
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
 
 
 # ── Supabase sync helpers ──────────────────────────────────────────────────
@@ -2251,8 +2294,69 @@ def profit_metrics(job_id):
 # ─────────────────────────────────────────────
 #  INIT + SIDEBAR
 # ─────────────────────────────────────────────
-init_db()
-seed_admin()
+if USE_POSTGRES:
+    try:
+        _pgc = get_conn()
+        _pgcur = _pgc.cursor()
+        # Create all tables
+        for _sql in [
+            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, role TEXT DEFAULT 'Estimator', full_name TEXT DEFAULT '', active INTEGER DEFAULT 1, created_at TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS jobs (job_id TEXT PRIMARY KEY, client TEXT DEFAULT '', address TEXT DEFAULT '', estimator TEXT DEFAULT '', stage TEXT DEFAULT 'Lead', sell_price REAL DEFAULT 0, archived INTEGER DEFAULT 0, job_type TEXT DEFAULT 'Residential', job_finish TEXT DEFAULT 'Steel', parent_job TEXT DEFAULT '', is_variation INTEGER DEFAULT 0, variation_title TEXT DEFAULT '', running_cost_pct REAL DEFAULT 0.11, tender_material_budget REAL DEFAULT 0, tender_labour_budget REAL DEFAULT 0, tender_profit_pct REAL DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, company TEXT DEFAULT '', name TEXT DEFAULT '', email TEXT DEFAULT '', phone TEXT DEFAULT '', address TEXT DEFAULT '', client_type TEXT DEFAULT 'Builder', notes TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS employees (id SERIAL PRIMARY KEY, name TEXT UNIQUE, role TEXT DEFAULT 'Roofer', hourly_rate REAL DEFAULT 0, phone TEXT DEFAULT '', active INTEGER DEFAULT 1, pin TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS estimate_lines (id SERIAL PRIMARY KEY, job_id TEXT, section TEXT DEFAULT '', item TEXT DEFAULT '', uom TEXT DEFAULT '', qty REAL DEFAULT 0, material_cost REAL DEFAULT 0, labour_cost REAL DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS labour_logs (id SERIAL PRIMARY KEY, work_date TEXT, job_id TEXT, employee TEXT, hours REAL DEFAULT 8, hourly_rate REAL DEFAULT 0, note TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS material_invoices (id SERIAL PRIMARY KEY, invoice_date TEXT, job_id TEXT, supplier TEXT DEFAULT '', invoice_number TEXT DEFAULT '', amount REAL DEFAULT 0, status TEXT DEFAULT 'Entered', note TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS client_invoices (id SERIAL PRIMARY KEY, invoice_number TEXT, job_id TEXT, milestone_id INTEGER DEFAULT 0, issue_date TEXT, due_date TEXT DEFAULT '', amount_ex_gst REAL DEFAULT 0, gst REAL DEFAULT 0, total_inc_gst REAL DEFAULT 0, status TEXT DEFAULT 'Issued', milestone TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS payment_schedule (id SERIAL PRIMARY KEY, job_id TEXT, milestone TEXT DEFAULT '', pct REAL DEFAULT 0, amount REAL DEFAULT 0, status TEXT DEFAULT 'Unpaid', due_date TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS variations (id SERIAL PRIMARY KEY, job_id TEXT, var_number TEXT DEFAULT '', description TEXT DEFAULT '', value REAL DEFAULT 0, status TEXT DEFAULT 'Pending', date_raised TEXT DEFAULT '', approved_by TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS pipeline (id SERIAL PRIMARY KEY, job_id TEXT UNIQUE, client TEXT DEFAULT '', sell_price REAL DEFAULT 0, probability INTEGER DEFAULT 50, probability_pct REAL DEFAULT 50, value REAL DEFAULT 0, stage TEXT DEFAULT 'Tender', target_month TEXT DEFAULT '', expected_date TEXT DEFAULT '', follow_up_date TEXT DEFAULT '', last_contact TEXT DEFAULT '', contact_name TEXT DEFAULT '', notes TEXT DEFAULT '', secured INTEGER DEFAULT 0, archived INTEGER DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS day_assignments (id SERIAL PRIMARY KEY, job_id TEXT DEFAULT '', client TEXT DEFAULT '', employee TEXT DEFAULT '__unassigned__', date TEXT DEFAULT '', note TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS company_settings (id SERIAL PRIMARY KEY, company_name TEXT DEFAULT 'Limitless Estimation Services', abn TEXT DEFAULT '', address TEXT DEFAULT '', phone TEXT DEFAULT '', email TEXT DEFAULT '', bank_name TEXT DEFAULT '', bsb TEXT DEFAULT '', account_number TEXT DEFAULT '', account_name TEXT DEFAULT '', payment_terms INTEGER DEFAULT 14, logo_text TEXT DEFAULT 'LIMITLESS', overhead_pct REAL DEFAULT 11.0, markup_default REAL DEFAULT 30.0, logo_filename TEXT DEFAULT '', terms_conditions TEXT DEFAULT '', website TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS invoice_counter (id SERIAL PRIMARY KEY, last_number INTEGER DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS job_counter (id SERIAL PRIMARY KEY, prefix TEXT UNIQUE, last_number INTEGER DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS site_diary (id SERIAL PRIMARY KEY, job_id TEXT, diary_date TEXT, weather TEXT DEFAULT '', temp TEXT DEFAULT '', workers_on_site TEXT DEFAULT '', hours_worked REAL DEFAULT 0, notes TEXT DEFAULT '', created_by TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS job_photos (id SERIAL PRIMARY KEY, job_id TEXT, photo_date TEXT, caption TEXT DEFAULT '', uploaded_by TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS job_files (id SERIAL PRIMARY KEY, job_id TEXT, filename TEXT, filetype TEXT DEFAULT '', uploaded_at TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS custom_catalogue (id SERIAL PRIMARY KEY, category TEXT DEFAULT '', description TEXT NOT NULL, uom TEXT DEFAULT 'lm', material_cost REAL DEFAULT 0, labour_cost REAL DEFAULT 0, sell_unit_rate REAL DEFAULT 0, created_by TEXT DEFAULT '', created_at TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS clock_events (id SERIAL PRIMARY KEY, employee TEXT NOT NULL, job_id TEXT DEFAULT '', event_type TEXT NOT NULL, event_time TEXT NOT NULL, event_date TEXT NOT NULL, note TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS mobile_variations (id SERIAL PRIMARY KEY, employee TEXT NOT NULL, job_id TEXT NOT NULL, description TEXT NOT NULL, submitted_at TEXT NOT NULL, status TEXT DEFAULT 'Pending')",
+            "CREATE TABLE IF NOT EXISTS monthly_targets (id SERIAL PRIMARY KEY, month TEXT UNIQUE, target REAL DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS payroll_rules (id SERIAL PRIMARY KEY, employee TEXT, rule_type TEXT DEFAULT '', value REAL DEFAULT 0, note TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS timesheet_entries (id SERIAL PRIMARY KEY, employee TEXT, week_start TEXT, ordinary_hours REAL DEFAULT 0, overtime_hours REAL DEFAULT 0, allowances REAL DEFAULT 0, note TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS public_holidays (id SERIAL PRIMARY KEY, holiday_date TEXT, name TEXT DEFAULT '', state TEXT DEFAULT 'NSW')",
+            "CREATE TABLE IF NOT EXISTS safety_docs (id SERIAL PRIMARY KEY, job_id TEXT, doc_type TEXT DEFAULT '', filename TEXT DEFAULT '', status TEXT DEFAULT 'Pending', reviewed_by TEXT DEFAULT '', reviewed_at TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS job_retention (id SERIAL PRIMARY KEY, job_id TEXT UNIQUE, retention_pct REAL DEFAULT 0, retention_amount REAL DEFAULT 0, released INTEGER DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS stackct_mapping (id SERIAL PRIMARY KEY, stackct_name TEXT, catalogue_item TEXT, finish TEXT DEFAULT '', uom TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS material_finishes (id SERIAL PRIMARY KEY, name TEXT UNIQUE, markup_pct REAL DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS catalogue_finishes (id SERIAL PRIMARY KEY, finish_id INTEGER, catalogue_item TEXT, adjusted_mat_cost REAL DEFAULT 0, adjusted_lab_cost REAL DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS client_interactions (id SERIAL PRIMARY KEY, client_id INTEGER, interaction_date TEXT, type TEXT DEFAULT '', notes TEXT DEFAULT '', follow_up TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS recipes (id SERIAL PRIMARY KEY, name TEXT, section TEXT DEFAULT '', uom TEXT DEFAULT '', description TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS recipe_items (id SERIAL PRIMARY KEY, recipe_id INTEGER, description TEXT, item_type TEXT DEFAULT 'Material', unit_qty REAL DEFAULT 1, uom TEXT DEFAULT '', material_rate REAL DEFAULT 0, labour_rate REAL DEFAULT 0)",
+            "CREATE TABLE IF NOT EXISTS variations (id SERIAL PRIMARY KEY, job_id TEXT, var_number TEXT DEFAULT '', description TEXT DEFAULT '', value REAL DEFAULT 0, status TEXT DEFAULT 'Pending', date_raised TEXT DEFAULT '', approved_by TEXT DEFAULT '')",
+        ]:
+            try: _pgcur.execute(_sql)
+            except: pass
+        _pgc.commit()
+        # Seed defaults
+        _pgcur.execute("SELECT COUNT(*) FROM company_settings")
+        if _pgcur.fetchone()[0] == 0:
+            _pgcur.execute("INSERT INTO company_settings (id) VALUES (1)")
+        _pgcur.execute("SELECT COUNT(*) FROM invoice_counter")
+        if _pgcur.fetchone()[0] == 0:
+            _pgcur.execute("INSERT INTO invoice_counter (last_number) VALUES (0)")
+        _pgcur.execute("SELECT COUNT(*) FROM users")
+        if _pgcur.fetchone()[0] == 0:
+            import hashlib as _hl
+            _h = _hl.sha256("limitless2024".encode()).hexdigest()
+            _pgcur.execute("INSERT INTO users (username, password_hash, role, active) VALUES (%s,%s,%s,%s)", ("admin", _h, "Admin", 1))
+        _pgc.commit()
+        release_conn(_pgc)
+    except Exception as _pge:
+        st.error(f"DB init error: {_pge}")
+else:
+    init_db()
+    seed_admin()
 
 #  LOGIN GATE
 # ─────────────────────────────────────────────
@@ -2337,6 +2441,23 @@ st.sidebar.markdown(
 if st.sidebar.button("Sign Out", key="signout"):
     st.session_state["authenticated_user"] = None
     st.rerun()
+
+# DB status
+import os as _os2
+_db = _os2.environ.get("DATABASE_URL","")
+if _db:
+    st.sidebar.success(f"🗄️ PostgreSQL ✅")
+else:
+    st.sidebar.warning("⚠️ SQLite — DATABASE_URL not found")
+
+# DB status
+import os as _os2
+_db_url = _os2.environ.get("DATABASE_URL","")
+if _db_url:
+    st.sidebar.success(f"🗄️ PostgreSQL connected")
+else:
+    st.sidebar.error("❌ No DATABASE_URL found")
+    st.sidebar.caption(f"USE_POSTGRES={USE_POSTGRES}")
 
 # DB status indicator
 
