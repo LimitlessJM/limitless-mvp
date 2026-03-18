@@ -2379,16 +2379,14 @@ if USE_POSTGRES:
     st.sidebar.success("🗄️ Supabase PostgreSQL")
 else:
     st.sidebar.warning("⚠️ SQLite (data lost on reboot)")
-    # Debug
     try:
-        all_secrets = list(st.secrets.keys())
-        st.sidebar.caption(f"Secrets found: {all_secrets}")
-        if "DB_URL" in st.secrets:
-            st.sidebar.caption(f"DB_URL starts: {st.secrets['DB_URL'][:30]}...")
-        else:
-            st.sidebar.caption("DB_URL not in secrets!")
+        import psycopg2
+        st.sidebar.caption("psycopg2 OK")
+        conn = psycopg2.connect(DB_URL, connect_timeout=5)
+        conn.close()
+        st.sidebar.caption("Connection OK — reload needed")
     except Exception as _de:
-        st.sidebar.caption(f"Secrets error: {_de}")
+        st.sidebar.caption(f"psycopg2 error: {_de}")
 
 # Supabase sync buttons
 if USE_SUPABASE:
