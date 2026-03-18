@@ -360,12 +360,29 @@ details summary {
 # ─────────────────────────────────────────────
 #  DATABASE
 # ─────────────────────────────────────────────
+@st.cache_resource
+def get_pg_pool():
+    """Create a persistent connection pool for PostgreSQL."""
+    from psycopg2 import pool
+    return pool.SimpleConnectionPool(1, 10, DB_URL, connect_timeout=10)
+
 def get_conn():
     if USE_POSTGRES:
-        conn = psycopg2.connect(DB_URL, connect_timeout=10)
-        conn.autocommit = False
-        return conn
+        try:
+            pool = get_pg_pool()
+            return pool.getconn()
+        except:
+            return psycopg2.connect(DB_URL, connect_timeout=10)
     return sqlite3.connect(DB_PATH, check_same_thread=False)
+
+def release_conn(conn):
+    if USE_POSTGRES:
+        try:
+            get_pg_pool().putconn(conn)
+        except:
+            conn.close()
+    else:
+        conn.close()
 
 
 def init_db():
@@ -831,15 +848,14 @@ def fetch_df(query, params=()):
             cur.execute(query, list(params) if params else None)
             rows = cur.fetchall()
             df = pd.DataFrame([dict(r) for r in rows]) if rows else pd.DataFrame()
-            conn.close()
             return df
         else:
             df = pd.read_sql_query(query, conn, params=list(params) if params else [])
-            conn.close()
             return df
     except Exception as _e:
-        conn.close()
         raise _e
+    finally:
+        release_conn(conn)
 
 
 def execute(query, params=()):
@@ -850,7 +866,7 @@ def execute(query, params=()):
         cur.execute(query, list(params) if params else None)
         conn.commit()
     finally:
-        conn.close()
+        release_conn(conn)
 
 
 # ── Supabase sync helpers ──────────────────────────────────────────────────
