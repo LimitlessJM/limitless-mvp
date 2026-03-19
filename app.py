@@ -3614,6 +3614,81 @@ elif page == "Jobs":
                 else:
                     st.markdown("<div style='font-size:14px;color:#f59e0b;padding:8px 0'>⚠️ Rate editing ON — rates are now editable.</div>", unsafe_allow_html=True)
 
+            # CSS + JS for row highlight on focus
+            st.markdown("""
+            <style>
+            /* Make qty inputs bigger and more visible */
+            div[data-testid="stNumberInput"] input {
+                font-size: 16px !important;
+                font-weight: 700 !important;
+                text-align: center !important;
+                background: #111c27 !important;
+                border: 1px solid #2a3d4f !important;
+                border-radius: 6px !important;
+                color: #e2e8f0 !important;
+                height: 42px !important;
+            }
+            div[data-testid="stNumberInput"] input:focus {
+                border: 2px solid #2dd4bf !important;
+                background: #0d2233 !important;
+                color: #2dd4bf !important;
+            }
+            /* Row highlight on focus */
+            .qb-row-focused {
+                background: #0d2233 !important;
+                border-color: #2dd4bf !important;
+                border-left-color: #2dd4bf !important;
+            }
+            </style>
+            <script>
+            // Highlight parent row div when input is focused
+            function setupRowHighlight() {
+                document.querySelectorAll('[data-testid="stNumberInput"] input').forEach(input => {
+                    input.addEventListener('focus', function() {
+                        // Walk up to find the row div
+                        let el = this;
+                        for (let i = 0; i < 15; i++) {
+                            el = el.parentElement;
+                            if (!el) break;
+                            if (el.id && el.id.startsWith('qb_row_')) {
+                                el.style.background = '#0d2233';
+                                el.style.borderColor = '#2dd4bf';
+                                el.style.borderLeftColor = '#2dd4bf';
+                                el.style.borderLeftWidth = '3px';
+                                break;
+                            }
+                        }
+                    });
+                    input.addEventListener('blur', function() {
+                        let el = this;
+                        for (let i = 0; i < 15; i++) {
+                            el = el.parentElement;
+                            if (!el) break;
+                            if (el.id && el.id.startsWith('qb_row_')) {
+                                // Keep highlight if qty > 0
+                                const inputEl = el.querySelector('input');
+                                const val = inputEl ? parseFloat(inputEl.value) : 0;
+                                if (val > 0) {
+                                    el.style.background = '#162a3a';
+                                    el.style.borderColor = '#2dd4bf';
+                                } else {
+                                    el.style.background = '#0f1923';
+                                    el.style.borderColor = '#1e2d3d';
+                                    el.style.borderLeftColor = '#1e2d3d';
+                                }
+                                break;
+                            }
+                        }
+                    });
+                });
+            }
+            // Run on load and after Streamlit rerenders
+            setupRowHighlight();
+            setTimeout(setupRowHighlight, 500);
+            setTimeout(setupRowHighlight, 1500);
+            </script>
+            """, unsafe_allow_html=True)
+
             st.divider()
 
             # Section groups
@@ -3638,13 +3713,20 @@ elif page == "Jobs":
                         hc[3].markdown("<div style='color:#f59e0b;font-size:14px;font-weight:700;text-align:center'>Mat $</div>", unsafe_allow_html=True)
                         hc[4].markdown("<div style='color:#f59e0b;font-size:14px;font-weight:700;text-align:center'>Lab $</div>", unsafe_allow_html=True)
 
-                    for item, v in sec_items.items():
+                    for _row_idx, (item, v) in enumerate(sec_items.items()):
                         is_active = v["qty"] > 0
-                        row_style = "background:#162a3a;border-left:3px solid #2dd4bf;border-radius:6px;padding:4px 8px;margin-bottom:4px" if is_active else "padding:2px 4px;margin-bottom:3px;border-left:3px solid transparent"
-                        st.markdown("<div style='" + row_style + "'>", unsafe_allow_html=True)
+                        _row_id = f"qb_row_{open_job}_{section}_{_row_idx}".replace(" ","_")
+                        row_bg = "#162a3a" if is_active else "#0f1923"
+                        row_border = "#2dd4bf" if is_active else "#1e2d3d"
+                        st.markdown(
+                            f"<div id='{_row_id}' style='background:{row_bg};"
+                            f"border:1px solid {row_border};"
+                            f"border-left:3px solid {'#2dd4bf' if is_active else '#1e2d3d'};"
+                            f"border-radius:6px;padding:4px 8px;margin-bottom:3px;"
+                            f"transition:all 0.1s'>",
+                            unsafe_allow_html=True)
 
                         cols = st.columns(hc_cols)
-                        # Description + UOM — always read only
                         with cols[0]:
                             label_color = "#2dd4bf" if is_active else "#94a3b8"
                             weight = "700" if is_active else "400"
