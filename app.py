@@ -3633,6 +3633,19 @@ elif page == "Jobs":
                 background: #0d2233 !important;
                 color: #2dd4bf !important;
             }
+            /* Hover highlight on any row — works even at qty 0 */
+            [id^="qb_row_"] {
+                transition: background 0.08s, border-color 0.08s !important;
+            }
+            [id^="qb_row_"]:hover {
+                background: #0d2233 !important;
+                border-color: #2dd4bf !important;
+                border-left-color: #2dd4bf !important;
+                border-left-width: 3px !important;
+            }
+            [id^="qb_row_"]:hover div {
+                color: #ffffff !important;
+            }
             /* Row highlight on focus */
             .qb-row-focused {
                 background: #0d2233 !important;
