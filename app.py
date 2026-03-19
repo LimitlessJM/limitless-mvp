@@ -2755,25 +2755,10 @@ if st.sidebar.button("Sign Out", key="signout"):
     st.session_state["authenticated_user"] = None
     st.rerun()
 
-# DB status
-import os as _os2
-_db = _os2.environ.get("DATABASE_URL","")
-if _db:
-    st.sidebar.success(f"🗄️ PostgreSQL ✅")
-else:
-    st.sidebar.warning("⚠️ SQLite — DATABASE_URL not found")
+
 
 # DB status
 import os as _os2
-_db_url = _os2.environ.get("DATABASE_URL","")
-if _db_url:
-    st.sidebar.success(f"🗄️ PostgreSQL connected")
-else:
-    st.sidebar.error("❌ No DATABASE_URL found")
-    st.sidebar.caption(f"USE_POSTGRES={USE_POSTGRES}")
-
-# DB status indicator
-
 
 # Supabase sync buttons
 if USE_SUPABASE:
@@ -2805,8 +2790,7 @@ if USE_SUPABASE:
             st.sidebar.success("✅ Pulled clock-ins!")
         except Exception as _e:
             st.sidebar.error(str(_e))
-else:
-    st.sidebar.caption("⚠️ Supabase not connected — check secrets")
+
 
 st.sidebar.markdown("<div style='font-size:13px;font-weight:600;letter-spacing:0.1em;color:#666;text-transform:uppercase;margin-bottom:4px'>Navigation</div>", unsafe_allow_html=True)
 # Group pages with dividers
