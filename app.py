@@ -602,7 +602,16 @@ def init_db():
             address         TEXT DEFAULT '',
             client_type     TEXT DEFAULT 'Builder',
             notes           TEXT DEFAULT '',
-            created_date    TEXT DEFAULT ''
+            created_date    TEXT DEFAULT '',
+            billing_name    TEXT DEFAULT '',
+            billing_email   TEXT DEFAULT '',
+            billing_phone   TEXT DEFAULT '',
+            ca_name         TEXT DEFAULT '',
+            ca_email        TEXT DEFAULT '',
+            ca_phone        TEXT DEFAULT '',
+            pm_name         TEXT DEFAULT '',
+            pm_email        TEXT DEFAULT '',
+            pm_phone        TEXT DEFAULT ''
         );
 
         CREATE TABLE IF NOT EXISTS client_interactions (
@@ -851,6 +860,14 @@ def init_db():
     ]:
         try:
             cur.execute(f"ALTER TABLE jobs ADD COLUMN {_col} {_def}")
+        except: pass
+
+    # ── Add client contact columns if missing ─────────────────────────────
+    for _ccol in ["billing_name","billing_email","billing_phone",
+                  "ca_name","ca_email","ca_phone",
+                  "pm_name","pm_email","pm_phone"]:
+        try:
+            cur.execute(f"ALTER TABLE clients ADD COLUMN {_ccol} TEXT DEFAULT ''")
         except: pass
 
     # ── No demo data — clean slate for real use ──────────────────────────
@@ -5095,6 +5112,27 @@ No explanation, only JSON."""
                             key=f"inv_dl_{pid}",
                             type="primary",
                         )
+                        # Check for billing email on client
+                        _cli_billing = fetch_df("""
+                            SELECT billing_email, billing_name, company, name
+                            FROM clients WHERE name=? OR company=?
+                        """, (wjob.get("client",""), wjob.get("client","")))
+                        if not _cli_billing.empty:
+                            _billing_email = str(_cli_billing.iloc[0].get("billing_email","") or "")
+                            _billing_name  = str(_cli_billing.iloc[0].get("billing_name","") or _cli_billing.iloc[0].get("name",""))
+                            if _billing_email:
+                                _co_name = get_company_settings().get("company_name","Limitless")
+                                _subject = f"Invoice {inv_num} — {open_job}"
+                                _body = f"Hi {_billing_name},%0D%0A%0D%0APlease find attached Invoice {inv_num} for ${total:,.2f} incl. GST.%0D%0A%0D%0AKind regards,%0D%0A{_co_name}"
+                                _mailto = f"mailto:{_billing_email}?subject={_subject}&body={_body}"
+                                st.markdown(
+                                    f"<a href='{_mailto}' target='_blank'>"
+                                    f"<div style='background:#0d2233;border:1px solid #2dd4bf;border-radius:8px;"
+                                    f"padding:10px 16px;margin-top:8px;cursor:pointer;text-align:center'>"
+                                    f"<span style='color:#2dd4bf;font-weight:700'>📧 Email to {_billing_name} ({_billing_email})</span>"
+                                    f"</div></a>",
+                                    unsafe_allow_html=True
+                                )
 
                 with st.expander("+ Add milestone"):
                     with st.form("add_pay"):
@@ -7399,35 +7437,37 @@ elif page == "Clients":
         if st.button("← All Clients"):
             st.session_state.pop("open_client",None); st.rerun()
 
-        # Client header
+        # Client header — company first
         st.markdown(f"""
         <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:12px;
             padding:16px 20px;margin-bottom:1.2rem;display:flex;align-items:center;gap:16px">
             <div style="width:48px;height:48px;border-radius:50%;background:#1a3a3a;
                 border:2px solid #2dd4bf;display:flex;align-items:center;justify-content:center;
                 font-size:18px;font-weight:800;color:#2dd4bf;flex-shrink:0">
-                {(cli.get('name') or 'C')[0].upper()}
+                {(cli.get('company') or cli.get('name') or 'C')[0].upper()}
             </div>
             <div style="flex:1">
-                <div style="font-size:20px;font-weight:800;color:#f1f5f9">{cli.get('name') or ''}</div>
-                <div style="font-size:12px;color:#64748b;margin-top:2px">
-                    {cli.get('company') or ''} · {cli.get('client_type') or ''}
+                <div style="font-size:20px;font-weight:800;color:#f1f5f9">{cli.get('company') or cli.get('name') or ''}</div>
+                <div style="font-size:13px;color:#94a3b8;margin-top:2px">
+                    {cli.get('name') or ''}
+                    {(' · ' + cli.get('client_type','')) if cli.get('client_type') else ''}
                 </div>
             </div>
             <div style="text-align:right;font-size:12px;color:#64748b">
                 <div>{cli.get('phone') or ''}</div>
                 <div>{cli.get('email') or ''}</div>
+                {("<div style='color:#2dd4bf'>💳 " + str(cli.get('billing_email','')) + "</div>") if cli.get('billing_email') else ''}
             </div>
         </div>""", unsafe_allow_html=True)
 
-        ctab1, ctab2, ctab3 = st.tabs(["Details", "Jobs", "Interactions"])
+        ctab1, ctab2, ctab3, ctab4 = st.tabs(["Details", "Contacts", "Jobs", "Interactions"])
 
         with ctab1:
             with st.form("edit_client"):
                 cc1,cc2 = st.columns(2)
                 with cc1:
-                    e_name  = st.text_input("Name",    value=cli.get("name",""))
-                    e_comp  = st.text_input("Company", value=cli.get("company",""))
+                    e_comp  = st.text_input("Company *", value=cli.get("company",""))
+                    e_name  = st.text_input("Contact name", value=cli.get("name",""))
                     e_type  = st.selectbox("Type", CLIENT_TYPES,
                         index=CLIENT_TYPES.index(cli["client_type"]) if cli.get("client_type") in CLIENT_TYPES else 0)
                     e_phone = st.text_input("Phone",   value=cli.get("phone",""))
@@ -7442,6 +7482,58 @@ elif page == "Clients":
                     st.success("Saved."); st.rerun()
 
         with ctab2:
+            st.markdown("### Contacts")
+            with st.form("edit_contacts"):
+                st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin-bottom:8px'>💳 BILLING / ACCOUNTS</div>", unsafe_allow_html=True)
+                bc1,bc2,bc3 = st.columns(3)
+                with bc1:
+                    e_bill_name  = st.text_input("Billing contact name",  value=str(cli.get("billing_name","") or ""))
+                with bc2:
+                    e_bill_email = st.text_input("Billing email", value=str(cli.get("billing_email","") or ""), help="Invoices will be emailed here")
+                with bc3:
+                    e_bill_phone = st.text_input("Billing phone", value=str(cli.get("billing_phone","") or ""))
+
+                st.markdown("<div style='font-size:13px;font-weight:700;color:#a78bfa;margin:12px 0 8px'>📋 CONTRACT ADMINISTRATOR</div>", unsafe_allow_html=True)
+                ca1,ca2,ca3 = st.columns(3)
+                with ca1:
+                    e_ca_name  = st.text_input("CA name",  value=str(cli.get("ca_name","") or ""))
+                with ca2:
+                    e_ca_email = st.text_input("CA email", value=str(cli.get("ca_email","") or ""))
+                with ca3:
+                    e_ca_phone = st.text_input("CA phone", value=str(cli.get("ca_phone","") or ""))
+
+                st.markdown("<div style='font-size:13px;font-weight:700;color:#60a5fa;margin:12px 0 8px'>🏗️ PROJECT MANAGER</div>", unsafe_allow_html=True)
+                pm1,pm2,pm3 = st.columns(3)
+                with pm1:
+                    e_pm_name  = st.text_input("PM name",  value=str(cli.get("pm_name","") or ""))
+                with pm2:
+                    e_pm_email = st.text_input("PM email", value=str(cli.get("pm_email","") or ""))
+                with pm3:
+                    e_pm_phone = st.text_input("PM phone", value=str(cli.get("pm_phone","") or ""))
+
+                if st.form_submit_button("💾 Save Contacts", type="primary"):
+                    execute("""UPDATE clients SET
+                        billing_name=?, billing_email=?, billing_phone=?,
+                        ca_name=?, ca_email=?, ca_phone=?,
+                        pm_name=?, pm_email=?, pm_phone=?
+                        WHERE id=?""",
+                        (e_bill_name, e_bill_email, e_bill_phone,
+                         e_ca_name, e_ca_email, e_ca_phone,
+                         e_pm_name, e_pm_email, e_pm_phone,
+                         open_client))
+                    st.success("✅ Contacts saved!")
+                    st.rerun()
+
+            # Show contact cards
+            if cli.get("billing_email"):
+                st.markdown(f"""
+                <div style='background:#1e2d3d;border:1px solid #2dd4bf33;border-radius:8px;padding:10px 16px;margin-top:8px'>
+                    <div style='color:#2dd4bf;font-size:11px;font-weight:700'>💳 BILLING</div>
+                    <div style='color:#e2e8f0'>{cli.get('billing_name','—')}</div>
+                    <div style='color:#64748b;font-size:12px'>{cli.get('billing_email','')} · {cli.get('billing_phone','')}</div>
+                </div>""", unsafe_allow_html=True)
+
+        with ctab3:
             cli_jobs = fetch_df("""
                 SELECT job_id, stage, job_type, sell_price FROM jobs
                 WHERE client=? AND archived=0 ORDER BY job_id
@@ -7455,7 +7547,7 @@ elif page == "Clients":
                 jc2.metric("Total value",   f"${total_val:,.0f}")
                 st.dataframe(cli_jobs, width="stretch", hide_index=True)
 
-        with ctab3:
+        with ctab4:
             interactions = fetch_df("""
                 SELECT * FROM client_interactions WHERE client_id=?
                 ORDER BY interaction_date DESC
@@ -7517,8 +7609,8 @@ elif page == "Clients":
                 st.subheader("New Client")
                 nc1,nc2 = st.columns(2)
                 with nc1:
-                    nc_name = st.text_input("Name *")
-                    nc_comp = st.text_input("Company")
+                    nc_comp = st.text_input("Company *")
+                    nc_name = st.text_input("Contact name")
                     nc_type = st.selectbox("Type", CLIENT_TYPES)
                 with nc2:
                     nc_phone= st.text_input("Phone")
@@ -7578,6 +7670,7 @@ elif page == "Clients":
                             # Count jobs
                             njobs = fetch_df("SELECT COUNT(*) AS n FROM jobs WHERE client=? AND archived=0",
                                             (cr["name"],)).iloc[0]["n"]
+                            init = (cr.get("company") or cr.get("name") or "C")[0].upper()
                             st.markdown(f"""
                             <div style="background:#1e2d3d;border:1px solid #2a3d4f;
                                 border-radius:10px;padding:14px 16px;margin-bottom:8px">
@@ -7587,8 +7680,8 @@ elif page == "Clients":
                                         display:flex;align-items:center;justify-content:center;
                                         font-size:14px;font-weight:800;color:{tc_col}">{init}</div>
                                     <div>
-                                        <div style="font-weight:700;font-size:13px;color:#f1f5f9">{cr['name'] or ''}</div>
-                                        <div style="font-size:11px;color:#64748b">{cr.get('company') or ''}</div>
+                                        <div style="font-weight:700;font-size:14px;color:#f1f5f9">{cr.get('company') or cr.get('name') or ''}</div>
+                                        <div style="font-size:11px;color:#94a3b8">{cr.get('name') or ''}</div>
                                     </div>
                                 </div>
                                 <div style="font-size:11px;color:#475569">
