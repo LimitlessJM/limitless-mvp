@@ -874,6 +874,12 @@ def init_db():
             cur.execute(f"ALTER TABLE clients ADD COLUMN {_ccol} TEXT DEFAULT ''")
         except: pass
 
+    # ── Add day_assignments time columns if missing ───────────────────────
+    for _tcol in ["start_time", "end_time"]:
+        try:
+            cur.execute(f"ALTER TABLE day_assignments ADD COLUMN {_tcol} TEXT DEFAULT ''")
+        except: pass
+
     # ── No demo data — clean slate for real use ──────────────────────────
 
     conn.commit()
@@ -5990,11 +5996,6 @@ elif page == "Schedule Calendar":
                 [""] + [f"{h:02d}:{m:02d}" for h in range(5,20) for m in [0,30]],
                 index=19)  # Default 16:30
         if st.form_submit_button("Add Assignment", type="primary"):
-            # Add start_time/end_time columns if missing
-            try: execute("ALTER TABLE day_assignments ADD COLUMN start_time TEXT DEFAULT ''")
-            except: pass
-            try: execute("ALTER TABLE day_assignments ADD COLUMN end_time TEXT DEFAULT ''")
-            except: pass
             execute("INSERT INTO day_assignments (job_id, client, employee, date, note, start_time, end_time) VALUES (?,?,?,?,?,?,?)",
                 (ca_job,
                  str(jobs_list_cal[jobs_list_cal["job_id"]==ca_job]["client"].iloc[0]) if not jobs_list_cal.empty and ca_job in jobs_list_cal["job_id"].values else "",
