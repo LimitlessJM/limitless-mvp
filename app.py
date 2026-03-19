@@ -3075,8 +3075,9 @@ if page == "Dashboard":
         dot_colors = {"green":"#2dd4bf","amber":"#f59e0b","red":"#f43f5e"}
         grade_colors= {"A":"#2dd4bf","B":"#f59e0b","C":"#f43f5e"}
 
-        if not all_active_jobs.empty:
-            for _, jrow in all_active_jobs.iterrows():
+        live_jobs_health = all_active_jobs[all_active_jobs["stage"] == "Live Job"]
+        if not live_jobs_health.empty:
+            for _, jrow in live_jobs_health.iterrows():
                 jid  = jrow["job_id"]
                 jlab = labour_metrics(jid)
                 jmat = material_metrics(jid)
