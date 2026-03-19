@@ -2,8 +2,12 @@ import calendar as pycal
 import io
 import json
 import sqlite3
-from datetime import date
+from datetime import date, datetime as _datetime, timezone as _tz, timedelta as _td
 from pathlib import Path
+
+def _today_aest():
+    """Return today's date in AEST (UTC+10)."""
+    return (_datetime.now(_tz.utc) + _td(hours=10)).date()
 
 import pandas as pd
 import streamlit as st
@@ -2618,7 +2622,7 @@ if page == "Dashboard":
 
     # ── Pull all-jobs data ────────────────────────────────────────────────
     all_active_jobs = fetch_df("SELECT job_id, client, stage, job_type FROM jobs WHERE archived=0 ORDER BY job_id")
-    today_str       = date.today().isoformat()
+    today_str       = _today_aest().isoformat()
     total_active    = len(all_active_jobs)
 
     on_site_today = fetch_df("""
@@ -5716,7 +5720,7 @@ elif page == "Schedule Calendar":
         for _, h in public_hols.iterrows():
             hols_dict[str(h["holiday_date"])] = str(h["name"])
 
-    today_str = date.today().isoformat()
+    today_str = _today_aest().isoformat()
 
     # Colour map for employees
     EMP_COLORS = ["#2dd4bf","#f59e0b","#a78bfa","#f43f5e","#60a5fa","#4ade80","#fb923c","#e879f9"]
@@ -5736,6 +5740,19 @@ elif page == "Schedule Calendar":
             return []
         return labour_logs_cal[labour_logs_cal["work_date"] == date_str].to_dict("records")
 
+    def get_day_assignments_timed(date_str):
+        """Get assignments with start/end times for a day."""
+        if assignments.empty:
+            return []
+        day = assignments[assignments["date"] == date_str].copy()
+        # Load start/end times
+        timed = fetch_df("""
+            SELECT id, employee, job_id, start_time, end_time, note
+            FROM day_assignments WHERE date=? AND employee != '__unassigned__'
+            ORDER BY COALESCE(start_time,'07:00'), employee
+        """, (date_str,))
+        return timed.to_dict("records") if not timed.empty else []
+
     def render_day_cell(d, compact=True):
         ds = d.isoformat()
         is_today = ds == today_str
@@ -5753,24 +5770,34 @@ elif page == "Schedule Calendar":
             html += f"<div style='font-size:9px;background:#f59e0b22;color:#f59e0b;border-radius:3px;padding:1px 4px;margin-bottom:2px'>{hols_dict[ds][:15]}</div>"
 
         if not compact:
-            # Week view — show more detail
-            for a in day_assigns:
-                color = emp_color_map.get(str(a.get("employee","")), "#64748b")
-                html += f"<div style='font-size:9px;background:{color}22;color:{color};border-left:2px solid {color};border-radius:3px;padding:2px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
-                html += f"<b>{str(a.get('employee',''))[:12]}</b> — {str(a.get('job_id',''))}"
-                if a.get("note"):
-                    html += f"<br><span style='opacity:0.8'>{str(a.get('note',''))[:20]}</span>"
-                html += "</div>"
+            # Week view — show time-based blocks
+            timed_assigns = get_day_assignments_timed(ds)
+            if timed_assigns:
+                for a in timed_assigns:
+                    color = emp_color_map.get(str(a.get("employee","")), "#64748b")
+                    st_time = str(a.get("start_time","") or "")
+                    en_time = str(a.get("end_time","") or "")
+                    time_str = f"{st_time[:5]}–{en_time[:5]}" if st_time and en_time else st_time[:5] if st_time else ""
+                    html += f"<div style='font-size:9px;background:{color}22;color:{color};border-left:3px solid {color};border-radius:3px;padding:3px 5px;margin-bottom:3px'>"
+                    if time_str:
+                        html += f"<div style='font-size:8px;opacity:0.8'>{time_str}</div>"
+                    html += f"<b>{str(a.get('employee',''))[:12]}</b><br>{str(a.get('job_id',''))}"
+                    if a.get("note"):
+                        html += f"<div style='font-size:8px;opacity:0.7'>{str(a.get('note',''))[:18]}</div>"
+                    html += "</div>"
+            else:
+                for a in day_assigns:
+                    color = emp_color_map.get(str(a.get("employee","")), "#64748b")
+                    html += f"<div style='font-size:9px;background:{color}22;color:{color};border-left:2px solid {color};border-radius:3px;padding:2px 4px;margin-bottom:2px'>"
+                    html += f"<b>{str(a.get('employee',''))[:12]}</b> — {str(a.get('job_id',''))}</div>"
             for l in day_labour:
                 color = emp_color_map.get(str(l.get("employee","")), "#64748b")
-                html += f"<div style='font-size:9px;color:{color};opacity:0.7;padding:1px 4px'>⏱ {str(l.get('employee',''))[:10]}: {float(l.get('total_hours',0)):.1f}h on {str(l.get('job_id',''))}</div>"
+                html += f"<div style='font-size:8px;color:{color};opacity:0.6;padding:1px 4px'>⏱ {str(l.get('employee',''))[:8]}: {float(l.get('total_hours',0)):.1f}h</div>"
         else:
-            # Month view — compact dots
-            shown = 0
+            # Month view — compact
             for a in day_assigns[:3]:
                 color = emp_color_map.get(str(a.get("employee","")), "#64748b")
                 html += f"<div style='font-size:9px;background:{color}22;color:{color};border-radius:2px;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>{str(a.get('employee',''))[:10]}: {str(a.get('job_id',''))}</div>"
-                shown += 1
             if len(day_assigns) > 3:
                 html += f"<div style='font-size:9px;color:#475569'>+{len(day_assigns)-3} more</div>"
 
@@ -5865,21 +5892,31 @@ elif page == "Schedule Calendar":
     jobs_list_cal = fetch_df("SELECT job_id, client FROM jobs WHERE archived=0 ORDER BY job_id")
 
     with st.form("cal_assign_form"):
-        ac1, ac2, ac3, ac4 = st.columns(4)
+        ac1, ac2, ac3 = st.columns(3)
         with ac1:
             ca_emp = st.selectbox("Employee", emp_names if emp_names else [""])
-        with ac2:
             ca_job = st.selectbox("Job", jobs_list_cal["job_id"].tolist() if not jobs_list_cal.empty else [""])
-        with ac3:
-            ca_date = st.date_input("Date", value=date.today())
-        with ac4:
+        with ac2:
+            ca_date = st.date_input("Date", value=_today_aest())
             ca_note = st.text_input("Note", placeholder="e.g. Install gutters")
+        with ac3:
+            ca_start = st.selectbox("Start time", 
+                [""] + [f"{h:02d}:{m:02d}" for h in range(5,20) for m in [0,30]],
+                index=5)  # Default 07:00
+            ca_end = st.selectbox("End time",
+                [""] + [f"{h:02d}:{m:02d}" for h in range(5,20) for m in [0,30]],
+                index=19)  # Default 16:30
         if st.form_submit_button("Add Assignment", type="primary"):
-            execute("INSERT INTO day_assignments (job_id, client, employee, date, note) VALUES (?,?,?,?,?)",
+            # Add start_time/end_time columns if missing
+            try: execute("ALTER TABLE day_assignments ADD COLUMN start_time TEXT DEFAULT ''")
+            except: pass
+            try: execute("ALTER TABLE day_assignments ADD COLUMN end_time TEXT DEFAULT ''")
+            except: pass
+            execute("INSERT INTO day_assignments (job_id, client, employee, date, note, start_time, end_time) VALUES (?,?,?,?,?,?,?)",
                 (ca_job,
                  str(jobs_list_cal[jobs_list_cal["job_id"]==ca_job]["client"].iloc[0]) if not jobs_list_cal.empty and ca_job in jobs_list_cal["job_id"].values else "",
-                 ca_emp, ca_date.isoformat(), ca_note))
-            st.success(f"✅ {ca_emp} assigned to {ca_job} on {ca_date.strftime('%d %b')}!")
+                 ca_emp, ca_date.isoformat(), ca_note, ca_start, ca_end))
+            st.success(f"✅ {ca_emp} → {ca_job} on {ca_date.strftime('%d %b')} {ca_start}–{ca_end}")
             st.rerun()
 
     # ── Upcoming assignments list ──────────────────────────────────────────
