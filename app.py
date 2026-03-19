@@ -5628,244 +5628,246 @@ elif page == "Employees":
 elif page == "Schedule Calendar":
     st.title("Schedule Calendar")
 
-    if not CALENDAR_PATH.exists():
-        st.error("calendar.html not found next to app.py.")
-        st.stop()
-
-    emp_df         = fetch_df("SELECT id, name, role, hourly_rate FROM employees WHERE active=1 ORDER BY name")
-    employees_list = emp_df.to_dict("records") if not emp_df.empty else []
-
-    assign_df = fetch_df("""
-        SELECT id, job_id, COALESCE(client,'') AS client,
-               COALESCE(employee,'__unassigned__') AS employee,
-               COALESCE(date,'') AS date, COALESCE(note,'') AS note
-        FROM day_assignments ORDER BY date
-    """)
-    schedules_list = [
-        {
-            "id":       int(r["id"]),
-            "job_id":   str(r["job_id"] or ""),
-            "client":   str(r["client"] or ""),
-            "employee": str(r["employee"] or "__unassigned__"),
-            "date":     str(r["date"] or ""),
-            "note":     str(r["note"] or ""),
-        }
-        for _, r in assign_df.iterrows()
-    ]
-
-    jobs_df   = fetch_df("SELECT job_id, COALESCE(client,'') AS client FROM jobs WHERE archived=0 ORDER BY job_id")
-    jobs_list = jobs_df.to_dict("records") if not jobs_df.empty else []
-
-    cal_html = CALENDAR_PATH.read_text(encoding="utf-8")
-    # Fix encoding — replace em dash unicode issue
-    cal_html = cal_html.replace("\u2013", "–").replace("\u2014", "—")
-    cal_html = cal_html.replace("EMPLOYEES_DATA", json.dumps(employees_list, ensure_ascii=False))
-    cal_html = cal_html.replace("JOBS_LIST",       json.dumps(jobs_list, ensure_ascii=False))
-    cal_html = cal_html.replace("SCHEDULES_DATA",  json.dumps(schedules_list, ensure_ascii=False))
-
-    event = components.html(cal_html, height=800, scrolling=False)
-
-    # Handle write-back from calendar component
-    if event is not None and isinstance(event, dict):
-        action = event.get("action","")
-        s      = event.get("schedule", {})
-        if not s and isinstance(event.get("value"), dict):
-            # Some Streamlit versions wrap in value key
-            inner = event.get("value", {})
-            action = inner.get("action","")
-            s      = inner.get("schedule", {})
-
-        sid = int(s.get("id", 0)) if s else 0
-
-        if action == "create" and s:
-            existing = fetch_df(
-                "SELECT id FROM day_assignments WHERE job_id=? AND employee=? AND date=?",
-                (s.get("job_id",""), s.get("employee","__unassigned__"), s.get("date",""))
-            )
-            if existing.empty:
-                execute(
-                    "INSERT INTO day_assignments (job_id, client, employee, date, note) VALUES (?,?,?,?,?)",
-                    (s.get("job_id",""), s.get("client",""),
-                     s.get("employee","__unassigned__"),
-                     s.get("date",""), s.get("note","")),
-                )
+    # ── Controls ──────────────────────────────────────────────────────────
+    cal_col1, cal_col2, cal_col3, cal_col4 = st.columns([2,1,1,2])
+    with cal_col1:
+        cal_view = st.radio("View", ["Month", "Week"], horizontal=True, key="cal_view")
+    with cal_col2:
+        if st.button("◀ Prev"):
+            if cal_view == "Month":
+                st.session_state["cal_month"] = st.session_state.get("cal_month", date.today().replace(day=1)) - pd.DateOffset(months=1)
+            else:
+                st.session_state["cal_week_start"] = st.session_state.get("cal_week_start", date.today() - pd.Timedelta(days=date.today().weekday())) - pd.Timedelta(days=7)
             st.rerun()
-        elif action == "update" and sid:
-            execute(
-                "UPDATE day_assignments SET job_id=?, client=?, employee=?, date=?, note=? WHERE id=?",
-                (s.get("job_id",""), s.get("client",""),
-                 s.get("employee","__unassigned__"),
-                 s.get("date",""), s.get("note",""), sid),
-            )
+    with cal_col3:
+        if st.button("Next ▶"):
+            if cal_view == "Month":
+                st.session_state["cal_month"] = st.session_state.get("cal_month", date.today().replace(day=1)) + pd.DateOffset(months=1)
+            else:
+                st.session_state["cal_week_start"] = st.session_state.get("cal_week_start", date.today() - pd.Timedelta(days=date.today().weekday())) + pd.Timedelta(days=7)
             st.rerun()
-        elif action == "delete" and sid:
-            execute("DELETE FROM day_assignments WHERE id=?", (sid,))
+    with cal_col4:
+        if st.button("Today", key="cal_today"):
+            st.session_state.pop("cal_month", None)
+            st.session_state.pop("cal_week_start", None)
             st.rerun()
 
-    # Manual assignment form as reliable fallback
-    # ── Schedule Management — primary interface ──────────────────────────
-    st.divider()
-    st.subheader("Schedule assignments")
-    st.caption("The calendar above is for viewing only — add assignments here.")
-
-    emp_names_cal = fetch_df("SELECT name FROM employees WHERE active=1 ORDER BY name")["name"].tolist()
-    jobs_cal      = fetch_df("SELECT job_id, client FROM jobs WHERE archived=0 AND COALESCE(is_variation,0)=0 ORDER BY job_id")
-
-    sched_mode = st.radio("Mode", ["Single day", "Date range (bulk)"], horizontal=True, key="sched_mode")
-
-    if sched_mode == "Single day":
-        with st.form("manual_assign"):
-            mc1,mc2,mc3,mc4 = st.columns(4)
-            with mc1: m_emp  = st.selectbox("Employee", emp_names_cal if emp_names_cal else [""])
-            with mc2: m_job  = st.selectbox("Job", jobs_cal["job_id"].tolist() if not jobs_cal.empty else [""])
-            with mc3: m_date = st.date_input("Date", value=date.today())
-            with mc4: m_note = st.text_input("Note", value="")
-            if st.form_submit_button("✅ Add to schedule", type="primary"):
-                client_val = jobs_cal.loc[jobs_cal["job_id"]==m_job,"client"].iloc[0] if not jobs_cal.empty and m_job in jobs_cal["job_id"].values else ""
-                existing = fetch_df(
-                    "SELECT id FROM day_assignments WHERE employee=? AND date=? AND job_id=?",
-                    (m_emp, m_date.isoformat(), m_job))
-                if existing.empty:
-                    execute("INSERT INTO day_assignments (job_id, client, employee, date, note) VALUES (?,?,?,?,?)",
-                        (m_job, client_val, m_emp, m_date.isoformat(), m_note))
-                    st.success(f"✅ {m_emp} → {m_job} on {m_date.strftime('%d %b %Y')}")
-                else:
-                    st.info("Already scheduled.")
-                st.rerun()
-    else:
-        with st.form("bulk_assign"):
-            bc1, bc2 = st.columns(2)
-            with bc1:
-                b_emp   = st.selectbox("Employee", emp_names_cal if emp_names_cal else [""])
-                b_job   = st.selectbox("Job", jobs_cal["job_id"].tolist() if not jobs_cal.empty else [""])
-                b_note  = st.text_input("Note (optional)")
-            with bc2:
-                b_from  = st.date_input("From", value=date.today())
-                b_to    = st.date_input("To",   value=date.today())
-            st.markdown("**Include days:**")
-            dc = st.columns(7)
-            day_names  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-            day_checks = [dc[i].checkbox(d, value=(i<5), key=f"sched_day_{i}") for i,d in enumerate(day_names)]
-            if st.form_submit_button("✅ Schedule all days", type="primary"):
-                import datetime as _dt2
-                client_val = jobs_cal.loc[jobs_cal["job_id"]==b_job,"client"].iloc[0] if not jobs_cal.empty and b_job in jobs_cal["job_id"].values else ""
-                cur = b_from; added = 0
-                while cur <= b_to:
-                    if day_checks[cur.weekday()]:
-                        ex = fetch_df("SELECT id FROM day_assignments WHERE employee=? AND date=? AND job_id=?",
-                            (b_emp, cur.isoformat(), b_job))
-                        if ex.empty:
-                            execute("INSERT INTO day_assignments (job_id,client,employee,date,note) VALUES (?,?,?,?,?)",
-                                (b_job, client_val, b_emp, cur.isoformat(), b_note))
-                            added += 1
-                    cur += _dt2.timedelta(days=1)
-                st.success(f"✅ {added} days scheduled for {b_emp} on {b_job}")
-                st.rerun()
-
-    # ── Current assignments with delete ──────────────────────────────────
-    st.divider()
-    all_assigns = fetch_df("""
-        SELECT id, date, employee, job_id, note
-        FROM day_assignments
-        WHERE date >= date('now', '-7 days')
-        ORDER BY date, employee
-    """)
-    if not all_assigns.empty:
-        st.markdown("**Upcoming & recent assignments**")
-        for _, ar in all_assigns.iterrows():
-            ar_id = int(ar["id"])
-            ac1, ac2 = st.columns([6,1])
-            with ac1:
-                st.markdown(
-                    "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;"
-                    "padding:8px 14px;margin-bottom:4px;display:flex;gap:16px;align-items:center'>"
-                    "<span style='color:#2dd4bf;font-weight:700;font-size:14px;min-width:90px'>" + str(ar["date"]) + "</span>"
-                    "<span style='color:#e2e8f0;font-size:14px'>" + str(ar["employee"]) + "</span>"
-                    "<span style='color:#64748b;font-size:13px'>" + str(ar["job_id"]) + "</span>"
-                    + ("<span style='color:#475569;font-size:12px'>" + str(ar.get("note","")) + "</span>" if ar.get("note") else "") +
-                    "</div>", unsafe_allow_html=True)
-            with ac2:
-                if st.button("🗑", key=f"del_sched_{ar_id}", help="Delete"):
-                    execute("DELETE FROM day_assignments WHERE id=?", (ar_id,))
-                    st.rerun()
-
-    st.divider()
-    st.subheader("Upcoming schedule")
-    today_str = date.today().isoformat()
-    if not assign_df.empty:
-        upcoming = assign_df[assign_df["date"] >= today_str].sort_values("date")
-        if not upcoming.empty:
-            st.dataframe(upcoming[["date", "employee", "job_id", "client", "note"]], width="stretch")
-        else:
-            st.info("Nothing scheduled from today onwards.")
-    else:
-        st.info("No schedule entries yet — drag a job onto an employee above.")
-
-    # ── Per-job labour report ─────────────────────────────────────────────
-    st.divider()
-    st.subheader("Labour allocation by job")
-    st.caption("Scheduled days from the calendar costed against each job's tender labour budget.")
-
-    labour_report = fetch_df("""
-        SELECT
-            da.job_id,
-            j.client,
-            COALESCE(j.tender_labour_budget, 0)          AS budget,
-            COUNT(da.id)                                  AS scheduled_days,
-            COALESCE(SUM(e.hourly_rate * 8), 0)          AS scheduled_cost
+    # ── Load data ──────────────────────────────────────────────────────────
+    assignments = fetch_df("""
+        SELECT da.id, da.job_id, da.client, da.employee, da.date, da.note,
+               COALESCE(j.sell_price, 0) AS sell_price
         FROM day_assignments da
-        LEFT JOIN jobs j       ON j.job_id   = da.job_id
-        LEFT JOIN employees e  ON e.name     = da.employee
+        LEFT JOIN jobs j ON j.job_id = da.job_id
         WHERE da.employee != '__unassigned__'
-          AND da.job_id   != ''
-        GROUP BY da.job_id
-        ORDER BY da.job_id
+        ORDER BY da.date, da.employee
     """)
 
-    if labour_report.empty:
-        st.info("No assignments yet — schedule some jobs on the calendar above.")
+    labour_logs_cal = fetch_df("""
+        SELECT work_date, employee, job_id,
+               SUM(hours) AS total_hours
+        FROM labour_logs
+        GROUP BY work_date, employee, job_id
+        ORDER BY work_date
+    """)
+
+    public_hols = fetch_df("""
+        SELECT holiday_date, name FROM public_holidays ORDER BY holiday_date
+    """)
+    hols_dict = {}
+    if not public_hols.empty:
+        for _, h in public_hols.iterrows():
+            hols_dict[str(h["holiday_date"])] = str(h["name"])
+
+    today_str = date.today().isoformat()
+
+    # Colour map for employees
+    EMP_COLORS = ["#2dd4bf","#f59e0b","#a78bfa","#f43f5e","#60a5fa","#4ade80","#fb923c","#e879f9"]
+    emp_list = fetch_df("SELECT name FROM employees WHERE active=1 ORDER BY name")
+    emp_color_map = {}
+    if not emp_list.empty:
+        for i, name in enumerate(emp_list["name"].tolist()):
+            emp_color_map[name] = EMP_COLORS[i % len(EMP_COLORS)]
+
+    def get_day_assignments(date_str):
+        if assignments.empty:
+            return []
+        return assignments[assignments["date"] == date_str].to_dict("records")
+
+    def get_day_labour(date_str):
+        if labour_logs_cal.empty:
+            return []
+        return labour_logs_cal[labour_logs_cal["work_date"] == date_str].to_dict("records")
+
+    def render_day_cell(d, compact=True):
+        ds = d.isoformat()
+        is_today = ds == today_str
+        is_hol = ds in hols_dict
+        day_assigns = get_day_assignments(ds)
+        day_labour = get_day_labour(ds)
+
+        border = "2px solid #2dd4bf" if is_today else "1px solid #1e2d3d"
+        bg = "#0d1f2d" if is_today else "#111c27"
+
+        html = f"<div style='background:{bg};border:{border};border-radius:8px;padding:6px;min-height:80px;margin:2px'>"
+        html += f"<div style='font-size:12px;font-weight:700;color:{'#2dd4bf' if is_today else '#94a3b8'}'>{d.day}</div>"
+
+        if is_hol:
+            html += f"<div style='font-size:9px;background:#f59e0b22;color:#f59e0b;border-radius:3px;padding:1px 4px;margin-bottom:2px'>{hols_dict[ds][:15]}</div>"
+
+        if not compact:
+            # Week view — show more detail
+            for a in day_assigns:
+                color = emp_color_map.get(str(a.get("employee","")), "#64748b")
+                html += f"<div style='font-size:9px;background:{color}22;color:{color};border-left:2px solid {color};border-radius:3px;padding:2px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>"
+                html += f"<b>{str(a.get('employee',''))[:12]}</b> — {str(a.get('job_id',''))}"
+                if a.get("note"):
+                    html += f"<br><span style='opacity:0.8'>{str(a.get('note',''))[:20]}</span>"
+                html += "</div>"
+            for l in day_labour:
+                color = emp_color_map.get(str(l.get("employee","")), "#64748b")
+                html += f"<div style='font-size:9px;color:{color};opacity:0.7;padding:1px 4px'>⏱ {str(l.get('employee',''))[:10]}: {float(l.get('total_hours',0)):.1f}h on {str(l.get('job_id',''))}</div>"
+        else:
+            # Month view — compact dots
+            shown = 0
+            for a in day_assigns[:3]:
+                color = emp_color_map.get(str(a.get("employee","")), "#64748b")
+                html += f"<div style='font-size:9px;background:{color}22;color:{color};border-radius:2px;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>{str(a.get('employee',''))[:10]}: {str(a.get('job_id',''))}</div>"
+                shown += 1
+            if len(day_assigns) > 3:
+                html += f"<div style='font-size:9px;color:#475569'>+{len(day_assigns)-3} more</div>"
+
+        html += "</div>"
+        return html
+
+    # ── Month View ─────────────────────────────────────────────────────────
+    if cal_view == "Month":
+        cur_month = st.session_state.get("cal_month", pd.Timestamp(date.today().replace(day=1)))
+        if hasattr(cur_month, 'date'):
+            cur_month_date = cur_month.date().replace(day=1)
+        else:
+            cur_month_date = cur_month.replace(day=1)
+
+        st.markdown(f"<div style='font-size:20px;font-weight:800;color:#e2e8f0;margin-bottom:12px'>{cur_month_date.strftime('%B %Y')}</div>", unsafe_allow_html=True)
+
+        # Day headers
+        day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+        hdr_cols = st.columns(7)
+        for col, dn in zip(hdr_cols, day_names):
+            col.markdown(f"<div style='text-align:center;font-size:11px;font-weight:700;color:#475569;padding:4px'>{dn}</div>", unsafe_allow_html=True)
+
+        # Build month grid
+        import calendar as _cal
+        first_day = cur_month_date
+        last_day = (first_day + pd.DateOffset(months=1) - pd.DateOffset(days=1)).date()
+        start_weekday = first_day.weekday()  # 0=Mon
+
+        # Pad start
+        grid_days = [None] * start_weekday
+        d = first_day
+        while d <= last_day:
+            grid_days.append(d)
+            d += pd.Timedelta(days=1)
+        while len(grid_days) % 7 != 0:
+            grid_days.append(None)
+
+        # Render weeks
+        for week_start in range(0, len(grid_days), 7):
+            week = grid_days[week_start:week_start+7]
+            cols = st.columns(7)
+            for col, day in zip(cols, week):
+                with col:
+                    if day:
+                        st.markdown(render_day_cell(day, compact=True), unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div style='min-height:80px'></div>", unsafe_allow_html=True)
+
+    # ── Week View ──────────────────────────────────────────────────────────
     else:
-        for _, r in labour_report.iterrows():
-            budget   = float(r["budget"] or 0)
-            cost     = float(r["scheduled_cost"] or 0)
-            days     = int(r["scheduled_days"] or 0)
-            pct      = (cost / budget * 100) if budget else 0
-            pct_disp = min(pct, 100)
+        today_dt = date.today()
+        week_start = st.session_state.get("cal_week_start",
+            pd.Timestamp(today_dt - pd.Timedelta(days=today_dt.weekday())))
+        if hasattr(week_start, 'date'):
+            week_start_date = week_start.date()
+        else:
+            week_start_date = week_start
 
-            if pct <= 85:        color, health = "#15803d", "UNDER BUDGET"
-            elif pct <= 100:     color, health = "#b45309", "GETTING CLOSE"
-            elif pct <= 110:     color, health = "#c2410c", "LABOUR WARNING"
-            else:                color, health = "#b91c1c", "LABOUR OVER"
+        week_end_date = week_start_date + pd.Timedelta(days=6)
+        st.markdown(
+            f"<div style='font-size:20px;font-weight:800;color:#e2e8f0;margin-bottom:12px'>"
+            f"Week of {week_start_date.strftime('%d %b')} — {week_end_date.strftime('%d %b %Y')}</div>",
+            unsafe_allow_html=True)
 
-            badge_html = (
-                f"<span style='background:{color};color:#fff;padding:2px 10px;"
-                f"border-radius:999px;font-size:11px;font-weight:700'>{health}</span>"
-            )
-            bar_html = (
-                f"<div style='background:#e5e7eb;border-radius:4px;height:6px;margin-top:4px'>"
-                f"<div style='background:{color};width:{pct_disp:.0f}%;height:6px;border-radius:4px;transition:width .3s'></div>"
-                f"</div>"
-            )
+        week_days = [week_start_date + pd.Timedelta(days=i) for i in range(7)]
+        day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 
-            st.markdown(
-                f"""<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                        <div>
-                            <span style="font-weight:700;font-size:14px">{r['job_id']}</span>
-                            <span style="color:#6b7280;font-size:12px;margin-left:8px">{r['client'] or ''}</span>
-                        </div>
-                        {badge_html}
-                    </div>
-                    <div style="display:flex;gap:24px;font-size:12px;color:#374151;margin-bottom:6px">
-                        <span>Scheduled days: <strong>{days}</strong></span>
-                        <span>Scheduled cost: <strong>${cost:,.0f}</strong></span>
-                        <span>Labour budget: <strong>${budget:,.0f}</strong></span>
-                        <span style="font-weight:700;color:{color}">{pct:.0f}% of budget</span>
-                    </div>
-                    {bar_html}
-                </div>""",
-                unsafe_allow_html=True,
-            )
+        # Header row
+        hdr_cols = st.columns(7)
+        for col, d, dn in zip(hdr_cols, week_days, day_names):
+            is_today = d.isoformat() == today_str
+            color = "#2dd4bf" if is_today else "#94a3b8"
+            col.markdown(
+                f"<div style='text-align:center;padding:6px'>"
+                f"<div style='font-size:11px;font-weight:700;color:{color}'>{dn}</div>"
+                f"<div style='font-size:20px;font-weight:900;color:{color}'>{d.day}</div>"
+                f"</div>",
+                unsafe_allow_html=True)
+
+        # Day cells — tall week view
+        day_cols = st.columns(7)
+        for col, d in zip(day_cols, week_days):
+            with col:
+                st.markdown(render_day_cell(d, compact=False), unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Assignment form ────────────────────────────────────────────────────
+    st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin-bottom:8px'>ADD ASSIGNMENT</div>", unsafe_allow_html=True)
+
+    emp_names = fetch_df("SELECT name FROM employees WHERE active=1 ORDER BY name")["name"].tolist() if not assignments.empty or True else []
+    jobs_list_cal = fetch_df("SELECT job_id, client FROM jobs WHERE archived=0 ORDER BY job_id")
+
+    with st.form("cal_assign_form"):
+        ac1, ac2, ac3, ac4 = st.columns(4)
+        with ac1:
+            ca_emp = st.selectbox("Employee", emp_names if emp_names else [""])
+        with ac2:
+            ca_job = st.selectbox("Job", jobs_list_cal["job_id"].tolist() if not jobs_list_cal.empty else [""])
+        with ac3:
+            ca_date = st.date_input("Date", value=date.today())
+        with ac4:
+            ca_note = st.text_input("Note", placeholder="e.g. Install gutters")
+        if st.form_submit_button("Add Assignment", type="primary"):
+            execute("INSERT INTO day_assignments (job_id, client, employee, date, note) VALUES (?,?,?,?,?)",
+                (ca_job,
+                 str(jobs_list_cal[jobs_list_cal["job_id"]==ca_job]["client"].iloc[0]) if not jobs_list_cal.empty and ca_job in jobs_list_cal["job_id"].values else "",
+                 ca_emp, ca_date.isoformat(), ca_note))
+            st.success(f"✅ {ca_emp} assigned to {ca_job} on {ca_date.strftime('%d %b')}!")
+            st.rerun()
+
+    # ── Upcoming assignments list ──────────────────────────────────────────
+    st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:16px 0 8px'>UPCOMING ASSIGNMENTS</div>", unsafe_allow_html=True)
+    upcoming = fetch_df("""
+        SELECT da.date, da.employee, da.job_id, da.client, da.note, da.id
+        FROM day_assignments da
+        WHERE da.date >= ? AND da.employee != '__unassigned__'
+        ORDER BY da.date, da.employee
+        LIMIT 20
+    """, (today_str,))
+
+    if upcoming.empty:
+        st.info("No upcoming assignments.")
+    else:
+        for _, row in upcoming.iterrows():
+            uc1,uc2,uc3,uc4,uc5 = st.columns([2,2,2,3,1])
+            color = emp_color_map.get(str(row.get("employee","")), "#64748b")
+            uc1.markdown(f"<div style='color:#94a3b8;font-size:13px'>{str(row['date'])}</div>", unsafe_allow_html=True)
+            uc2.markdown(f"<div style='color:{color};font-weight:700;font-size:13px'>{str(row.get('employee',''))}</div>", unsafe_allow_html=True)
+            uc3.markdown(f"<div style='color:#e2e8f0;font-size:13px'>{str(row.get('job_id',''))}</div>", unsafe_allow_html=True)
+            uc4.markdown(f"<div style='color:#64748b;font-size:12px'>{str(row.get('note',''))}</div>", unsafe_allow_html=True)
+            with uc5:
+                if st.button("🗑", key=f"del_assign_{row['id']}"):
+                    execute("DELETE FROM day_assignments WHERE id=?", (int(row["id"]),))
+                    st.rerun()
 
 
 # ─────────────────────────────────────────────
