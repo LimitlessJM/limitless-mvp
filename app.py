@@ -365,28 +365,16 @@ details summary {
 # ─────────────────────────────────────────────
 #  DATABASE
 # ─────────────────────────────────────────────
-@st.cache_resource
-def get_pg_pool():
-    from psycopg2 import pool as _pool
-    return _pool.ThreadedConnectionPool(1, 5, DATABASE_URL, connect_timeout=10)
-
 def get_conn():
     if USE_POSTGRES:
-        try:
-            return get_pg_pool().getconn()
-        except:
-            return psycopg2.connect(DATABASE_URL, connect_timeout=10)
+        return psycopg2.connect(DATABASE_URL, connect_timeout=10)
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def release_conn(conn):
-    if USE_POSTGRES:
-        try:
-            get_pg_pool().putconn(conn)
-        except:
-            try: conn.close()
-            except: pass
-    else:
+    try:
         conn.close()
+    except:
+        pass
 
 
 def init_db():
