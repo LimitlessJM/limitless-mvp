@@ -3696,7 +3696,9 @@ elif page == "Jobs":
 
             live_lines = {}
             for item, v in scan.items():
-                q = float(st.session_state.get(f"qty_{open_job}_{item}", v["qty"]))
+                _raw_q = st.session_state.get(f"qty_{open_job}_{item}", v["qty"])
+                try: q = float(_raw_q) if str(_raw_q).strip() else 0.0
+                except: q = 0.0
                 m = float(st.session_state.get(f"mat_{open_job}_{item}", v["mat"]))
                 l = float(st.session_state.get(f"lab_{open_job}_{item}", v["lab"]))
                 scan[item]["qty"] = q
@@ -5881,20 +5883,22 @@ No explanation, only JSON."""
                 _pm = str(_sel_client.get("pm_name","") or "")
                 _bill = str(_sel_client.get("billing_name","") or "")
                 _bill_email = str(_sel_client.get("billing_email","") or "")
-                st.markdown(f"""
-                <div style='background:#1e2d3d;border:1px solid #2dd4bf33;border-radius:10px;
+                # Build client card HTML safely
+                _abn_html = f"<div style='color:#475569;font-size:12px'>ABN: {_sel_client.get('abn','')}</div>" if _sel_client.get('abn') else ""
+                _ca_html = f"<div><div style='color:#a78bfa;font-size:13px;font-weight:700'>CA</div><div style='color:#94a3b8;font-size:13px'>{_ca}</div></div>" if _ca else ""
+                _pm_html = f"<div><div style='color:#60a5fa;font-size:13px;font-weight:700'>PM</div><div style='color:#94a3b8;font-size:13px'>{_pm}</div></div>" if _pm else ""
+                _bill_html = f"<div><div style='color:#2dd4bf;font-size:13px;font-weight:700'>Billing</div><div style='color:#94a3b8;font-size:13px'>{_bill} · {_bill_email}</div></div>" if _bill_email else ""
+                _card_html = f"""<div style='background:#1e2d3d;border:1px solid #2dd4bf33;border-radius:10px;
                     padding:12px 16px;margin-bottom:12px;display:flex;gap:24px;flex-wrap:wrap'>
                     <div>
                         <div style='color:#2dd4bf;font-size:13px;font-weight:700'>{_sel_name}</div>
-                        <div style='color:#64748b;font-size:13px'>{_sel_client.get('address','')}</div>
-                        <div style='color:#64748b;font-size:13px'>{_sel_client.get('phone','')} · {_sel_client.get('email','')}</div>
-                        {f"<div style='color:#475569;font-size:12px'>ABN: {_sel_client.get('abn','')}</div>" if _sel_client.get('abn') else ''}
+                        <div style='color:#64748b;font-size:13px'>{_sel_client.get("address","")}</div>
+                        <div style='color:#64748b;font-size:13px'>{_sel_client.get("phone","")} · {_sel_client.get("email","")}</div>
+                        {_abn_html}
                     </div>
-                    {f"<div><div style='color:#a78bfa;font-size:13px;font-weight:700'>CA</div><div style='color:#94a3b8;font-size:13px'>{_ca}</div></div>" if _ca else ""}
-                    {f"<div><div style='color:#60a5fa;font-size:13px;font-weight:700'>PM</div><div style='color:#94a3b8;font-size:13px'>{_pm}</div></div>" if _pm else ""}
-                    {f"<div><div style='color:#2dd4bf;font-size:13px;font-weight:700'>Billing</div><div style='color:#94a3b8;font-size:13px'>{_bill} · {_bill_email}</div></div>" if _bill_email else ""}
-                </div>
-                """, unsafe_allow_html=True)
+                    {_ca_html}{_pm_html}{_bill_html}
+                </div>"""
+                st.markdown(_card_html, unsafe_allow_html=True)
 
             with st.form("new_job_form"):
                 st.subheader("New Job")
