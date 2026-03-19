@@ -3572,6 +3572,7 @@ elif page == "Jobs":
                             st.session_state.pop(f"show_recipe_modal_{open_job}", None)
                             st.rerun()
 
+            st.markdown("</div>", unsafe_allow_html=True)
             if st.button("Save estimate to job", type="primary", key=f"save_est_{open_job}"):
                 execute("DELETE FROM estimate_lines WHERE job_id=?", (open_job,))
                 tp = (gp/sell_calc) if sell_calc else 0
@@ -3633,17 +3634,34 @@ elif page == "Jobs":
                 background: #0d2233 !important;
                 color: #2dd4bf !important;
             }
-            /* Hover highlight on any row — works even at qty 0 */
-            [id^="qb_row_"] {
-                transition: background 0.08s, border-color 0.08s !important;
+            /* Hover highlight — target stHorizontalBlock rows */
+            .qb-section .stHorizontalBlock {
+                border-radius: 6px !important;
+                border: 1px solid transparent !important;
+                border-left: 3px solid transparent !important;
+                padding: 2px 4px !important;
+                margin-bottom: 3px !important;
+                transition: all 0.08s !important;
+                cursor: default !important;
             }
-            [id^="qb_row_"]:hover {
+            .qb-section .stHorizontalBlock:hover {
                 background: #0d2233 !important;
                 border-color: #2dd4bf !important;
-                border-left-color: #2dd4bf !important;
-                border-left-width: 3px !important;
+                border-left: 3px solid #2dd4bf !important;
+                box-shadow: 0 0 0 1px #2dd4bf44 !important;
             }
-            [id^="qb_row_"]:hover div {
+            .qb-section .stHorizontalBlock:hover p,
+            .qb-section .stHorizontalBlock:hover div {
+                color: #ffffff !important;
+            }
+            .qb-section .stHorizontalBlock:focus-within {
+                background: #0d2233 !important;
+                border-color: #2dd4bf !important;
+                border-left: 3px solid #2dd4bf !important;
+                box-shadow: 0 0 0 2px #2dd4bf66 !important;
+            }
+            .qb-section .stHorizontalBlock:focus-within p,
+            .qb-section .stHorizontalBlock:focus-within div {
                 color: #ffffff !important;
             }
             /* Row highlight on focus */
@@ -3736,6 +3754,7 @@ elif page == "Jobs":
             st.divider()
 
             # Section groups
+            st.markdown("<div class='qb-section'>", unsafe_allow_html=True)
             for section in sections:
                 sec_items = {k:v for k,v in scan.items() if v["section"]==section}
                 sec_active = sum(1 for v in sec_items.values() if v["qty"]>0)
