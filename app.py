@@ -3835,7 +3835,17 @@ elif page == "Jobs":
                         h_risks = st.text_area("Site risks / Safety notes", placeholder="e.g. Steep roof, harness required. SWMS: refer to site folder.", height=80)
                         h_access = st.text_area("Site access details", placeholder="e.g. Key with PM. Gate code: 1234. Park on street.", height=60)
                     h_notes = st.text_area("Special instructions", placeholder="e.g. Materials booked for Day 1. Client wants daily updates.", height=80)
-                    if st.form_submit_button("Complete handover → Live Job", type="primary"):
+                    sc1, sc2 = st.columns(2)
+                    with sc1:
+                        save_notes_only = st.form_submit_button("💾 Save Notes")
+                    with sc2:
+                        pass
+                    if save_notes_only:
+                        execute("UPDATE jobs SET handover_crew=?, handover_notes=?, handover_risks=?, handover_access=? WHERE job_id=?",
+                            (h_crew, h_notes, h_risks, h_access, open_job))
+                        st.success("✅ Notes saved!")
+                        st.rerun()
+                    if st.form_submit_button("✅ Complete Handover → Live Job", type="primary"):
                         upsert_job(open_job, wjob.get("client",""), wjob.get("address",""),
                                    wjob.get("estimator",""), "Live Job")
                         for bd in pd.bdate_range(h_start, periods=h_days):
@@ -3875,14 +3885,36 @@ elif page == "Jobs":
                     FROM estimate_lines WHERE job_id=? ORDER BY section, id
                 """, (open_job,))
 
-                # Load materials from estimate lines (recipe components)
-                mats_df = fetch_df("""
-                    SELECT section, item, qty, uom, material_cost,
-                           ROUND(qty * material_cost, 2) AS total_cost
-                    FROM estimate_lines
-                    WHERE job_id=? AND material_cost > 0
-                    ORDER BY section, item
+                # Load materials from estimate lines with recipe component breakdown
+                # First get the estimate lines
+                est_lines = fetch_df("""
+                    SELECT el.section, el.item, el.qty, el.uom,
+                           el.material_cost, el.labour_cost
+                    FROM estimate_lines el
+                    WHERE el.job_id=? AND el.material_cost > 0
+                    ORDER BY el.section, el.item
                 """, (open_job,))
+
+                # Build materials list — each line item with its total cost
+                if not est_lines.empty:
+                    mat_rows_data = []
+                    for _, el in est_lines.iterrows():
+                        qty = float(el.get("qty",0) or 0)
+                        mat_cost = float(el.get("material_cost",0) or 0)
+                        total = round(qty * mat_cost, 2)
+                        mat_rows_data.append({
+                            "section": str(el.get("section","") or "General"),
+                            "item": str(el.get("item","") or ""),
+                            "qty": qty,
+                            "uom": str(el.get("uom","") or ""),
+                            "unit_cost": mat_cost,
+                            "total_cost": total
+                        })
+                    import pandas as _pd2
+                    mats_df = _pd2.DataFrame(mat_rows_data)
+                else:
+                    import pandas as _pd2
+                    mats_df = _pd2.DataFrame()
 
                 # Preview
                 col_prev, col_gen = st.columns(2)
@@ -4011,16 +4043,17 @@ elif page == "Jobs":
                                 story.append(Spacer(1, 4*mm))
                                 story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
                                 story.append(Paragraph("MATERIALS LIST", h2))
-                                mat_rows = [["Section", "Item", "Qty", "UOM", "Total Cost"]]
+                                mat_rows = [["Section", "Item", "Qty", "UOM", "Unit $", "Total"]]
                                 for _, row in mats_df.iterrows():
                                     mat_rows.append([
-                                        str(row.get("section","—"))[:30],
-                                        str(row.get("item","—"))[:50],
+                                        str(row.get("section","—"))[:25],
+                                        str(row.get("item","—"))[:45],
                                         f"{float(row.get('qty',0)):,.2f}",
                                         str(row.get("uom","—")),
+                                        f"${float(row.get('unit_cost',0)):,.2f}",
                                         f"${float(row.get('total_cost',0)):,.2f}"
                                     ])
-                                mt = Table(mat_rows, colWidths=[35*mm, 80*mm, 20*mm, 15*mm, 30*mm])
+                                mt = Table(mat_rows, colWidths=[30*mm, 70*mm, 18*mm, 12*mm, 20*mm, 30*mm])
                                 mt.setStyle(TableStyle([
                                     ("FONTNAME", (0,0),(-1,0), "Helvetica-Bold"),
                                     ("FONTSIZE", (0,0),(-1,-1), 8),
