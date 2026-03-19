@@ -2814,7 +2814,7 @@ SIDEBAR_GROUPS = {
     "📋 JOBS":       ["Dashboard","Jobs","Schedule Calendar"],
     "👥 PEOPLE":     ["Clients","Employees","Timesheets","Payroll Rules"],
     "📐 ESTIMATING": ["Catalogue","Recipes","StackCT Import"],
-    "💰 FINANCIALS": ["Pipeline","Budget Planner","Company P&L","Financial Health","Job Costing Report"],
+    "💰 FINANCIALS": ["Pipeline","Budget Planner","Company P&L","Financial Health","Job Costing Report","Expenses"],
     "⚙️ SETTINGS":   ["Notifications","Company Settings","User Management"],
 }
 
