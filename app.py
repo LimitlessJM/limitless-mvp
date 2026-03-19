@@ -12,7 +12,10 @@ import streamlit.components.v1 as components
 # ─────────────────────────────────────────────
 #  CONFIG
 # ─────────────────────────────────────────────
-DB_PATH        = Path(__file__).with_name("limitless.db")
+# Use /data for Railway persistent volume, fallback to app directory
+import os as _os
+_data_dir = "/data" if _os.path.exists("/data") else str(Path(__file__).parent)
+DB_PATH = Path(_data_dir) / "limitless.db"
 CATALOGUE_PATH = Path(__file__).with_name("limitless_catalogue_clean_rebuilt.xlsx")
 CALENDAR_PATH  = Path(__file__).with_name("calendar.html")
 
@@ -365,12 +368,26 @@ details summary {
 # ─────────────────────────────────────────────
 #  DATABASE
 # ─────────────────────────────────────────────
+@st.cache_resource
+def _get_pool():
+    from psycopg2 import pool as _pool
+    return _pool.ThreadedConnectionPool(2, 10, DATABASE_URL, connect_timeout=10)
+
 def get_conn():
     if USE_POSTGRES:
-        return psycopg2.connect(DATABASE_URL, connect_timeout=10)
+        try:
+            return _get_pool().getconn()
+        except:
+            return psycopg2.connect(DATABASE_URL, connect_timeout=10)
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def release_conn(conn):
+    if USE_POSTGRES:
+        try:
+            _get_pool().putconn(conn)
+            return
+        except:
+            pass
     try:
         conn.close()
     except:
