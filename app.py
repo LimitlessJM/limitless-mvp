@@ -842,6 +842,17 @@ def init_db():
             cur.execute("INSERT INTO material_finishes (finish_name,sort_order) VALUES (?,?)",(f,i))
         conn.commit()
 
+    # ── Add handover columns if missing ──────────────────────────────────
+    for _col, _def in [
+        ("handover_crew", "TEXT DEFAULT ''"),
+        ("handover_notes", "TEXT DEFAULT ''"),
+        ("handover_risks", "TEXT DEFAULT ''"),
+        ("handover_access", "TEXT DEFAULT ''"),
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE jobs ADD COLUMN {_col} {_def}")
+        except: pass
+
     # ── No demo data — clean slate for real use ──────────────────────────
 
     conn.commit()
@@ -3864,10 +3875,13 @@ elif page == "Jobs":
                     FROM estimate_lines WHERE job_id=? ORDER BY section, id
                 """, (open_job,))
 
-                # Load materials from material invoices
+                # Load materials from estimate lines (recipe components)
                 mats_df = fetch_df("""
-                    SELECT supplier, invoice_date, amount FROM material_invoices
-                    WHERE job_id=? ORDER BY invoice_date
+                    SELECT section, item, qty, uom, material_cost,
+                           ROUND(qty * material_cost, 2) AS total_cost
+                    FROM estimate_lines
+                    WHERE job_id=? AND material_cost > 0
+                    ORDER BY section, item
                 """, (open_job,))
 
                 # Preview
@@ -3882,7 +3896,7 @@ elif page == "Jobs":
                             <b style='color:#e2e8f0'>Address:</b> {wjob.get('address','—')}<br>
                             <b style='color:#e2e8f0'>Leading Hand:</b> {ho_data.get('handover_crew','—')}<br>
                             <b style='color:#e2e8f0'>Scope items:</b> {len(scope_df)} line items<br>
-                            <b style='color:#e2e8f0'>Material invoices:</b> {len(mats_df)}<br>
+                            <b style='color:#e2e8f0'>Material items:</b> {len(mats_df)} components<br>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -3996,20 +4010,23 @@ elif page == "Jobs":
                             if not mats_df.empty:
                                 story.append(Spacer(1, 4*mm))
                                 story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
-                                story.append(Paragraph("MATERIALS", h2))
-                                mat_rows = [["Supplier", "Date", "Amount"]]
+                                story.append(Paragraph("MATERIALS LIST", h2))
+                                mat_rows = [["Section", "Item", "Qty", "UOM", "Total Cost"]]
                                 for _, row in mats_df.iterrows():
                                     mat_rows.append([
-                                        str(row.get("supplier","—")),
-                                        str(row.get("invoice_date","—")),
-                                        f"${float(row.get('amount',0)):,.2f}"
+                                        str(row.get("section","—"))[:30],
+                                        str(row.get("item","—"))[:50],
+                                        f"{float(row.get('qty',0)):,.2f}",
+                                        str(row.get("uom","—")),
+                                        f"${float(row.get('total_cost',0)):,.2f}"
                                     ])
-                                mt = Table(mat_rows, colWidths=[100*mm, 35*mm, 45*mm])
+                                mt = Table(mat_rows, colWidths=[35*mm, 80*mm, 20*mm, 15*mm, 30*mm])
                                 mt.setStyle(TableStyle([
                                     ("FONTNAME", (0,0),(-1,0), "Helvetica-Bold"),
                                     ("FONTSIZE", (0,0),(-1,-1), 8),
                                     ("BACKGROUND", (0,0),(-1,0), TEAL),
                                     ("TEXTCOLOR", (0,0),(-1,0), WHITE),
+                                    ("ROWBACKGROUNDS", (0,1),(-1,-1), [colors.HexColor("#f8fafc"), WHITE]),
                                     ("GRID", (0,0),(-1,-1), 0.3, colors.HexColor("#e2e8f0")),
                                     ("PADDING", (0,0),(-1,-1), 3),
                                 ]))
