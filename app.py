@@ -3152,16 +3152,15 @@ elif page == "Catalogue":
 # ─────────────────────────────────────────────
 elif page == "Jobs":
 
-    STAGES = ["Lead", "Take-off", "Tender Review", "Pre-Live Handover", "Live Job", "Completed"]
+    STAGES = ["Lead", "Quoted", "Handover", "Live Job", "Completed"]
     STAGE_COLORS = {
-        "Lead":              ("#1e3a5f", "#7dd3fc"),
-        "Take-off":          ("#1a2d3a", "#2dd4bf"),
-        "Tender Review":     ("#2d1f0d", "#f59e0b"),
-        "Pre-Live Handover": ("#2a1a2e", "#a78bfa"),
-        "Live Job":          ("#0d2a1f", "#2dd4bf"),
-        "Completed":         ("#1a2d1a", "#4ade80"),
-        "Performance":       ("#1f1a2d", "#c084fc"),
-        "Quote Builder":     ("#1f1a0d", "#fbbf24"),
+        "Lead":        ("#1e3a5f", "#7dd3fc"),
+        "Quoted":      ("#2d1f0d", "#f59e0b"),
+        "Handover":    ("#2a1a2e", "#a78bfa"),
+        "Live Job":    ("#0d2a1f", "#2dd4bf"),
+        "Completed":   ("#1a2d1a", "#4ade80"),
+        "Performance": ("#1f1a2d", "#c084fc"),
+        "Quote Builder": ("#1f1a0d", "#fbbf24"),
     }
 
     # ── Session state: which job is open ────────────────────────────────
@@ -5088,7 +5087,7 @@ No explanation, only JSON."""
                 var_jobs_board  = pd.DataFrame()
                 main_jobs_board = all_jobs_df.copy()
 
-            # ── Search bar ─────────────────────────────────────────────
+            # ── Search bar ──────────────────────────────────────────────
             board_search = st.text_input("🔍 Search jobs", placeholder="Job ID, client, address, estimator...", key="board_search")
             if board_search:
                 mask = (
@@ -5099,61 +5098,58 @@ No explanation, only JSON."""
                 )
                 main_jobs_board = main_jobs_board[mask]
 
-            # ── Kanban columns ─────────────────────────────────────────
-            board_stages = ["Lead","Take-off","Tender Review","Pre-Live Handover","Live Job","Completed"]
+            # ── Stage tabs ──────────────────────────────────────────────
+            board_stages = ["Lead", "Quoted", "Handover", "Live Job", "Completed"]
 
-            # CSS for scrollable columns
-            st.markdown("""
-            <style>
-            .kanban-col { 
-                background:#111c27; border:1px solid #1e2d3d; border-radius:12px; 
-                padding:12px 8px; min-height:200px;
-            }
-            .kanban-header {
-                font-size:11px; font-weight:700; letter-spacing:.1em;
-                text-transform:uppercase; padding:4px 8px 10px; 
-            }
-            .kanban-card {
-                background:#1e2d3d; border:1px solid #2a3d4f;
-                border-radius:8px; padding:10px 12px; margin-bottom:8px;
-                cursor:pointer;
-            }
-            </style>
-            """, unsafe_allow_html=True)
+            # Build tab labels with counts
+            tab_labels = []
+            for s in board_stages:
+                cnt = len(main_jobs_board[main_jobs_board["stage"]==s])
+                tab_labels.append(f"{s} ({cnt})")
 
-            cols = st.columns(len(board_stages))
-            for col, stage in zip(cols, board_stages):
+            stage_tabs = st.tabs(tab_labels)
+
+            for tab, stage in zip(stage_tabs, board_stages):
                 sc, tc = STAGE_COLORS.get(stage, ("#1e2d3d","#94a3b8"))
                 stage_jobs = main_jobs_board[main_jobs_board["stage"]==stage]
-                with col:
-                    st.markdown(
-                        f"<div style='background:{tc}15;border:1px solid {tc}33;border-radius:10px;padding:8px;margin-bottom:8px'>"
-                        f"<div style='color:{tc};font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase'>{stage}</div>"
-                        f"<div style='color:#475569;font-size:12px'>{len(stage_jobs)} job{'s' if len(stage_jobs)!=1 else ''}</div>"
-                        f"</div>",
-                        unsafe_allow_html=True
-                    )
-                    for _, jrow in stage_jobs.iterrows():
-                        sell  = float(jrow.get("sell_price") or 0)
-                        jtype = str(jrow.get("job_type","") or "Res")[:3]
-                        jtype_col = TYPE_COLORS.get(str(jrow.get("job_type","") or "Residential"), "#64748b")
-                        var_pending = int(jrow.get("var_pending",0) or 0)
+                with tab:
+                    if stage_jobs.empty:
+                        st.info(f"No {stage} jobs.")
+                    else:
+                        # Table header
+                        th1,th2,th3,th4,th5,th6 = st.columns([2,3,3,2,2,1])
+                        th1.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>JOB ID</div>", unsafe_allow_html=True)
+                        th2.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>CLIENT</div>", unsafe_allow_html=True)
+                        th3.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>ADDRESS</div>", unsafe_allow_html=True)
+                        th4.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>ESTIMATOR</div>", unsafe_allow_html=True)
+                        th5.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>VALUE</div>", unsafe_allow_html=True)
+                        th6.markdown("", unsafe_allow_html=True)
+                        st.divider()
 
-                        card_html = (
-                            f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;"
-                            f"border-left:3px solid {tc};border-radius:8px;"
-                            f"padding:10px 12px;margin-bottom:6px'>"
-                            f"<div style='font-size:13px;font-weight:700;color:#f1f5f9'>{jrow['job_id']}"
-                            + (f" <span style='background:#f59e0b22;color:#f59e0b;font-size:9px;padding:1px 5px;border-radius:3px'>{var_pending} VAR</span>" if var_pending else "") +
-                            f"</div>"
-                            f"<div style='font-size:12px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>{str(jrow.get('client') or '—')}</div>"
-                            + (f"<div style='font-size:12px;font-weight:700;color:#2dd4bf;margin-top:4px'>${sell:,.0f}</div>" if sell > 0 else "") +
-                            f"</div>"
-                        )
-                        st.markdown(card_html, unsafe_allow_html=True)
-                        if st.button("Open", key=f"open_{jrow['job_id']}", use_container_width=True):
-                            st.session_state["open_job"] = jrow["job_id"]
-                            st.rerun()
+                        for _, jrow in stage_jobs.iterrows():
+                            sell = float(jrow.get("sell_price") or 0)
+                            var_pending = int(jrow.get("var_pending",0) or 0)
+                            jtype = str(jrow.get("job_type","") or "Residential")
+                            jtype_col = TYPE_COLORS.get(jtype, "#64748b")
+
+                            c1,c2,c3,c4,c5,c6 = st.columns([2,3,3,2,2,1])
+                            with c1:
+                                badge = f" <span style='background:#f59e0b22;color:#f59e0b;font-size:9px;padding:1px 4px;border-radius:3px'>{var_pending}V</span>" if var_pending else ""
+                                st.markdown(f"<div style='font-weight:700;color:#f1f5f9;font-size:13px'>{jrow['job_id']}{badge}</div>", unsafe_allow_html=True)
+                            with c2:
+                                st.markdown(f"<div style='color:#e2e8f0;font-size:13px'>{str(jrow.get('client') or '—')}</div>", unsafe_allow_html=True)
+                            with c3:
+                                st.markdown(f"<div style='color:#64748b;font-size:12px'>{str(jrow.get('address') or '—')[:35]}</div>", unsafe_allow_html=True)
+                            with c4:
+                                st.markdown(f"<div style='color:#94a3b8;font-size:12px'>{str(jrow.get('estimator') or '—')}</div>", unsafe_allow_html=True)
+                            with c5:
+                                if sell > 0:
+                                    st.markdown(f"<div style='color:#2dd4bf;font-weight:700;font-size:13px'>${sell:,.0f}</div>", unsafe_allow_html=True)
+                            with c6:
+                                if st.button("Open →", key=f"open_{jrow['job_id']}", type="primary"):
+                                    st.session_state["open_job"] = jrow["job_id"]
+                                    st.rerun()
+                            st.divider()
 
             # ── Variation jobs section ─────────────────────────────────
             if not var_jobs_board.empty:
