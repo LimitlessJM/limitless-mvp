@@ -3741,6 +3741,26 @@ elif page == "Jobs":
             // Also observe DOM changes (Streamlit rerenders)
             new MutationObserver(() => setTimeout(setupRowHighlight, 200))
                 .observe(document.body, {childList: true, subtree: true});
+
+            // Select all text on click/focus so typing replaces value
+            function setupSelectAll() {
+                document.querySelectorAll('.qb-section input[type="number"]').forEach(input => {
+                    if (!input.dataset.selectAllSetup) {
+                        input.dataset.selectAllSetup = 'true';
+                        input.addEventListener('focus', function() {
+                            this.select();
+                        });
+                        input.addEventListener('click', function() {
+                            this.select();
+                        });
+                    }
+                });
+            }
+            setupSelectAll();
+            setTimeout(setupSelectAll, 500);
+            setTimeout(setupSelectAll, 1500);
+            new MutationObserver(() => setTimeout(setupSelectAll, 200))
+                .observe(document.body, {childList: true, subtree: true});
             </script>
             <style>
             /* When row is focused — make description text pop */
