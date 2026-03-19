@@ -2338,6 +2338,41 @@ if USE_POSTGRES:
             try: _pgcur.execute(_sql)
             except: pass
         _pgc.commit()
+        # Add any missing columns (safe to run multiple times)
+        for _alter in [
+            "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS logo_data BYTEA",
+            "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS logo_filename TEXT DEFAULT ''",
+            "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS terms_conditions TEXT DEFAULT ''",
+            "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS website TEXT DEFAULT ''",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS hourly_rate REAL DEFAULT 0",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS pin TEXT DEFAULT ''",
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS sell_price REAL DEFAULT 0",
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS archived INTEGER DEFAULT 0",
+            "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS value REAL DEFAULT 0",
+            "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS probability_pct REAL DEFAULT 50",
+            "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS target_month TEXT DEFAULT ''",
+            "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS follow_up_date TEXT DEFAULT ''",
+            "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS last_contact TEXT DEFAULT ''",
+            "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS contact_name TEXT DEFAULT ''",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT ''",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS active INTEGER DEFAULT 1",
+            "ALTER TABLE client_invoices ADD COLUMN IF NOT EXISTS amount_ex_gst REAL DEFAULT 0",
+            "ALTER TABLE client_invoices ADD COLUMN IF NOT EXISTS milestone TEXT DEFAULT ''",
+            "ALTER TABLE variations ADD COLUMN IF NOT EXISTS date_raised TEXT DEFAULT ''",
+            "ALTER TABLE variations ADD COLUMN IF NOT EXISTS approved_by TEXT DEFAULT ''",
+            "ALTER TABLE labour_logs ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''",
+            "ALTER TABLE material_invoices ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''",
+            "ALTER TABLE day_assignments ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''",
+            "ALTER TABLE site_diary ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT ''",
+            "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS photo_data BYTEA",
+            "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS filedata BYTEA",
+            "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS filetype TEXT DEFAULT ''",
+            "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS uploaded_at TEXT DEFAULT ''",
+        ]:
+            try: _pgcur.execute(_alter)
+            except: pass
+        _pgc.commit()
         # Seed defaults
         _pgcur.execute("SELECT COUNT(*) FROM company_settings")
         if _pgcur.fetchone()[0] == 0:
