@@ -869,7 +869,8 @@ def init_db():
     # ── Add client contact columns if missing ─────────────────────────────
     for _ccol in ["billing_name","billing_email","billing_phone",
                   "ca_name","ca_email","ca_phone",
-                  "pm_name","pm_email","pm_phone"]:
+                  "pm_name","pm_email","pm_phone",
+                  "abn"]:
         try:
             cur.execute(f"ALTER TABLE clients ADD COLUMN {_ccol} TEXT DEFAULT ''")
         except: pass
@@ -5493,6 +5494,7 @@ No explanation, only JSON."""
                         <div style='color:#2dd4bf;font-size:13px;font-weight:700'>{_sel_name}</div>
                         <div style='color:#64748b;font-size:13px'>{_sel_client.get('address','')}</div>
                         <div style='color:#64748b;font-size:13px'>{_sel_client.get('phone','')} · {_sel_client.get('email','')}</div>
+                        {f"<div style='color:#475569;font-size:12px'>ABN: {_sel_client.get('abn','')}</div>" if _sel_client.get('abn') else ''}
                     </div>
                     {f"<div><div style='color:#a78bfa;font-size:13px;font-weight:700'>CA</div><div style='color:#94a3b8;font-size:13px'>{_ca}</div></div>" if _ca else ""}
                     {f"<div><div style='color:#60a5fa;font-size:13px;font-weight:700'>PM</div><div style='color:#94a3b8;font-size:13px'>{_pm}</div></div>" if _pm else ""}
@@ -5522,8 +5524,10 @@ No explanation, only JSON."""
                     # Manual override fields — pre-filled from client
                     nj_cl   = st.text_input("Client name *",
                         value=str(_sel_client.get("name","") or _sel_name or ""))
-                    nj_addr = st.text_input("Address",
-                        value=str(_sel_client.get("address","") or ""))
+                    nj_addr = st.text_input("Site address",
+                        value="",
+                        placeholder="Enter the actual site/job address",
+                        help="Where the work is being done — not the client's office")
                     nj_est  = st.text_input("Estimator",
                         value=str(current_user.get("full_name","") or ""))
                 with nj2:
@@ -7727,15 +7731,16 @@ elif page == "Clients":
                     e_name  = st.text_input("Contact name", value=cli.get("name",""))
                     e_type  = st.selectbox("Type", CLIENT_TYPES,
                         index=CLIENT_TYPES.index(cli["client_type"]) if cli.get("client_type") in CLIENT_TYPES else 0)
-                    e_phone = st.text_input("Phone",   value=cli.get("phone",""))
+                    e_abn   = st.text_input("ABN", value=str(cli.get("abn","") or ""), help="Used on invoices")
+                    e_phone = st.text_input("Phone", value=cli.get("phone",""))
                 with cc2:
                     e_email = st.text_input("Email",   value=cli.get("email",""))
-                    e_addr  = st.text_input("Address", value=cli.get("address",""))
+                    e_addr  = st.text_input("Office address", value=cli.get("address",""))
                     e_notes = st.text_area("Notes",    value=cli.get("notes",""), height=100)
                 if st.form_submit_button("Save", type="primary"):
                     execute("""UPDATE clients SET name=?,company=?,client_type=?,phone=?,
-                               email=?,address=?,notes=? WHERE id=?""",
-                            (e_name,e_comp,e_type,e_phone,e_email,e_addr,e_notes,open_client))
+                               email=?,address=?,notes=?,abn=? WHERE id=?""",
+                            (e_name,e_comp,e_type,e_phone,e_email,e_addr,e_notes,e_abn,open_client))
                     st.success("Saved."); st.rerun()
 
         with ctab2:
