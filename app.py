@@ -5101,11 +5101,39 @@ No explanation, only JSON."""
             # ── Stage tabs ──────────────────────────────────────────────
             board_stages = ["Lead", "Quoted", "Handover", "Live Job", "Completed"]
 
+            # Stage colours for CSS
+            _stage_hex = {
+                "Lead":     "#7dd3fc",
+                "Quoted":   "#f59e0b",
+                "Handover": "#a78bfa",
+                "Live Job": "#2dd4bf",
+                "Completed":"#4ade80",
+            }
+
+            # Inject CSS to colour the tabs
+            _tab_css = """<style>
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 0px;
+                width: 100%;
+            }
+            .stTabs [data-baseweb="tab"] {
+                flex: 1;
+                justify-content: center;
+                font-weight: 700;
+                font-size: 13px;
+                letter-spacing: 0.05em;
+                border-radius: 0px;
+                padding: 10px 4px;
+                border-bottom: 3px solid transparent;
+            }
+            </style>"""
+            st.markdown(_tab_css, unsafe_allow_html=True)
+
             # Build tab labels with counts
             tab_labels = []
             for s in board_stages:
                 cnt = len(main_jobs_board[main_jobs_board["stage"]==s])
-                tab_labels.append(f"{s} ({cnt})")
+                tab_labels.append(f"{s}  ·  {cnt}")
 
             stage_tabs = st.tabs(tab_labels)
 
@@ -5113,8 +5141,18 @@ No explanation, only JSON."""
                 sc, tc = STAGE_COLORS.get(stage, ("#1e2d3d","#94a3b8"))
                 stage_jobs = main_jobs_board[main_jobs_board["stage"]==stage]
                 with tab:
+                    # Coloured stage header bar
+                    st.markdown(
+                        f"<div style='background:{tc}18;border-left:4px solid {tc};"
+                        f"border-radius:0 8px 8px 0;padding:10px 16px;margin-bottom:16px;"
+                        f"display:flex;align-items:center;gap:12px'>"
+                        f"<span style='color:{tc};font-weight:800;font-size:15px'>{stage}</span>"
+                        f"<span style='color:#475569;font-size:13px'>{len(stage_jobs)} job{'s' if len(stage_jobs)!=1 else ''}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
                     if stage_jobs.empty:
-                        st.info(f"No {stage} jobs.")
+                        st.info(f"No {stage} jobs yet.")
                     else:
                         # Table header
                         th1,th2,th3,th4,th5,th6 = st.columns([2,3,3,2,2,1])
