@@ -4039,22 +4039,76 @@ elif page == "Jobs":
                                 story.append(Paragraph("No scope items found — add items in Quote Builder.", body))
 
                             # Materials list
-                            if not mats_df.empty:
+                            # Build component breakdown from catalogue (same as Supplier PO)
+                            comp_map_ho = {}
+                            try:
+                                import pandas as _pdho
+                                raw_df_ho  = _pdho.read_excel(CATALOGUE_PATH, sheet_name="Raw_Original")
+                                raw_lkp_ho = {str(r["DisplayedOrder"]).strip(): float(r["Units"] or 1)
+                                              for _, r in raw_df_ho.iterrows()}
+                                comp_df_ho = _pdho.read_excel(CATALOGUE_PATH, sheet_name="Component_Breakdown", header=3)
+                                for _, cr in comp_df_ho.iterrows():
+                                    parent = str(cr.get("ParentDescription","") or "").strip()
+                                    ctype  = str(cr.get("ComponentType","") or "").strip()
+                                    if ctype == "Labour": continue
+                                    cdesc  = str(cr.get("ComponentDescription","") or "").strip()
+                                    cuom   = str(cr.get("UOM","") or "").strip()
+                                    cord   = str(cr.get("ComponentDisplayedOrder","") or "").strip()
+                                    unit_qty = raw_lkp_ho.get(cord, 1.0)
+                                    if parent and cdesc:
+                                        if parent not in comp_map_ho:
+                                            comp_map_ho[parent] = []
+                                        comp_map_ho[parent].append({"desc": cdesc, "uom": cuom, "unit_qty": unit_qty})
+                            except:
+                                comp_map_ho = {}
+
+                            # Build materials list from estimate lines + components
+                            ho_mat_rows = [["Section", "Component / Material", "Qty", "UOM"]]
+                            ho_mat_count = 0
+
+                            # Load estimate lines for this job
+                            ho_est = fetch_df("SELECT section, item, qty FROM estimate_lines WHERE job_id=? ORDER BY section, id", (open_job,))
+
+                            # Group by section
+                            ho_sections = {}
+                            for _, el in ho_est.iterrows():
+                                sec = str(el.get("section","") or "General")
+                                item = str(el.get("item","") or "").strip()
+                                job_qty = float(el.get("qty",0) or 0)
+                                if sec not in ho_sections:
+                                    ho_sections[sec] = {}
+                                comps = comp_map_ho.get(item, [])
+                                if comps:
+                                    for comp in comps:
+                                        key = comp["desc"] + "||" + comp["uom"]
+                                        if key not in ho_sections[sec]:
+                                            ho_sections[sec][key] = {"desc": comp["desc"], "uom": comp["uom"], "qty": 0}
+                                        ho_sections[sec][key]["qty"] += round(comp["unit_qty"] * job_qty, 2)
+                                else:
+                                    # No components — show the item itself
+                                    key = item + "||"
+                                    if key not in ho_sections[sec]:
+                                        ho_sections[sec][key] = {"desc": item, "uom": "", "qty": 0}
+                                    ho_sections[sec][key]["qty"] += job_qty
+
+                            sec_header_idx = []
+                            for sec, comps in ho_sections.items():
+                                sec_header_idx.append(len(ho_mat_rows))
+                                ho_mat_rows.append([f"— {sec} —", "", "", ""])
+                                for comp_data in comps.values():
+                                    ho_mat_rows.append([
+                                        "", str(comp_data["desc"])[:55],
+                                        f"{comp_data['qty']:,.2f}",
+                                        str(comp_data["uom"])
+                                    ])
+                                    ho_mat_count += 1
+
+                            if ho_mat_count > 0:
                                 story.append(Spacer(1, 4*mm))
                                 story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
                                 story.append(Paragraph("MATERIALS LIST", h2))
-                                mat_rows = [["Section", "Item", "Qty", "UOM", "Unit $", "Total"]]
-                                for _, row in mats_df.iterrows():
-                                    mat_rows.append([
-                                        str(row.get("section","—"))[:25],
-                                        str(row.get("item","—"))[:45],
-                                        f"{float(row.get('qty',0)):,.2f}",
-                                        str(row.get("uom","—")),
-                                        f"${float(row.get('unit_cost',0)):,.2f}",
-                                        f"${float(row.get('total_cost',0)):,.2f}"
-                                    ])
-                                mt = Table(mat_rows, colWidths=[30*mm, 70*mm, 18*mm, 12*mm, 20*mm, 30*mm])
-                                mt.setStyle(TableStyle([
+                                mt = Table(ho_mat_rows, colWidths=[35*mm, 105*mm, 25*mm, 25*mm])
+                                ts = [
                                     ("FONTNAME", (0,0),(-1,0), "Helvetica-Bold"),
                                     ("FONTSIZE", (0,0),(-1,-1), 8),
                                     ("BACKGROUND", (0,0),(-1,0), TEAL),
@@ -4062,7 +4116,16 @@ elif page == "Jobs":
                                     ("ROWBACKGROUNDS", (0,1),(-1,-1), [colors.HexColor("#f8fafc"), WHITE]),
                                     ("GRID", (0,0),(-1,-1), 0.3, colors.HexColor("#e2e8f0")),
                                     ("PADDING", (0,0),(-1,-1), 3),
-                                ]))
+                                ]
+                                # Style section headers
+                                for idx in sec_header_idx:
+                                    ts += [
+                                        ("BACKGROUND", (0,idx),(-1,idx), colors.HexColor("#1e2d3d")),
+                                        ("TEXTCOLOR", (0,idx),(-1,idx), TEAL),
+                                        ("FONTNAME", (0,idx),(-1,idx), "Helvetica-Bold"),
+                                        ("SPAN", (0,idx),(-1,idx)),
+                                    ]
+                                mt.setStyle(TableStyle(ts))
                                 story.append(mt)
 
                             # Sign off
