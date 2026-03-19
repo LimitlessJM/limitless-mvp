@@ -3645,7 +3645,6 @@ elif page == "Jobs":
             function setupRowHighlight() {
                 document.querySelectorAll('[data-testid="stNumberInput"] input').forEach(input => {
                     input.addEventListener('focus', function() {
-                        // Walk up to find the row div
                         let el = this;
                         for (let i = 0; i < 15; i++) {
                             el = el.parentElement;
@@ -3655,6 +3654,15 @@ elif page == "Jobs":
                                 el.style.borderColor = '#2dd4bf';
                                 el.style.borderLeftColor = '#2dd4bf';
                                 el.style.borderLeftWidth = '3px';
+                                el.style.boxShadow = '0 0 0 1px #2dd4bf44';
+                                // Highlight description text
+                                el.querySelectorAll('div').forEach(d => {
+                                    if (d.children.length === 0 && d.textContent.trim().length > 3) {
+                                        d.style.color = '#ffffff';
+                                        d.style.fontWeight = '800';
+                                        d.dataset.wasHighlighted = 'true';
+                                    }
+                                });
                                 break;
                             }
                         }
@@ -3665,16 +3673,29 @@ elif page == "Jobs":
                             el = el.parentElement;
                             if (!el) break;
                             if (el.id && el.id.startsWith('qb_row_')) {
-                                // Keep highlight if qty > 0
                                 const inputEl = el.querySelector('input');
                                 const val = inputEl ? parseFloat(inputEl.value) : 0;
+                                el.style.boxShadow = '';
                                 if (val > 0) {
                                     el.style.background = '#162a3a';
                                     el.style.borderColor = '#2dd4bf';
+                                    el.querySelectorAll('div').forEach(d => {
+                                        if (d.dataset.wasHighlighted) {
+                                            d.style.color = '#2dd4bf';
+                                            d.style.fontWeight = '700';
+                                        }
+                                    });
                                 } else {
                                     el.style.background = '#0f1923';
                                     el.style.borderColor = '#1e2d3d';
                                     el.style.borderLeftColor = '#1e2d3d';
+                                    el.querySelectorAll('div').forEach(d => {
+                                        if (d.dataset.wasHighlighted) {
+                                            d.style.color = '#94a3b8';
+                                            d.style.fontWeight = '400';
+                                            delete d.dataset.wasHighlighted;
+                                        }
+                                    });
                                 }
                                 break;
                             }
@@ -3686,7 +3707,17 @@ elif page == "Jobs":
             setupRowHighlight();
             setTimeout(setupRowHighlight, 500);
             setTimeout(setupRowHighlight, 1500);
+            // Also observe DOM changes (Streamlit rerenders)
+            new MutationObserver(() => setTimeout(setupRowHighlight, 200))
+                .observe(document.body, {childList: true, subtree: true});
             </script>
+            <style>
+            /* When row is focused — make description text pop */
+            .qb-row-active div[data-testid="stMarkdownContainer"] div {
+                color: #ffffff !important;
+                font-weight: 800 !important;
+            }
+            </style>
             """, unsafe_allow_html=True)
 
             st.divider()
