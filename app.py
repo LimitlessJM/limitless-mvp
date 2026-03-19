@@ -2642,20 +2642,103 @@ if page == "Dashboard":
     wtd_pipeline = float(pipe_wtd.iloc[0]["wtd"]) if not pipe_wtd.empty else 0
 
     # ── Header ────────────────────────────────────────────────────────────
-    today_label = date.today().strftime("%A, %d %B %Y")
-    hour = _dt.now().hour
-    greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+    now_aest    = _datetime.now(_tz.utc) + _td(hours=10)
+    today_label = now_aest.strftime("%A, %d %B %Y")
+    hour        = now_aest.hour
+    greeting    = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+    time_str    = now_aest.strftime("%I:%M %p").lstrip("0")
 
-    st.markdown(
-        "<div style='background:linear-gradient(135deg,#1a2332 0%,#1e3040 40%,#1a3a3a 100%);"
-        "border-radius:16px;padding:2.5rem 2.5rem 2rem;margin-bottom:1.5rem'>"
-        "<div style='font-size:11px;font-weight:600;letter-spacing:.15em;"
-        "color:#2dd4bf;text-transform:uppercase;margin-bottom:8px'>Operations Centre</div>"
-        "<div style='font-size:32px;font-weight:800;color:#fff;letter-spacing:-.02em;"
-        "line-height:1.1;margin-bottom:6px'>" + str(greeting) + ".</div>"
-        "<div style='font-size:14px;color:#94a3b8'>" + str(today_label) + "</div>"
-        "</div>",
-        unsafe_allow_html=True)
+    # ── Clock + greeting header ───────────────────────────────────────────
+    hdr_left, hdr_right = st.columns([3,2])
+    with hdr_left:
+        st.markdown(
+            "<div style='background:linear-gradient(135deg,#1a2332 0%,#1e3040 40%,#1a3a3a 100%);"
+            "border-radius:16px;padding:2rem 2.5rem;height:100%'>"
+            "<div style='font-size:11px;font-weight:600;letter-spacing:.15em;"
+            "color:#2dd4bf;text-transform:uppercase;margin-bottom:6px'>Operations Centre</div>"
+            "<div style='font-size:28px;font-weight:800;color:#fff;margin-bottom:4px'>" + greeting + ".</div>"
+            "<div style='font-size:60px;font-weight:900;color:#2dd4bf;letter-spacing:-.02em;line-height:1'>" + time_str + "</div>"
+            "<div style='font-size:14px;color:#94a3b8;margin-top:6px'>" + today_label + "</div>"
+            "</div>",
+            unsafe_allow_html=True)
+
+    # ── 7-day weather forecast ────────────────────────────────────────────
+    with hdr_right:
+        try:
+            import urllib.request as _ur
+            import json as _wjson
+            # Get company address for location — default to Sydney if not set
+            _co = get_company_settings()
+            _weather_url = "https://api.open-meteo.com/v1/forecast?latitude=-33.87&longitude=151.21&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Australia%2FSydney&forecast_days=7"
+            _wreq = _ur.urlopen(_weather_url, timeout=3)
+            _wdata = _wjson.loads(_wreq.read())
+            _daily = _wdata.get("daily", {})
+            _dates  = _daily.get("time", [])
+            _codes  = _daily.get("weathercode", [])
+            _maxts  = _daily.get("temperature_2m_max", [])
+            _mints  = _daily.get("temperature_2m_min", [])
+            _precs  = _daily.get("precipitation_sum", [])
+
+            def _wcode_icon(code):
+                if code == 0: return "☀️"
+                elif code <= 3: return "⛅"
+                elif code <= 49: return "🌫️"
+                elif code <= 67: return "🌧️"
+                elif code <= 77: return "❄️"
+                elif code <= 82: return "🌦️"
+                elif code <= 99: return "⛈️"
+                return "🌡️"
+
+            def _wcode_label(code):
+                if code == 0: return "Sunny"
+                elif code <= 3: return "Cloudy"
+                elif code <= 49: return "Foggy"
+                elif code <= 67: return "Rain"
+                elif code <= 77: return "Snow"
+                elif code <= 82: return "Showers"
+                elif code <= 99: return "Thunder"
+                return "Mixed"
+
+            weather_html = "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:16px;padding:16px'>"
+            weather_html += "<div style='font-size:11px;font-weight:700;color:#2dd4bf;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px'>7-Day Forecast · Sydney</div>"
+            weather_html += "<div style='display:flex;gap:6px;overflow-x:auto'>"
+
+            for i in range(min(7, len(_dates))):
+                try:
+                    _d = _datetime.strptime(_dates[i], "%Y-%m-%d")
+                    _day_name = "Today" if i == 0 else _d.strftime("%a")
+                    _icon = _wcode_icon(int(_codes[i] if i < len(_codes) else 0))
+                    _maxt = f"{_maxts[i]:.0f}°" if i < len(_maxts) else "—"
+                    _mint = f"{_mints[i]:.0f}°" if i < len(_mints) else "—"
+                    _prec = f"{_precs[i]:.0f}mm" if i < len(_precs) and _precs[i] > 0 else ""
+                    _label = _wcode_label(int(_codes[i] if i < len(_codes) else 0))
+                    _is_today = i == 0
+                    _bg = "#0d2233" if _is_today else "#111c27"
+                    _border = "1px solid #2dd4bf" if _is_today else "1px solid #1e2d3d"
+
+                    weather_html += (
+                        f"<div style='background:{_bg};border:{_border};border-radius:10px;"
+                        f"padding:8px 6px;text-align:center;min-width:52px;flex:1'>"
+                        f"<div style='font-size:10px;font-weight:700;color:{'#2dd4bf' if _is_today else '#94a3b8'}'>{_day_name}</div>"
+                        f"<div style='font-size:22px;margin:4px 0'>{_icon}</div>"
+                        f"<div style='font-size:12px;font-weight:700;color:#e2e8f0'>{_maxt}</div>"
+                        f"<div style='font-size:10px;color:#64748b'>{_mint}</div>"
+                        + (f"<div style='font-size:9px;color:#7dd3fc;margin-top:2px'>{_prec}</div>" if _prec else "") +
+                        f"</div>"
+                    )
+                except:
+                    pass
+
+            weather_html += "</div></div>"
+            st.markdown(weather_html, unsafe_allow_html=True)
+
+        except Exception as _we:
+            st.markdown(
+                "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:16px;"
+                "padding:16px;text-align:center'>"
+                "<div style='color:#475569;font-size:13px'>Weather unavailable</div>"
+                "</div>",
+                unsafe_allow_html=True)
 
     # ── Stat cards ────────────────────────────────────────────────────────
     stats = [
