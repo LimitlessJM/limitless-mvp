@@ -2441,8 +2441,225 @@ else:
 # ─────────────────────────────────────────────
 if "authenticated_user" not in st.session_state:
     st.session_state["authenticated_user"] = None
+if "show_login" not in st.session_state:
+    st.session_state["show_login"] = False
 
 if not st.session_state["authenticated_user"]:
+    st.markdown("""
+    <style>
+    section[data-testid="stSidebar"] { display: none !important; }
+    .main .block-container { max-width: 1200px !important; margin: 0 auto; padding-top: 0 !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Show landing page or login ─────────────────────────────────────────
+    if not st.session_state["show_login"]:
+        # ══════════════════════════════════════════════════════════════════
+        # LANDING PAGE
+        # ══════════════════════════════════════════════════════════════════
+        st.markdown("""
+        <style>
+        .hero { 
+            background: linear-gradient(135deg, #080f1e 0%, #0d1a2e 50%, #0a1f1f 100%);
+            border-bottom: 2px solid #1e2d3d;
+            padding: 80px 40px 60px;
+            text-align: center;
+        }
+        .hero-tag {
+            display: inline-block;
+            background: #2dd4bf22;
+            color: #2dd4bf;
+            border: 1px solid #2dd4bf44;
+            border-radius: 999px;
+            padding: 6px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .15em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+        .hero-title {
+            font-size: 72px;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: -.04em;
+            line-height: 1;
+            margin-bottom: 12px;
+        }
+        .hero-sub {
+            font-size: 24px;
+            color: #2dd4bf;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .hero-desc {
+            font-size: 18px;
+            color: #94a3b8;
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.7;
+        }
+        .cta-btn {
+            display: inline-block;
+            background: #2dd4bf;
+            color: #080f1e;
+            font-weight: 900;
+            font-size: 18px;
+            padding: 16px 40px;
+            border-radius: 10px;
+            text-decoration: none;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+        .cta-btn-outline {
+            display: inline-block;
+            background: transparent;
+            color: #e2e8f0;
+            font-weight: 700;
+            font-size: 18px;
+            padding: 16px 40px;
+            border-radius: 10px;
+            border: 2px solid #2a3d4f;
+            cursor: pointer;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            padding: 20px 0;
+        }
+        .feature-card {
+            background: #111c27;
+            border: 1px solid #1e2d3d;
+            border-top: 3px solid #2dd4bf;
+            border-radius: 12px;
+            padding: 28px 24px;
+        }
+        .feature-icon { font-size: 32px; margin-bottom: 12px; }
+        .feature-title { font-size: 18px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+        .feature-desc { font-size: 15px; color: #64748b; line-height: 1.6; }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            background: #0d1526;
+            border-top: 1px solid #1e2d3d;
+            border-bottom: 1px solid #1e2d3d;
+            padding: 40px;
+            text-align: center;
+        }
+        .stat-num { font-size: 42px; font-weight: 900; color: #2dd4bf; }
+        .stat-label { font-size: 14px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; }
+        </style>
+
+        <!-- HERO -->
+        <div class="hero">
+            <div class="hero-tag">⚒️ Built for tradies. By a tradie.</div>
+            <div class="hero-title">LIMITLESS</div>
+            <div class="hero-sub">Job Management for Trade Businesses</div>
+            <div class="hero-desc">
+                Quote faster. Win more jobs. Know your numbers.<br>
+                The all-in-one platform built for roofers, landscapers, plumbers and every trade in between.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # CTA buttons
+        btn1, btn2, btn3 = st.columns([2,1,2])
+        with btn2:
+            if st.button("🚀 Get Started", type="primary", use_container_width=True):
+                st.session_state["show_login"] = True
+                st.rerun()
+
+        st.markdown("<div style='text-align:center;margin-top:8px'>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style='text-align:center;padding:12px 0'>
+            <a href="mailto:pete@limitlesstakeoffs.com?subject=Book a Demo — Limitless Job Management" 
+               style='color:#64748b;font-size:15px;text-decoration:none'>
+               📧 Book a demo → pete@limitlesstakeoffs.com
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Stats bar
+        st.markdown("""
+        <div class="stat-grid">
+            <div><div class="stat-num">5min</div><div class="stat-label">To build a quote</div></div>
+            <div><div class="stat-num">100%</div><div class="stat-label">Invoice accuracy</div></div>
+            <div><div class="stat-num">Live</div><div class="stat-label">Job tracking</div></div>
+            <div><div class="stat-num">📱</div><div class="stat-label">Mobile app included</div></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Features
+        st.markdown("<div style='padding: 60px 40px'>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center;font-size:36px;font-weight:900;color:#f1f5f9;margin-bottom:8px'>Everything your trade business needs</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center;color:#64748b;font-size:18px;margin-bottom:40px'>One platform. No spreadsheets. No paper.</div>", unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <div class="feature-title">Professional Quoting</div>
+                <div class="feature-desc">Build quotes from your catalogue in minutes. Generate PDF quotes that win jobs.</div>
+            </div>
+            <div class="feature-card" style="border-top-color:#f59e0b">
+                <div class="feature-icon">📅</div>
+                <div class="feature-title">Job Scheduling</div>
+                <div class="feature-desc">See your whole team on a calendar. Assign jobs, track who's where, plan ahead.</div>
+            </div>
+            <div class="feature-card" style="border-top-color:#a78bfa">
+                <div class="feature-icon">💰</div>
+                <div class="feature-title">Invoice & Get Paid</div>
+                <div class="feature-desc">Issue invoices straight from the job. Track what's paid, what's outstanding.</div>
+            </div>
+            <div class="feature-card" style="border-top-color:#4ade80">
+                <div class="feature-icon">📱</div>
+                <div class="feature-title">Mobile App for the Lads</div>
+                <div class="feature-desc">Clock in/out, log variations, upload site photos — all from their phone.</div>
+            </div>
+            <div class="feature-card" style="border-top-color:#f43f5e">
+                <div class="feature-icon">📊</div>
+                <div class="feature-title">Know Your Numbers</div>
+                <div class="feature-desc">P&L, BAS, super — all calculated automatically. No surprises at tax time.</div>
+            </div>
+            <div class="feature-card" style="border-top-color:#60a5fa">
+                <div class="feature-icon">🔧</div>
+                <div class="feature-title">Works for Any Trade</div>
+                <div class="feature-desc">Roofing, landscaping, plumbing, electrical — build your own catalogue and rates.</div>
+            </div>
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Footer CTA
+        st.markdown("""
+        <div style='background:#0d1526;border-top:1px solid #1e2d3d;padding:60px 40px;text-align:center'>
+            <div style='font-size:36px;font-weight:900;color:#ffffff;margin-bottom:12px'>Ready to run a tighter business?</div>
+            <div style='color:#64748b;font-size:18px;margin-bottom:32px'>Start your free 14-day trial. No credit card required.</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        fc1, fc2, fc3 = st.columns([2,1,2])
+        with fc2:
+            if st.button("🚀 Start Free Trial", type="primary", use_container_width=True):
+                st.session_state["show_login"] = True
+                st.rerun()
+
+        st.markdown("""
+        <div style='text-align:center;padding:20px 0 40px;color:#475569;font-size:14px'>
+            Already have an account? 
+        </div>
+        """, unsafe_allow_html=True)
+
+        lc1, lc2, lc3 = st.columns([2,1,2])
+        with lc2:
+            if st.button("Log In →", use_container_width=True):
+                st.session_state["show_login"] = True
+                st.rerun()
+
+        st.stop()
+
     # ── Login page ────────────────────────────────────────────────────────
     st.markdown("""
     <style>
@@ -3634,6 +3851,11 @@ elif page == "Jobs":
                 background: #0d2233 !important;
                 color: #2dd4bf !important;
             }
+            /* Force text selection on focus */
+            .qb-section div[data-testid="stNumberInput"] input {
+                user-select: all !important;
+                -webkit-user-select: all !important;
+            }
             /* Hover highlight — target stHorizontalBlock rows */
             .qb-section .stHorizontalBlock {
                 border-radius: 6px !important;
@@ -3822,13 +4044,18 @@ elif page == "Jobs":
                                 unsafe_allow_html=True)
                         # Qty — always editable, tabable
                         with cols[2]:
-                            new_qty = st.number_input("Qty",
-                                min_value=0.0,
-                                value=float(v["qty"]),
-                                step=1.0,
+                            _qty_val = float(v["qty"])
+                            _qty_display = "" if _qty_val == 0 else str(int(_qty_val)) if _qty_val == int(_qty_val) else str(_qty_val)
+                            _qty_input = st.text_input("Qty",
+                                value=_qty_display,
                                 key=f"qty_{open_job}_{item}",
                                 label_visibility="collapsed",
-                                help="Tab to next item")
+                                placeholder="0",
+                                help="Type qty and tab")
+                            try:
+                                new_qty = float(_qty_input) if _qty_input.strip() else 0.0
+                            except:
+                                new_qty = _qty_val
                             scan[item]["qty"] = new_qty
 
                         # Rates — only editable in edit mode
