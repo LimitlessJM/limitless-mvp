@@ -164,7 +164,7 @@ strong, b { color: #f1f5f9 !important; }
     padding: 1.2rem 1.5rem !important;
 }
 [data-testid="metric-container"] label {
-    font-size: 12px !important;
+    font-size: 13px !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.1em !important;
@@ -2455,7 +2455,7 @@ if not st.session_state["authenticated_user"]:
         <div style="font-size:42px;font-weight:900;color:#f1f5f9;letter-spacing:-.04em">
             LIMITLESS
         </div>
-        <div style="font-size:12px;font-weight:500;letter-spacing:.2em;color:#2dd4bf;
+        <div style="font-size:13px;font-weight:500;letter-spacing:.2em;color:#2dd4bf;
             text-transform:uppercase;margin-top:4px">
             Job Management
         </div>
@@ -2488,7 +2488,7 @@ if not st.session_state["authenticated_user"]:
                 st.warning("Please enter your username and password.")
 
     st.markdown("""
-    <div style="text-align:center;margin-top:2rem;font-size:11px;color:#475569">
+    <div style="text-align:center;margin-top:2rem;font-size:13px;color:#475569">
         Default login: <strong style="color:#64748b">admin</strong> /
         <strong style="color:#64748b">contact admin for access</strong><br>
         Change your password in User Management after first login.
@@ -2506,12 +2506,12 @@ _urole = str(user_role)
 st.sidebar.markdown(
     "<div style='padding:1.2rem 0 1.5rem;text-align:center'>"
     "<div style='font-size:22px;font-weight:800;letter-spacing:-0.04em;color:#ffffff'>LIMITLESS</div>"
-    "<div style='font-size:10px;font-weight:500;letter-spacing:0.18em;color:#888;text-transform:uppercase;margin-top:2px'>Job Management</div>"
+    "<div style='font-size:13px;font-weight:500;letter-spacing:0.18em;color:#888;text-transform:uppercase;margin-top:2px'>Job Management</div>"
     "</div>"
     "<hr style='border-color:#2a2a2a;margin:0 0 .5rem'>"
     "<div style='padding:0 0 .75rem;text-align:center'>"
     "<div style='font-size:14px;font-weight:600;color:#e2e8f0'>" + _uname + "</div>"
-    "<div style='font-size:11px;color:#2dd4bf;font-weight:600;letter-spacing:.06em;text-transform:uppercase'>" + _urole + "</div>"
+    "<div style='font-size:13px;color:#2dd4bf;font-weight:600;letter-spacing:.06em;text-transform:uppercase'>" + _urole + "</div>"
     "</div>"
     "<hr style='border-color:#2a2a2a;margin:0 0 1rem'>",
     unsafe_allow_html=True)
@@ -2573,7 +2573,7 @@ if USE_SUPABASE:
 else:
     st.sidebar.caption("⚠️ Supabase not connected — check secrets")
 
-st.sidebar.markdown("<div style='font-size:10px;font-weight:600;letter-spacing:0.1em;color:#666;text-transform:uppercase;margin-bottom:4px'>Navigation</div>", unsafe_allow_html=True)
+st.sidebar.markdown("<div style='font-size:13px;font-weight:600;letter-spacing:0.1em;color:#666;text-transform:uppercase;margin-bottom:4px'>Navigation</div>", unsafe_allow_html=True)
 # Group pages with dividers
 SIDEBAR_GROUPS = {
     "📋 JOBS":       ["Dashboard","Jobs","Schedule Calendar"],
@@ -2593,7 +2593,7 @@ for group_label, group_pages in SIDEBAR_GROUPS.items():
     if not pages_in_group:
         continue
     st.sidebar.markdown(
-        f"<div style='font-size:10px;font-weight:700;letter-spacing:.12em;"
+        f"<div style='font-size:13px;font-weight:700;letter-spacing:.12em;"
         f"color:#2dd4bf;text-transform:uppercase;padding:8px 0 4px;margin-top:6px'>"
         f"{group_label}</div>",
         unsafe_allow_html=True
@@ -2660,7 +2660,7 @@ if page == "Dashboard":
         st.markdown(
             "<div style='background:linear-gradient(135deg,#1a2332 0%,#1e3040 40%,#1a3a3a 100%);"
             "border-radius:16px;padding:2rem 2.5rem;height:100%'>"
-            "<div style='font-size:11px;font-weight:600;letter-spacing:.15em;"
+            "<div style='font-size:13px;font-weight:600;letter-spacing:.15em;"
             "color:#2dd4bf;text-transform:uppercase;margin-bottom:6px'>Operations Centre</div>"
             "<div style='font-size:28px;font-weight:800;color:#fff;margin-bottom:4px'>" + greeting + ".</div>"
             "<div style='font-size:60px;font-weight:900;color:#2dd4bf;letter-spacing:-.02em;line-height:1'>" + time_str + "</div>"
@@ -2706,7 +2706,7 @@ if page == "Dashboard":
                 return "Mixed"
 
             weather_html = "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:16px;padding:16px'>"
-            weather_html += "<div style='font-size:11px;font-weight:700;color:#2dd4bf;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px'>7-Day Forecast · Sydney</div>"
+            weather_html += "<div style='font-size:13px;font-weight:700;color:#2dd4bf;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px'>7-Day Forecast · Sydney</div>"
             weather_html += "<div style='display:flex;gap:6px;overflow-x:auto'>"
 
             for i in range(min(7, len(_dates))):
@@ -2725,11 +2725,11 @@ if page == "Dashboard":
                     weather_html += (
                         f"<div style='background:{_bg};border:{_border};border-radius:10px;"
                         f"padding:8px 6px;text-align:center;min-width:52px;flex:1'>"
-                        f"<div style='font-size:10px;font-weight:700;color:{'#2dd4bf' if _is_today else '#94a3b8'}'>{_day_name}</div>"
+                        f"<div style='font-size:13px;font-weight:700;color:{'#2dd4bf' if _is_today else '#94a3b8'}'>{_day_name}</div>"
                         f"<div style='font-size:22px;margin:4px 0'>{_icon}</div>"
-                        f"<div style='font-size:12px;font-weight:700;color:#e2e8f0'>{_maxt}</div>"
-                        f"<div style='font-size:10px;color:#64748b'>{_mint}</div>"
-                        + (f"<div style='font-size:9px;color:#7dd3fc;margin-top:2px'>{_prec}</div>" if _prec else "") +
+                        f"<div style='font-size:13px;font-weight:700;color:#e2e8f0'>{_maxt}</div>"
+                        f"<div style='font-size:13px;color:#64748b'>{_mint}</div>"
+                        + (f"<div style='font-size:13px;color:#7dd3fc;margin-top:2px'>{_prec}</div>" if _prec else "") +
                         f"</div>"
                     )
                 except:
@@ -2758,7 +2758,7 @@ if page == "Dashboard":
         col.markdown(f"""
         <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-top:3px solid {color};
             border-radius:10px;padding:1rem 1.2rem;text-align:center;margin-bottom:8px">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.12em;
+            <div style="font-size:13px;font-weight:700;letter-spacing:.12em;
                 text-transform:uppercase;color:#64748b;margin-bottom:6px">{label}</div>
             <div style="font-size:26px;font-weight:800;color:{color};letter-spacing:-.02em">{val}</div>
         </div>""", unsafe_allow_html=True)
@@ -2770,7 +2770,7 @@ if page == "Dashboard":
 
     # Chart 1: Jobs by stage (bar)
     with ch1:
-        st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:8px'>Jobs by stage</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:8px'>Jobs by stage</div>", unsafe_allow_html=True)
         if not all_active_jobs.empty:
             stage_counts = all_active_jobs["stage"].value_counts()
             stage_order  = ["Lead","Take-off","Tender Review","Pre-Live Handover","Live Job","Completed"]
@@ -2785,12 +2785,12 @@ if page == "Dashboard":
                 color= stage_colors_map.get(stage,"#64748b")
                 bars_html += f"""
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                    <div style="font-size:11px;color:#94a3b8;width:100px;flex-shrink:0;
+                    <div style="font-size:13px;color:#94a3b8;width:100px;flex-shrink:0;
                         white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{stage}</div>
                     <div style="flex:1;background:#0f172a;border-radius:4px;height:16px;position:relative">
                         <div style="background:{color};width:{pct:.0f}%;height:16px;border-radius:4px"></div>
                     </div>
-                    <div style="font-size:11px;font-weight:700;color:{color};width:20px;text-align:right">{count}</div>
+                    <div style="font-size:13px;font-weight:700;color:{color};width:20px;text-align:right">{count}</div>
                 </div>"""
             st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:14px'>{bars_html}</div>", unsafe_allow_html=True)
         else:
@@ -2798,7 +2798,7 @@ if page == "Dashboard":
 
     # Chart 2: Jobs by type (donut-style)
     with ch2:
-        st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:8px'>Jobs by type</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:8px'>Jobs by type</div>", unsafe_allow_html=True)
         if not all_active_jobs.empty and "job_type" in all_active_jobs.columns:
             type_counts = all_active_jobs["job_type"].fillna("Unknown").value_counts()
             type_colors_map = {"Residential":"#7dd3fc","Commercial":"#a78bfa","Industrial":"#fb923c",
@@ -2812,8 +2812,8 @@ if page == "Dashboard":
                 rows_html += f"""
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                     <div style="width:10px;height:10px;border-radius:50%;background:{color};flex-shrink:0"></div>
-                    <div style="font-size:11px;color:#94a3b8;flex:1">{tname}</div>
-                    <div style="font-size:11px;font-weight:700;color:{color}">{tcount} <span style="color:#475569;font-weight:400">({pct:.0f}%)</span></div>
+                    <div style="font-size:13px;color:#94a3b8;flex:1">{tname}</div>
+                    <div style="font-size:13px;font-weight:700;color:{color}">{tcount} <span style="color:#475569;font-weight:400">({pct:.0f}%)</span></div>
                 </div>"""
             st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:14px'>{rows_html}</div>", unsafe_allow_html=True)
         else:
@@ -2821,7 +2821,7 @@ if page == "Dashboard":
 
     # Chart 3: Revenue pipeline by month
     with ch3:
-        st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:8px'>Pipeline by month</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:8px'>Pipeline by month</div>", unsafe_allow_html=True)
         pipe_by_month = fetch_df("""
             SELECT target_month, SUM(value) as total, SUM(value*probability_pct/100) as wtd
             FROM pipeline WHERE archived=0 GROUP BY target_month ORDER BY target_month LIMIT 6
@@ -2835,13 +2835,13 @@ if page == "Dashboard":
                 w_pct    = float(pr["wtd"])/max_val*100
                 bars_html2 += f"""
                 <div style="margin-bottom:8px">
-                    <div style="font-size:10px;color:#64748b;margin-bottom:2px">{mo_label}</div>
+                    <div style="font-size:13px;color:#64748b;margin-bottom:2px">{mo_label}</div>
                     <div style="background:#0f172a;border-radius:4px;height:10px;margin-bottom:2px">
                         <div style="background:#2a3d4f;width:{t_pct:.0f}%;height:10px;border-radius:4px;position:relative">
                             <div style="background:#2dd4bf;width:{w_pct/t_pct*100 if t_pct else 0:.0f}%;height:10px;border-radius:4px"></div>
                         </div>
                     </div>
-                    <div style="font-size:10px;color:#475569">${float(pr['wtd']):,.0f} wtd / ${float(pr['total']):,.0f} total</div>
+                    <div style="font-size:13px;color:#475569">${float(pr['wtd']):,.0f} wtd / ${float(pr['total']):,.0f} total</div>
                 </div>"""
             st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:14px'>{bars_html2}</div>", unsafe_allow_html=True)
         else:
@@ -2853,7 +2853,7 @@ if page == "Dashboard":
     left_col, right_col = st.columns([3,2])
 
     with left_col:
-        st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>Live job health</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>Live job health</div>", unsafe_allow_html=True)
         dot_colors = {"green":"#2dd4bf","amber":"#f59e0b","red":"#f43f5e"}
         grade_colors= {"A":"#2dd4bf","B":"#f59e0b","C":"#f43f5e"}
 
@@ -2908,7 +2908,7 @@ if page == "Dashboard":
             FROM day_assignments da WHERE da.date=? AND da.employee != '__unassigned__'
             ORDER BY da.employee
         """, (today_str,))
-        st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 10px'>On site today</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 10px'>On site today</div>", unsafe_allow_html=True)
         if not today_sched.empty:
             for _, ts in today_sched.iterrows():
                 emp_init = "".join([w[0].upper() for w in str(ts["employee"]).split()])[:2]
@@ -2931,7 +2931,7 @@ if page == "Dashboard":
 
     with right_col:
         # Pipeline snapshot
-        st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>Pipeline snapshot</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>Pipeline snapshot</div>", unsafe_allow_html=True)
         pipe_snap = fetch_df("SELECT job_id,client,value,probability_pct,target_month FROM pipeline WHERE archived=0 ORDER BY target_month LIMIT 7")
         if not pipe_snap.empty:
             for _, pr in pipe_snap.iterrows():
@@ -2949,7 +2949,7 @@ if page == "Dashboard":
                     "<div style='background:#0f172a;border-radius:999px;height:6px'>"
                     "<div style='background:" + pc + ";width:" + str(prob) + "%;height:6px;border-radius:999px'></div>"
                     "</div>"
-                    "<div style='font-size:12px;color:#475569;margin-top:6px'>" + str(pr.get('target_month','')) + "</div>"
+                    "<div style='font-size:13px;color:#475569;margin-top:6px'>" + str(pr.get('target_month','')) + "</div>"
                     "</div>"
                 )
                 st.markdown(snap_html, unsafe_allow_html=True)
@@ -2957,7 +2957,7 @@ if page == "Dashboard":
             st.markdown("<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:1rem;text-align:center;color:#64748b;font-size:13px'>No pipeline entries</div>", unsafe_allow_html=True)
 
         # Recent activity
-        st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 10px'>Recent activity</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 10px'>Recent activity</div>", unsafe_allow_html=True)
         recent = fetch_df("""
             SELECT ll.work_date, ll.job_id, ll.employee,
                    ll.hours, ROUND(ll.hours*ll.hourly_rate,2)AS cost
@@ -2970,7 +2970,7 @@ if page == "Dashboard":
                     "<div style='display:flex;align-items:center;gap:10px;padding:10px 0;"
                     "border-bottom:1px solid #1e2d3d'>"
                     "<div style='width:32px;height:32px;border-radius:50%;background:#2a3d4f;"
-                    "display:flex;align-items:center;justify-content:center;font-size:12px;"
+                    "display:flex;align-items:center;justify-content:center;font-size:13px;"
                     "font-weight:700;color:#7dd3fc;flex-shrink:0'>" + str(emp_init) + "</div>"
                     "<div style='flex:1;min-width:0'>"
                     "<div style='font-size:15px;color:#e2e8f0;font-weight:500'>" + str(rl['employee']) + " — " + str(rl['job_id']) + "</div>"
@@ -3221,7 +3221,7 @@ elif page == "Catalogue":
                         "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;"
                         "padding:10px 16px;margin-bottom:6px'>"
                         "<div style='font-weight:700;color:#e2e8f0'>" + str(cr["description"]) + "</div>"
-                        "<div style='font-size:12px;color:#64748b'>" + str(cr.get("category","")) + " · " + str(cr.get("uom","")) +
+                        "<div style='font-size:13px;color:#64748b'>" + str(cr.get("category","")) + " · " + str(cr.get("uom","")) +
                         " · Mat: $" + f"{float(cr.get('material_cost',0)):,.2f}" +
                         " · Lab: $" + f"{float(cr.get('labour_cost',0)):,.2f}" +
                         " · Sell: $" + f"{float(cr.get('sell_unit_rate',0)):,.2f}" + "</div>"
@@ -3329,13 +3329,13 @@ elif page == "Jobs":
             + str(wjob.get('job_id','')) +
             "<span style='font-size:13px;font-weight:500;color:#94a3b8;margin-left:10px'>"
             + str(wjob.get('client','') or '') + "</span></div>"
-            "<div style='font-size:12px;color:#64748b;margin-top:3px'>"
+            "<div style='font-size:13px;color:#64748b;margin-top:3px'>"
             + str(wjob.get('address','') or '') + " &nbsp;·&nbsp; Estimator: "
             + str(wjob.get('estimator','') or '—') + "</div></div>"
             "<span style='background:" + jt_col + "22;color:" + jt_col + ";padding:4px 12px;"
-            "border-radius:999px;font-size:11px;font-weight:700'>" + jt + "</span>"
+            "border-radius:999px;font-size:13px;font-weight:700'>" + jt + "</span>"
             "<span style='background:" + tc + "22;color:" + tc + ";padding:5px 14px;"
-            "border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase'>"
+            "border-radius:999px;font-size:13px;font-weight:700;text-transform:uppercase'>"
             + str(wjob.get('stage','') or '') + "</span>"
             "</div></div>"
         )
@@ -3423,7 +3423,7 @@ elif page == "Jobs":
                 st.markdown(
                     f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;"
                     f"border-left:4px solid {fc};border-radius:8px;padding:8px 14px;"
-                    f"font-size:12px;color:#94a3b8;margin-top:4px'>"
+                    f"font-size:13px;color:#94a3b8;margin-top:4px'>"
                     f"All items will use <strong style='color:{fc}'>{sel_finish}</strong> rates. "
                     f"Override individual lines below if needed.</div>",
                     unsafe_allow_html=True)
@@ -3794,7 +3794,7 @@ elif page == "Jobs":
                 st.warning("⚠️ No estimate saved yet — run Quote Builder and save estimate first.")
 
             # ── Job Snapshot ──────────────────────────────────────────────
-            st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>1. Job Snapshot</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>1. Job Snapshot</div>", unsafe_allow_html=True)
 
             sc1,sc2,sc3,sc4 = st.columns(4)
             sc1.metric("Quoted Price (ex GST)", f"${sell2:,.2f}")
@@ -3827,7 +3827,7 @@ elif page == "Jobs":
             st.divider()
 
             # ── Cost Structure ─────────────────────────────────────────────
-            st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>2. Cost Structure</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>2. Cost Structure</div>", unsafe_allow_html=True)
             cc1,cc2,cc3 = st.columns(3)
             for col, label, val, pct, color in [
                 (cc1, "Material",  mat2,   mat_pct,   "#f59e0b"),
@@ -3836,7 +3836,7 @@ elif page == "Jobs":
             ]:
                 col.markdown(
                     "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:14px;text-align:center'>"
-                    "<div style='font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px'>" + label + "</div>"
+                    "<div style='font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px'>" + label + "</div>"
                     "<div style='font-size:22px;font-weight:800;color:" + color + "'>$" + f"{val:,.0f}" + "</div>"
                     "<div style='font-size:13px;color:#475569;margin-top:4px'>" + f"{pct:.0f}%" + " of direct cost</div>"
                     "<div style='background:#0f172a;border-radius:4px;height:6px;margin-top:8px'>"
@@ -3847,7 +3847,7 @@ elif page == "Jobs":
             st.divider()
 
             # ── Margin Category ────────────────────────────────────────────
-            st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>3. Commercial Margin Analysis</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>3. Commercial Margin Analysis</div>", unsafe_allow_html=True)
 
             st.markdown(
                 "<div style='background:" + cat_c + "22;border:2px solid " + cat_c + ";border-radius:12px;"
@@ -3871,7 +3871,7 @@ elif page == "Jobs":
                     "<div style='background:" + (c+"22" if is_active else "#1e2d3d") + ";border:" +
                     ("2px solid " + c if is_active else "1px solid #2a3d4f") + ";border-radius:8px;"
                     "padding:10px;text-align:center'>"
-                    "<div style='font-size:11px;font-weight:700;color:" + c + "'>" + rng + "</div>"
+                    "<div style='font-size:13px;font-weight:700;color:" + c + "'>" + rng + "</div>"
                     "<div style='font-size:13px;color:#e2e8f0;font-weight:600'>" + cat + "</div>"
                     "</div>",
                     unsafe_allow_html=True)
@@ -3879,14 +3879,14 @@ elif page == "Jobs":
             st.divider()
 
             # ── Risk Indicators ────────────────────────────────────────────
-            st.markdown("<div style='font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>4. Risk Indicators</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin-bottom:10px'>4. Risk Indicators</div>", unsafe_allow_html=True)
 
             for risk in risks:
                 rc = {"HIGH":"#f43f5e","MEDIUM":"#f59e0b","LOW":"#2dd4bf"}.get(risk["level"],"#64748b")
                 st.markdown(
                     "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-left:4px solid " + rc + ";"
                     "border-radius:9px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:14px'>"
-                    "<span style='background:" + rc + ";color:#0f172a;font-weight:800;font-size:11px;"
+                    "<span style='background:" + rc + ";color:#0f172a;font-weight:800;font-size:13px;"
                     "padding:3px 8px;border-radius:4px;flex-shrink:0'>" + risk["level"] + "</span>"
                     "<div><div style='font-size:15px;font-weight:600;color:#e2e8f0'>" + risk["title"] + "</div>"
                     "<div style='font-size:13px;color:#64748b;margin-top:2px'>" + risk["detail"] + "</div>"
@@ -4296,7 +4296,7 @@ elif page == "Jobs":
                             "<span style='color:#e2e8f0'>" + str(lr["employee"]) + "</span>"
                             "<span style='color:#64748b'>" + f"{float(lr['hours']):.1f}h @ ${float(lr['hourly_rate']):.0f}/hr" + "</span>"
                             "<span style='color:#2dd4bf;font-weight:700;margin-left:auto'>$" + f"{float(lr['cost']):,.2f}" + "</span>"
-                            + (f"<span style='color:#475569;font-size:12px'>{lr['note']}</span>" if lr.get('note') else "") +
+                            + (f"<span style='color:#475569;font-size:13px'>{lr['note']}</span>" if lr.get('note') else "") +
                             "</div>", unsafe_allow_html=True)
                     with lc2:
                         if st.button("✏️", key=f"edit_lab_{lid}", help="Edit"):
@@ -4427,7 +4427,7 @@ elif page == "Jobs":
                             "<span style='color:#e2e8f0;font-size:14px'>" + str(inv.get('supplier','') or '') + "</span>"
                             "<span style='color:#64748b;font-size:13px'>#" + str(inv.get('invoice_number','') or '') + "</span>"
                             "<span style='color:#64748b;font-size:13px'>" + str(inv.get('invoice_date','') or '') + "</span>"
-                            "<span style='background:#1a2d3a;color:#94a3b8;font-size:11px;padding:2px 8px;border-radius:4px'>" + str(inv.get('status','') or '') + "</span>"
+                            "<span style='background:#1a2d3a;color:#94a3b8;font-size:13px;padding:2px 8px;border-radius:4px'>" + str(inv.get('status','') or '') + "</span>"
                             "</div>",
                             unsafe_allow_html=True)
                     with ic2:
@@ -4517,11 +4517,11 @@ No explanation, only JSON."""
                 st.markdown(f"""
                 <div style="background:#0d2233;border:2px solid #2dd4bf;border-radius:12px;
                     padding:14px 18px;margin:8px 0">
-                    <div style="font-size:11px;font-weight:700;color:#2dd4bf;
+                    <div style="font-size:13px;font-weight:700;color:#2dd4bf;
                         text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">
                         🤖 AI extracted — review before saving
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px">
                         <div><div style="color:#64748b">Supplier</div>
                             <div style="color:#e2e8f0;font-weight:600">{ex.get('supplier','—')}</div></div>
                         <div><div style="color:#64748b">Invoice #</div>
@@ -4737,7 +4737,7 @@ No explanation, only JSON."""
                             "<span style='font-size:22px'>" + icon + "</span>"
                             "<div style='flex:1'>"
                             "<div style='font-size:15px;font-weight:600;color:#e2e8f0'>" + fname + "</div>"
-                            "<div style='font-size:12px;color:#475569'>" + fdate + " · " + fsize_str + "</div>"
+                            "<div style='font-size:13px;color:#475569'>" + fdate + " · " + fsize_str + "</div>"
                             "</div></div>",
                             unsafe_allow_html=True)
                     with dc2:
@@ -4787,7 +4787,7 @@ No explanation, only JSON."""
                             "<span style='font-weight:700;color:#f59e0b;font-size:15px'>" + vj_id + "</span>"
                             "<span style='color:#e2e8f0;font-size:14px'>" + vj_title + "</span>"
                             "<span style='margin-left:auto;color:#2dd4bf;font-weight:700'>$" + f"{vj_val:,.2f}" + "</span>"
-                            "<span style='background:#2a3d4f;color:#94a3b8;font-size:11px;padding:2px 8px;border-radius:4px'>" + vj_stage + "</span>"
+                            "<span style='background:#2a3d4f;color:#94a3b8;font-size:13px;padding:2px 8px;border-radius:4px'>" + vj_stage + "</span>"
                             "</div>",
                             unsafe_allow_html=True)
                     with vcol2:
@@ -4886,10 +4886,10 @@ No explanation, only JSON."""
                             f"border-left:3px solid {vc};border-radius:9px;padding:10px 14px;margin-bottom:6px'>"
                             f"<div style='display:flex;align-items:center;gap:10px;margin-bottom:4px'>"
                             f"<span style='font-weight:700;color:#e2e8f0'>{vrow['var_number']}</span>"
-                            f"<span style='background:{vc}22;color:{vc};padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700'>{vstatus}</span>"
+                            f"<span style='background:{vc}22;color:{vc};padding:1px 8px;border-radius:999px;font-size:13px;font-weight:700'>{vstatus}</span>"
                             f"<span style='color:#2dd4bf;font-weight:700;margin-left:auto'>${vval:+,.2f}</span></div>"
-                            f"<div style='font-size:12px;color:#94a3b8'>{vrow['description']}</div>"
-                            f"<div style='font-size:11px;color:#475569;margin-top:3px'>Raised: {vrow['date_raised']}"
+                            f"<div style='font-size:13px;color:#94a3b8'>{vrow['description']}</div>"
+                            f"<div style='font-size:13px;color:#475569;margin-top:3px'>Raised: {vrow['date_raised']}"
                             f"{'  ·  Approved by: '+str(vrow['approved_by']) if vrow.get('approved_by') else ''}</div>"
                             f"</div>", unsafe_allow_html=True)
                     with col_p:
@@ -5018,8 +5018,8 @@ No explanation, only JSON."""
                                 "<span style='font-weight:700;color:#f59e0b'>" + mv_num + "</span>"
                                 "<span style='color:#e2e8f0'>" + mv_desc[:50] + "</span>"
                                 "<span style='color:#2dd4bf;font-weight:700'>$" + f"{mv_val:,.2f}" + "</span>"
-                                "<span style='color:#64748b;font-size:12px'>Approved by " + mv_by + "</span>"
-                                "<span style='margin-left:auto;color:" + ("#2dd4bf" if already_mv else "#f59e0b") + ";font-size:12px'>"
+                                "<span style='color:#64748b;font-size:13px'>Approved by " + mv_by + "</span>"
+                                "<span style='margin-left:auto;color:" + ("#2dd4bf" if already_mv else "#f59e0b") + ";font-size:13px'>"
                                 + ("✅ In schedule" if already_mv else "⏳ Not in schedule") + "</span>"
                                 "</div>", unsafe_allow_html=True)
                         with mc2:
@@ -5054,8 +5054,8 @@ No explanation, only JSON."""
                             "<span style='font-weight:700;color:#f59e0b'>" + vj_id + "</span>"
                             "<span style='color:#e2e8f0'>" + vj_title + "</span>"
                             "<span style='color:#2dd4bf;font-weight:700'>$" + f"{vj_val:,.2f}" + "</span>"
-                            "<span style='color:#64748b;font-size:12px'>" + vj_stage + "</span>"
-                            "<span style='margin-left:auto;color:" + status_col + ";font-size:12px'>" + status_txt + "</span>"
+                            "<span style='color:#64748b;font-size:13px'>" + vj_stage + "</span>"
+                            "<span style='margin-left:auto;color:" + status_col + ";font-size:13px'>" + status_txt + "</span>"
                             "</div>",
                             unsafe_allow_html=True)
                     with vc2:
@@ -5067,7 +5067,7 @@ No explanation, only JSON."""
                                 st.success(f"✅ {vj_id} added as milestone — ${vj_val:,.2f}")
                                 st.rerun()
                         else:
-                            st.markdown("<div style='padding:8px;color:#2dd4bf;font-size:12px'>Added ✓</div>",
+                            st.markdown("<div style='padding:8px;color:#2dd4bf;font-size:13px'>Added ✓</div>",
                                 unsafe_allow_html=True)
                 st.divider()
 
@@ -5115,7 +5115,7 @@ No explanation, only JSON."""
                 # Column headers
                 st.markdown(
                     "<div style='display:grid;grid-template-columns:2fr 0.6fr 1.2fr 0.8fr 1.2fr 1.2fr 1fr;gap:8px;"
-                    "font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;padding:8px 4px 4px'>"
+                    "font-size:13px;font-weight:700;color:#475569;text-transform:uppercase;padding:8px 4px 4px'>"
                     "<span>Milestone</span><span>%</span><span>Contract (ex)</span>"
                     "<span>Var (ex)</span><span>Total (ex GST)</span><span>Status</span><span>Due date</span>"
                     "</div>",
@@ -5334,7 +5334,7 @@ No explanation, only JSON."""
                 # Group by date
                 for pdate in photos_df["photo_date"].unique():
                     day_photos = photos_df[photos_df["photo_date"]==pdate]
-                    st.markdown(f"<div style='font-size:12px;font-weight:700;color:#2dd4bf;"
+                    st.markdown(f"<div style='font-size:13px;font-weight:700;color:#2dd4bf;"
                                 f"margin:12px 0 8px'>📅 {pdate}</div>", unsafe_allow_html=True)
                     pcols = st.columns(3)
                     for i, (_, ph) in enumerate(day_photos.iterrows()):
@@ -5406,12 +5406,12 @@ No explanation, only JSON."""
                                 <span style="font-size:16px">📋</span>
                                 <span style="font-weight:700;color:#e2e8f0;font-size:13px">{sd.get('title','')}</span>
                                 <span style="background:#2a3d4f;color:#94a3b8;padding:1px 8px;
-                                    border-radius:999px;font-size:10px">{sd.get('doc_type','')}</span>
+                                    border-radius:999px;font-size:13px">{sd.get('doc_type','')}</span>
                                 <span style="background:{rev_color}22;color:{rev_color};padding:1px 8px;
-                                    border-radius:999px;font-size:10px;font-weight:700;margin-left:auto">
+                                    border-radius:999px;font-size:13px;font-weight:700;margin-left:auto">
                                     {rev_label}</span>
                             </div>
-                            <div style="font-size:11px;color:#475569">
+                            <div style="font-size:13px;color:#475569">
                                 {sd.get('filename','')} · Uploaded {sd.get('uploaded_at','')}
                                 {"· Reviewed by "+str(sd.get('reviewed_by','')) if sd.get('reviewed_by') else ""}
                             </div>
@@ -5462,7 +5462,7 @@ No explanation, only JSON."""
                     st.markdown(
                         "<div style='background:#0d2233;border:2px solid #2dd4bf;border-radius:10px;"
                         "padding:10px 16px;margin-top:4px'>"
-                        "<div style='font-size:12px;color:#64748b;text-transform:uppercase;"
+                        "<div style='font-size:13px;color:#64748b;text-transform:uppercase;"
                         "letter-spacing:.1em'>Job number will be</div>"
                         "<div style='font-size:22px;font-weight:900;color:#2dd4bf'>"
                         "LES-XXX (auto)</div></div>",
@@ -5621,11 +5621,11 @@ No explanation, only JSON."""
                     else:
                         # Table header
                         th1,th2,th3,th4,th5,th6 = st.columns([2,3,3,2,2,1])
-                        th1.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>JOB ID</div>", unsafe_allow_html=True)
-                        th2.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>CLIENT</div>", unsafe_allow_html=True)
-                        th3.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>ADDRESS</div>", unsafe_allow_html=True)
-                        th4.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>ESTIMATOR</div>", unsafe_allow_html=True)
-                        th5.markdown("<div style='font-size:11px;color:#475569;font-weight:700'>VALUE</div>", unsafe_allow_html=True)
+                        th1.markdown("<div style='font-size:13px;color:#475569;font-weight:700'>JOB ID</div>", unsafe_allow_html=True)
+                        th2.markdown("<div style='font-size:13px;color:#475569;font-weight:700'>CLIENT</div>", unsafe_allow_html=True)
+                        th3.markdown("<div style='font-size:13px;color:#475569;font-weight:700'>ADDRESS</div>", unsafe_allow_html=True)
+                        th4.markdown("<div style='font-size:13px;color:#475569;font-weight:700'>ESTIMATOR</div>", unsafe_allow_html=True)
+                        th5.markdown("<div style='font-size:13px;color:#475569;font-weight:700'>VALUE</div>", unsafe_allow_html=True)
                         th6.markdown("", unsafe_allow_html=True)
                         st.divider()
 
@@ -5637,14 +5637,14 @@ No explanation, only JSON."""
 
                             c1,c2,c3,c4,c5,c6 = st.columns([2,3,3,2,2,1])
                             with c1:
-                                badge = f" <span style='background:#f59e0b22;color:#f59e0b;font-size:9px;padding:1px 4px;border-radius:3px'>{var_pending}V</span>" if var_pending else ""
+                                badge = f" <span style='background:#f59e0b22;color:#f59e0b;font-size:13px;padding:1px 4px;border-radius:3px'>{var_pending}V</span>" if var_pending else ""
                                 st.markdown(f"<div style='font-weight:700;color:#f1f5f9;font-size:13px'>{jrow['job_id']}{badge}</div>", unsafe_allow_html=True)
                             with c2:
                                 st.markdown(f"<div style='color:#e2e8f0;font-size:13px'>{str(jrow.get('client') or '—')}</div>", unsafe_allow_html=True)
                             with c3:
-                                st.markdown(f"<div style='color:#64748b;font-size:12px'>{str(jrow.get('address') or '—')[:35]}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='color:#64748b;font-size:13px'>{str(jrow.get('address') or '—')[:35]}</div>", unsafe_allow_html=True)
                             with c4:
-                                st.markdown(f"<div style='color:#94a3b8;font-size:12px'>{str(jrow.get('estimator') or '—')}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='color:#94a3b8;font-size:13px'>{str(jrow.get('estimator') or '—')}</div>", unsafe_allow_html=True)
                             with c5:
                                 if sell > 0:
                                     st.markdown(f"<div style='color:#2dd4bf;font-weight:700;font-size:13px'>${sell:,.0f}</div>", unsafe_allow_html=True)
@@ -5658,7 +5658,7 @@ No explanation, only JSON."""
             if not var_jobs_board.empty:
                 st.divider()
                 st.markdown(
-                    "<div style='font-size:11px;font-weight:700;letter-spacing:.12em;"
+                    "<div style='font-size:13px;font-weight:700;letter-spacing:.12em;"
                     "text-transform:uppercase;color:#f59e0b;margin-bottom:12px'>"
                     "⚠️ Variation Jobs — " + str(len(var_jobs_board)) + " active</div>",
                     unsafe_allow_html=True)
@@ -5677,10 +5677,10 @@ No explanation, only JSON."""
                                 "padding:14px 16px;margin-bottom:8px'>"
                                 "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px'>"
                                 "<b style='font-size:15px;color:#f59e0b'>" + str(vrow['job_id']) + "</b>"
-                                "<span style='background:#f59e0b22;color:#f59e0b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px'>VAR</span>"
+                                "<span style='background:#f59e0b22;color:#f59e0b;font-size:13px;font-weight:700;padding:2px 8px;border-radius:4px'>VAR</span>"
                                 "</div>"
                                 "<div style='font-size:13px;color:#e2e8f0;margin-bottom:2px'>" + v_title + "</div>"
-                                "<div style='font-size:12px;color:#64748b'>Parent: " + v_parent + " · " + v_stage + "</div>"
+                                "<div style='font-size:13px;color:#64748b'>Parent: " + v_parent + " · " + v_stage + "</div>"
                                 + ("<div style='font-size:14px;font-weight:800;color:#2dd4bf;margin-top:6px'>$" + f"{v_sell:,.0f}" + "</div>" if v_sell > 0 else "") +
                                 "</div>",
                                 unsafe_allow_html=True)
@@ -5762,20 +5762,28 @@ elif page == "Schedule Calendar":
     # ── Controls ──────────────────────────────────────────────────────────
     cal_col1, cal_col2, cal_col3, cal_col4 = st.columns([2,1,1,2])
     with cal_col1:
-        cal_view = st.radio("View", ["Month", "Week"], horizontal=True, key="cal_view")
+        cal_view = st.radio("View", ["Day", "Week", "Month"], horizontal=True, key="cal_view")
     with cal_col2:
         if st.button("◀ Prev"):
             if cal_view == "Month":
-                st.session_state["cal_month"] = st.session_state.get("cal_month", date.today().replace(day=1)) - pd.DateOffset(months=1)
+                st.session_state["cal_month"] = st.session_state.get("cal_month", pd.Timestamp(_today_aest().replace(day=1))) - pd.DateOffset(months=1)
+            elif cal_view == "Week":
+                st.session_state["cal_week_start"] = st.session_state.get("cal_week_start", pd.Timestamp(_today_aest() - pd.Timedelta(days=_today_aest().weekday()))) - pd.Timedelta(days=7)
             else:
-                st.session_state["cal_week_start"] = st.session_state.get("cal_week_start", date.today() - pd.Timedelta(days=date.today().weekday())) - pd.Timedelta(days=7)
+                cur_day = st.session_state.get("cal_day", _today_aest())
+                if hasattr(cur_day,'date'): cur_day = cur_day.date()
+                st.session_state["cal_day"] = cur_day - pd.Timedelta(days=1)
             st.rerun()
     with cal_col3:
         if st.button("Next ▶"):
             if cal_view == "Month":
-                st.session_state["cal_month"] = st.session_state.get("cal_month", date.today().replace(day=1)) + pd.DateOffset(months=1)
+                st.session_state["cal_month"] = st.session_state.get("cal_month", pd.Timestamp(_today_aest().replace(day=1))) + pd.DateOffset(months=1)
+            elif cal_view == "Week":
+                st.session_state["cal_week_start"] = st.session_state.get("cal_week_start", pd.Timestamp(_today_aest() - pd.Timedelta(days=_today_aest().weekday()))) + pd.Timedelta(days=7)
             else:
-                st.session_state["cal_week_start"] = st.session_state.get("cal_week_start", date.today() - pd.Timedelta(days=date.today().weekday())) + pd.Timedelta(days=7)
+                cur_day = st.session_state.get("cal_day", _today_aest())
+                if hasattr(cur_day,'date'): cur_day = cur_day.date()
+                st.session_state["cal_day"] = cur_day + pd.Timedelta(days=1)
             st.rerun()
     with cal_col4:
         if st.button("Today", key="cal_today"):
@@ -5853,10 +5861,10 @@ elif page == "Schedule Calendar":
         bg = "#0d1f2d" if is_today else "#111c27"
 
         html = f"<div style='background:{bg};border:{border};border-radius:8px;padding:6px;min-height:80px;margin:2px'>"
-        html += f"<div style='font-size:12px;font-weight:700;color:{'#2dd4bf' if is_today else '#94a3b8'}'>{d.day}</div>"
+        html += f"<div style='font-size:13px;font-weight:700;color:{'#2dd4bf' if is_today else '#94a3b8'}'>{d.day}</div>"
 
         if is_hol:
-            html += f"<div style='font-size:9px;background:#f59e0b22;color:#f59e0b;border-radius:3px;padding:1px 4px;margin-bottom:2px'>{hols_dict[ds][:15]}</div>"
+            html += f"<div style='font-size:13px;background:#f59e0b22;color:#f59e0b;border-radius:3px;padding:1px 4px;margin-bottom:2px'>{hols_dict[ds][:15]}</div>"
 
         if not compact:
             # Week view — show time-based blocks
@@ -5867,28 +5875,28 @@ elif page == "Schedule Calendar":
                     st_time = str(a.get("start_time","") or "")
                     en_time = str(a.get("end_time","") or "")
                     time_str = f"{st_time[:5]}–{en_time[:5]}" if st_time and en_time else st_time[:5] if st_time else ""
-                    html += f"<div style='font-size:9px;background:{color}22;color:{color};border-left:3px solid {color};border-radius:3px;padding:3px 5px;margin-bottom:3px'>"
+                    html += f"<div style='font-size:13px;background:{color}22;color:{color};border-left:3px solid {color};border-radius:3px;padding:3px 5px;margin-bottom:3px'>"
                     if time_str:
-                        html += f"<div style='font-size:8px;opacity:0.8'>{time_str}</div>"
+                        html += f"<div style='font-size:13px;opacity:0.8'>{time_str}</div>"
                     html += f"<b>{str(a.get('employee',''))[:12]}</b><br>{str(a.get('job_id',''))}"
                     if a.get("note"):
-                        html += f"<div style='font-size:8px;opacity:0.7'>{str(a.get('note',''))[:18]}</div>"
+                        html += f"<div style='font-size:13px;opacity:0.7'>{str(a.get('note',''))[:18]}</div>"
                     html += "</div>"
             else:
                 for a in day_assigns:
                     color = emp_color_map.get(str(a.get("employee","")), "#64748b")
-                    html += f"<div style='font-size:9px;background:{color}22;color:{color};border-left:2px solid {color};border-radius:3px;padding:2px 4px;margin-bottom:2px'>"
+                    html += f"<div style='font-size:13px;background:{color}22;color:{color};border-left:2px solid {color};border-radius:3px;padding:2px 4px;margin-bottom:2px'>"
                     html += f"<b>{str(a.get('employee',''))[:12]}</b> — {str(a.get('job_id',''))}</div>"
             for l in day_labour:
                 color = emp_color_map.get(str(l.get("employee","")), "#64748b")
-                html += f"<div style='font-size:8px;color:{color};opacity:0.6;padding:1px 4px'>⏱ {str(l.get('employee',''))[:8]}: {float(l.get('total_hours',0)):.1f}h</div>"
+                html += f"<div style='font-size:13px;color:{color};opacity:0.6;padding:1px 4px'>⏱ {str(l.get('employee',''))[:8]}: {float(l.get('total_hours',0)):.1f}h</div>"
         else:
             # Month view — compact
             for a in day_assigns[:3]:
                 color = emp_color_map.get(str(a.get("employee","")), "#64748b")
-                html += f"<div style='font-size:9px;background:{color}22;color:{color};border-radius:2px;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>{str(a.get('employee',''))[:10]}: {str(a.get('job_id',''))}</div>"
+                html += f"<div style='font-size:13px;background:{color}22;color:{color};border-radius:2px;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>{str(a.get('employee',''))[:10]}: {str(a.get('job_id',''))}</div>"
             if len(day_assigns) > 3:
-                html += f"<div style='font-size:9px;color:#475569'>+{len(day_assigns)-3} more</div>"
+                html += f"<div style='font-size:13px;color:#475569'>+{len(day_assigns)-3} more</div>"
 
         html += "</div>"
         return html
@@ -5907,7 +5915,7 @@ elif page == "Schedule Calendar":
         day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
         hdr_cols = st.columns(7)
         for col, dn in zip(hdr_cols, day_names):
-            col.markdown(f"<div style='text-align:center;font-size:11px;font-weight:700;color:#475569;padding:4px'>{dn}</div>", unsafe_allow_html=True)
+            col.markdown(f"<div style='text-align:center;font-size:13px;font-weight:700;color:#475569;padding:4px'>{dn}</div>", unsafe_allow_html=True)
 
         # Build month grid
         import calendar as _cal
@@ -5935,6 +5943,89 @@ elif page == "Schedule Calendar":
                     else:
                         st.markdown("<div style='min-height:80px'></div>", unsafe_allow_html=True)
 
+    # ── Day View ───────────────────────────────────────────────────────────
+    elif cal_view == "Day":
+        sel_day = st.session_state.get("cal_day", _today_aest())
+        if hasattr(sel_day, 'date'):
+            sel_day = sel_day.date()
+
+        st.markdown(
+            f"<div style='font-size:22px;font-weight:800;color:#e2e8f0;margin-bottom:16px'>"
+            f"{sel_day.strftime('%A, %d %B %Y')}</div>",
+            unsafe_allow_html=True)
+
+        ds = sel_day.isoformat()
+        is_hol = ds in hols_dict
+        if is_hol:
+            st.markdown(f"<div style='background:#f59e0b22;color:#f59e0b;border-radius:8px;padding:8px 16px;margin-bottom:12px'>🏖️ Public Holiday: {hols_dict[ds]}</div>", unsafe_allow_html=True)
+
+        # Load timed assignments for this day
+        day_timed = fetch_df("""
+            SELECT da.id, da.employee, da.job_id, da.client,
+                   COALESCE(da.start_time,'') AS start_time,
+                   COALESCE(da.end_time,'') AS end_time,
+                   COALESCE(da.note,'') AS note
+            FROM day_assignments da
+            WHERE da.date=? AND da.employee != '__unassigned__'
+            ORDER BY COALESCE(NULLIF(da.start_time,''),'07:00'), da.employee
+        """, (ds,))
+
+        # Load labour logs for this day
+        day_labour_d = fetch_df("""
+            SELECT employee, job_id, hours, note
+            FROM labour_logs WHERE work_date=?
+            ORDER BY employee
+        """, (ds,))
+
+        # Time grid — 6am to 6pm
+        hours = list(range(6, 19))
+        st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin-bottom:8px'>SCHEDULE</div>", unsafe_allow_html=True)
+
+        if day_timed.empty:
+            st.info("No assignments for this day.")
+        else:
+            for _, row in day_timed.iterrows():
+                color = emp_color_map.get(str(row.get("employee","")), "#64748b")
+                st_t = str(row.get("start_time","") or "")
+                en_t = str(row.get("end_time","") or "")
+                time_disp = f"{st_t[:5]} → {en_t[:5]}" if st_t and en_t else st_t[:5] if st_t else "All day"
+
+                # Calculate hours if times set
+                hrs_disp = ""
+                if st_t and en_t:
+                    try:
+                        from datetime import datetime as _dtc
+                        _s = _dtc.strptime(st_t[:5], "%H:%M")
+                        _e = _dtc.strptime(en_t[:5], "%H:%M")
+                        _h = (_e - _s).seconds / 3600
+                        hrs_disp = f" · {_h:.1f}h"
+                    except: pass
+
+                st.markdown(f"""
+                <div style='background:#1e2d3d;border:1px solid #2a3d4f;
+                    border-left:4px solid {color};border-radius:10px;
+                    padding:14px 18px;margin-bottom:8px;
+                    display:flex;align-items:center;gap:16px'>
+                    <div style='min-width:120px'>
+                        <div style='color:{color};font-weight:700;font-size:14px'>{time_disp}</div>
+                        <div style='color:#475569;font-size:12px'>{hrs_disp}</div>
+                    </div>
+                    <div style='flex:1'>
+                        <div style='color:#e2e8f0;font-weight:700;font-size:15px'>{row.get('employee','')}</div>
+                        <div style='color:#2dd4bf;font-size:13px'>{row.get('job_id','')} — {row.get('client','')}</div>
+                        {f"<div style='color:#64748b;font-size:13px'>{row.get('note','')}</div>" if row.get('note') else ''}
+                    </div>
+                </div>""", unsafe_allow_html=True)
+
+        # Labour logged today
+        if not day_labour_d.empty:
+            st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:16px 0 8px'>HOURS LOGGED</div>", unsafe_allow_html=True)
+            total_h = day_labour_d["hours"].sum()
+            st.markdown(f"<div style='color:#475569;font-size:13px;margin-bottom:8px'>Total: <b style='color:#e2e8f0'>{total_h:.1f}h</b></div>", unsafe_allow_html=True)
+            for _, ll in day_labour_d.iterrows():
+                color = emp_color_map.get(str(ll.get("employee","")), "#64748b")
+                st.markdown(f"<div style='display:flex;gap:12px;padding:6px 0;border-bottom:1px solid #1e2d3d'><span style='color:{color};font-weight:700;min-width:140px'>{ll.get('employee','')}</span><span style='color:#e2e8f0'>{ll.get('job_id','')}</span><span style='color:#2dd4bf;margin-left:auto'>{float(ll.get('hours',0)):.1f}h</span></div>", unsafe_allow_html=True)
+
     # ── Week View ──────────────────────────────────────────────────────────
     else:
         today_dt = date.today()
@@ -5961,7 +6052,7 @@ elif page == "Schedule Calendar":
             color = "#2dd4bf" if is_today else "#94a3b8"
             col.markdown(
                 f"<div style='text-align:center;padding:6px'>"
-                f"<div style='font-size:11px;font-weight:700;color:{color}'>{dn}</div>"
+                f"<div style='font-size:13px;font-weight:700;color:{color}'>{dn}</div>"
                 f"<div style='font-size:20px;font-weight:900;color:{color}'>{d.day}</div>"
                 f"</div>",
                 unsafe_allow_html=True)
@@ -6022,7 +6113,7 @@ elif page == "Schedule Calendar":
             uc1.markdown(f"<div style='color:#94a3b8;font-size:13px'>{str(row['date'])}</div>", unsafe_allow_html=True)
             uc2.markdown(f"<div style='color:{color};font-weight:700;font-size:13px'>{str(row.get('employee',''))}</div>", unsafe_allow_html=True)
             uc3.markdown(f"<div style='color:#e2e8f0;font-size:13px'>{str(row.get('job_id',''))}</div>", unsafe_allow_html=True)
-            uc4.markdown(f"<div style='color:#64748b;font-size:12px'>{str(row.get('note',''))}</div>", unsafe_allow_html=True)
+            uc4.markdown(f"<div style='color:#64748b;font-size:13px'>{str(row.get('note',''))}</div>", unsafe_allow_html=True)
             with uc5:
                 if st.button("🗑", key=f"del_assign_{row['id']}"):
                     execute("DELETE FROM day_assignments WHERE id=?", (int(row["id"]),))
@@ -6143,7 +6234,7 @@ elif page == "Actual Labour Log":
                             f"<span style='color:#555;min-width:110px'>{row['employee']}</span>"
                             f"<span><b>{row['hours']}h</b> @ ${row['hourly_rate']:.0f}/hr</span>"
                             f"<span style='font-weight:700;color:#1a1a1a'>${row['cost']:,.2f}</span>"
-                            f"<span style='color:#999;font-size:11px'>{row['note'] or ''}</span>"
+                            f"<span style='color:#999;font-size:13px'>{row['note'] or ''}</span>"
                             f"</div>",
                             unsafe_allow_html=True,
                         )
@@ -6293,8 +6384,8 @@ elif page == "Material Invoice Log":
                         f"<span style='color:#94a3b8;min-width:100px'>{row['invoice_number'] or '—'}</span>"
                         f"<span style='color:#2dd4bf;font-weight:700'>${row['amount']:,.2f}</span>"
                         f"<span style='background:#1a2d3a;color:{status_color};padding:2px 10px;"
-                        f"border-radius:999px;font-size:11px;font-weight:600'>{row['status']}</span>"
-                        f"<span style='color:#475569;font-size:11px'>{row['note'] or ''}</span>"
+                        f"border-radius:999px;font-size:13px;font-weight:600'>{row['status']}</span>"
+                        f"<span style='color:#475569;font-size:13px'>{row['note'] or ''}</span>"
                         f"</div>",
                         unsafe_allow_html=True,
                     )
@@ -6498,11 +6589,11 @@ elif page == "Tender Review":
         st.markdown(
             f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:9px;"
             f"padding:10px 16px;margin-bottom:6px;display:flex;align-items:center;gap:14px'>"
-            f"<span style='background:{color};color:#0f172a;font-weight:800;font-size:12px;"
+            f"<span style='background:{color};color:#0f172a;font-weight:800;font-size:13px;"
             f"width:24px;height:24px;border-radius:50%;display:flex;align-items:center;"
             f"justify-content:center;flex-shrink:0'>{icon}</span>"
             f"<span style='font-weight:600;font-size:13px;color:#e2e8f0;min-width:200px'>{label}</span>"
-            f"<span style='font-size:12px;color:#94a3b8'>{comment}</span>"
+            f"<span style='font-size:13px;color:#94a3b8'>{comment}</span>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -6718,7 +6809,7 @@ elif page == "Recipes":
 
                 # ── Recipe items ──────────────────────────────────────────
                 st.markdown(
-                    "<div style='display:flex;gap:8px;font-size:10px;font-weight:700;"
+                    "<div style='display:flex;gap:8px;font-size:13px;font-weight:700;"
                     "color:#475569;text-transform:uppercase;letter-spacing:.06em;"
                     "padding:4px 0;margin-bottom:4px'>"
                     "<span style='flex:3'>Description</span>"
@@ -6748,7 +6839,7 @@ elif page == "Recipes":
                             with rc[5]: e_lrate = st.number_input("", value=float(ri["labour_rate"]),   min_value=0.0, step=0.5, label_visibility="collapsed")
                             with rc[6]:
                                 unit_cost = e_uqty * (e_mrate + e_lrate)
-                                st.markdown(f"<div style='padding:8px 0;font-size:12px;color:#2dd4bf;font-weight:700'>${unit_cost:,.2f}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='padding:8px 0;font-size:13px;color:#2dd4bf;font-weight:700'>${unit_cost:,.2f}</div>", unsafe_allow_html=True)
                             sc1, sc2 = st.columns([1,1])
                             with sc1:
                                 if st.form_submit_button("Save"):
@@ -7015,9 +7106,9 @@ elif page == "Pipeline":
                     bg     = "#1e2d3d"
 
                 pc = "#2dd4bf" if prob>=75 else "#f59e0b" if prob>=40 else "#f43f5e"
-                sec_badge = "<span style='background:#2dd4bf22;color:#2dd4bf;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700'>SECURED</span>" if is_sec else ""
-                overdue_badge = "<span style='background:#f43f5e22;color:#f43f5e;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700'>FOLLOW-UP OVERDUE</span>" if is_overdue else ""
-                due_badge = "<span style='background:#f59e0b22;color:#f59e0b;padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700'>FOLLOW-UP TODAY</span>" if is_due_today else ""
+                sec_badge = "<span style='background:#2dd4bf22;color:#2dd4bf;padding:1px 8px;border-radius:999px;font-size:13px;font-weight:700'>SECURED</span>" if is_sec else ""
+                overdue_badge = "<span style='background:#f43f5e22;color:#f43f5e;padding:1px 8px;border-radius:999px;font-size:13px;font-weight:700'>FOLLOW-UP OVERDUE</span>" if is_overdue else ""
+                due_badge = "<span style='background:#f59e0b22;color:#f59e0b;padding:1px 8px;border-radius:999px;font-size:13px;font-weight:700'>FOLLOW-UP TODAY</span>" if is_due_today else ""
 
                 _contact = ("<span style='color:#64748b;font-size:14px'>Contact: " + str(row.get('contact_name','') or '') + "</span>") if row.get('contact_name') else ""
                 _phone   = ("<span style='color:#64748b;font-size:14px'>" + str(row.get('contact_phone','') or '') + "</span>") if row.get('contact_phone') else ""
@@ -7220,7 +7311,7 @@ elif page == "Budget Planner":
 
     # ── YTD summary banner ────────────────────────────────────────────────
     st.markdown("""
-    <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.12em;
         text-transform:uppercase;color:#2dd4bf;margin-bottom:10px">
         Year to date
     </div>""", unsafe_allow_html=True)
@@ -7237,7 +7328,7 @@ elif page == "Budget Planner":
 
     # ── Month cards ───────────────────────────────────────────────────────
     st.markdown("""
-    <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.12em;
         text-transform:uppercase;color:#2dd4bf;margin-bottom:12px">
         Monthly breakdown
     </div>""", unsafe_allow_html=True)
@@ -7270,7 +7361,7 @@ elif page == "Budget Planner":
         else:
             var_color = "#f43f5e"; var_label = f"${abs(var):,.0f} short"
 
-        cur_badge = "<span style='background:#2dd4bf22;color:#2dd4bf;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:8px'>THIS MONTH</span>" if row["is_current"] else ""
+        cur_badge = "<span style='background:#2dd4bf22;color:#2dd4bf;font-size:13px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:8px'>THIS MONTH</span>" if row["is_current"] else ""
 
         st.markdown(f"""
         <div style="background:{bg};border:{border};border-radius:12px;
@@ -7281,7 +7372,7 @@ elif page == "Budget Planner":
                 </div>
                 <div style="font-size:13px;font-weight:700;color:{var_color}">{var_label}</div>
             </div>
-            <div style="display:flex;gap:32px;font-size:12px;margin-bottom:10px">
+            <div style="display:flex;gap:32px;font-size:13px;margin-bottom:10px">
                 <div><span style="color:#475569">Target</span>
                     <span style="color:#e2e8f0;font-weight:700;margin-left:6px">${tgt:,.0f}</span></div>
                 <div><span style="color:#475569">Secured</span>
@@ -7290,7 +7381,7 @@ elif page == "Budget Planner":
                     <span style="color:#f59e0b;font-weight:700;margin-left:6px">${row['weighted']:,.0f}</span></div>
             </div>
             <div style="margin-bottom:5px">
-                <div style="display:flex;justify-content:space-between;font-size:10px;color:#475569;margin-bottom:3px">
+                <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569;margin-bottom:3px">
                     <span>Secured</span><span>{secured_pct:.0f}% of target</span>
                 </div>
                 <div style="background:#0f172a;border-radius:999px;height:8px">
@@ -7298,7 +7389,7 @@ elif page == "Budget Planner":
                 </div>
             </div>
             <div>
-                <div style="display:flex;justify-content:space-between;font-size:10px;color:#475569;margin-bottom:3px">
+                <div style="display:flex;justify-content:space-between;font-size:13px;color:#475569;margin-bottom:3px">
                     <span>Weighted pipeline</span><span>{wtd_pct:.0f}% of target</span>
                 </div>
                 <div style="background:#0f172a;border-radius:999px;height:8px">
@@ -7414,7 +7505,7 @@ elif page == "Job Costing Report":
         total_contract = all_jobs_pl["sell_price"].fillna(0).sum()
         st.markdown(f"""
         <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:12px;padding:16px 20px">
-            <div style="font-size:11px;font-weight:700;color:#2dd4bf;text-transform:uppercase;
+            <div style="font-size:13px;font-weight:700;color:#2dd4bf;text-transform:uppercase;
                 letter-spacing:.1em;margin-bottom:10px">Portfolio summary — {len(pl_rows)} jobs</div>
             <div style="display:flex;gap:32px;font-size:13px">
                 <div><span style="color:#64748b">Total contract value</span>
@@ -7460,7 +7551,7 @@ elif page == "Notifications":
             ("Upcoming",   upcoming,  "#2dd4bf"),
         ]:
             if df_n.empty: continue
-            st.markdown(f"<div style='font-size:11px;font-weight:700;color:{color};"
+            st.markdown(f"<div style='font-size:13px;font-weight:700;color:{color};"
                         f"text-transform:uppercase;letter-spacing:.1em;margin:12px 0 6px'>"
                         f"{label} — {len(df_n)}</div>", unsafe_allow_html=True)
             for _, nr in df_n.iterrows():
@@ -7472,10 +7563,10 @@ elif page == "Notifications":
                             <span style="font-weight:700;color:#e2e8f0">{nr['job_id']}</span>
                             <span style="color:#64748b;margin-left:8px">{nr['client'] or ''}</span>
                         </div>
-                        <span style="color:{color};font-size:12px;font-weight:600">{nr['follow_up_date']}</span>
+                        <span style="color:{color};font-size:13px;font-weight:600">{nr['follow_up_date']}</span>
                     </div>
-                    {"<div style='font-size:12px;color:#f59e0b;margin-top:4px'>"+str(nr['status_notes'])+"</div>" if nr.get('status_notes') else ""}
-                    {"<div style='font-size:11px;color:#475569;margin-top:4px'>"+str(nr['contact_name'])+" · "+str(nr['contact_phone'] or '')+"</div>" if nr.get('contact_name') else ""}
+                    {"<div style='font-size:13px;color:#f59e0b;margin-top:4px'>"+str(nr['status_notes'])+"</div>" if nr.get('status_notes') else ""}
+                    {"<div style='font-size:13px;color:#475569;margin-top:4px'>"+str(nr['contact_name'])+" · "+str(nr['contact_phone'] or '')+"</div>" if nr.get('contact_name') else ""}
                 </div>
                 """, unsafe_allow_html=True)
     else:
@@ -7507,11 +7598,11 @@ elif page == "Notifications":
                 <div style="flex:1">
                     <span style="font-weight:700;color:#e2e8f0">{pa['job_id']}</span>
                     <span style="color:#64748b;margin-left:8px">{pa['client'] or ''}</span>
-                    <span style="color:#94a3b8;margin-left:8px;font-size:12px">{pa['milestone']}</span>
+                    <span style="color:#94a3b8;margin-left:8px;font-size:13px">{pa['milestone']}</span>
                 </div>
                 <div style="text-align:right">
                     <div style="color:#2dd4bf;font-weight:700">${float(pa['amount']):,.2f}</div>
-                    <div style="color:{pc};font-size:11px;font-weight:600">{badge}</div>
+                    <div style="color:{pc};font-size:13px;font-weight:600">{badge}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -7574,7 +7665,7 @@ elif page == "Clients":
                     {(' · ' + cli.get('client_type','')) if cli.get('client_type') else ''}
                 </div>
             </div>
-            <div style="text-align:right;font-size:12px;color:#64748b">
+            <div style="text-align:right;font-size:13px;color:#64748b">
                 <div>{cli.get('phone') or ''}</div>
                 <div>{cli.get('email') or ''}</div>
                 {("<div style='color:#2dd4bf'>💳 " + str(cli.get('billing_email','')) + "</div>") if cli.get('billing_email') else ''}
@@ -7649,9 +7740,9 @@ elif page == "Clients":
             if cli.get("billing_email"):
                 st.markdown(f"""
                 <div style='background:#1e2d3d;border:1px solid #2dd4bf33;border-radius:8px;padding:10px 16px;margin-top:8px'>
-                    <div style='color:#2dd4bf;font-size:11px;font-weight:700'>💳 BILLING</div>
+                    <div style='color:#2dd4bf;font-size:13px;font-weight:700'>💳 BILLING</div>
                     <div style='color:#e2e8f0'>{cli.get('billing_name','—')}</div>
-                    <div style='color:#64748b;font-size:12px'>{cli.get('billing_email','')} · {cli.get('billing_phone','')}</div>
+                    <div style='color:#64748b;font-size:13px'>{cli.get('billing_email','')} · {cli.get('billing_phone','')}</div>
                 </div>""", unsafe_allow_html=True)
 
         with ctab3:
@@ -7687,12 +7778,12 @@ elif page == "Clients":
                         padding:10px 14px;margin-bottom:8px">
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
                             <span style="background:{ic}22;color:{ic};padding:1px 8px;
-                                border-radius:999px;font-size:10px;font-weight:700">{itype}</span>
-                            <span style="font-size:11px;color:#64748b">{ir['interaction_date']}</span>
-                            {"<span style='font-size:11px;color:#475569;margin-left:auto'>Job: "+str(ir['job_id'])+"</span>" if ir.get('job_id') else ""}
+                                border-radius:999px;font-size:13px;font-weight:700">{itype}</span>
+                            <span style="font-size:13px;color:#64748b">{ir['interaction_date']}</span>
+                            {"<span style='font-size:13px;color:#475569;margin-left:auto'>Job: "+str(ir['job_id'])+"</span>" if ir.get('job_id') else ""}
                         </div>
-                        <div style="font-size:12px;color:#94a3b8">{ir['notes'] or ''}</div>
-                        {"<div style='font-size:11px;color:#f59e0b;margin-top:4px'>Follow-up: "+str(ir['follow_up_date'])+"</div>" if ir.get('follow_up_date') else ""}
+                        <div style="font-size:13px;color:#94a3b8">{ir['notes'] or ''}</div>
+                        {"<div style='font-size:13px;color:#f59e0b;margin-top:4px'>Follow-up: "+str(ir['follow_up_date'])+"</div>" if ir.get('follow_up_date') else ""}
                     </div>""", unsafe_allow_html=True)
 
             st.divider()
@@ -7777,8 +7868,8 @@ elif page == "Clients":
                           "Property Manager":"#f59e0b","Insurance":"#fb923c","Other":"#64748b"}.get(ctype,"#64748b")
                 st.markdown(f"""<div style="display:flex;align-items:center;gap:10px;
                     margin:1rem 0 .5rem"><span style="background:{tc_col}22;color:{tc_col};
-                    padding:3px 12px;border-radius:999px;font-size:11px;font-weight:700">
-                    {ctype}</span><span style="font-size:12px;color:#475569">
+                    padding:3px 12px;border-radius:999px;font-size:13px;font-weight:700">
+                    {ctype}</span><span style="font-size:13px;color:#475569">
                     {len(type_clients)}</span></div>""", unsafe_allow_html=True)
 
                 for i in range(0, len(type_clients), 3):
@@ -7802,13 +7893,13 @@ elif page == "Clients":
                                         font-size:14px;font-weight:800;color:{tc_col}">{init}</div>
                                     <div>
                                         <div style="font-weight:700;font-size:14px;color:#f1f5f9">{cr.get('company') or cr.get('name') or ''}</div>
-                                        <div style="font-size:11px;color:#94a3b8">{cr.get('name') or ''}</div>
+                                        <div style="font-size:13px;color:#94a3b8">{cr.get('name') or ''}</div>
                                     </div>
                                 </div>
-                                <div style="font-size:11px;color:#475569">
+                                <div style="font-size:13px;color:#475569">
                                     {cr.get('phone') or ''}{' · ' if cr.get('phone') and cr.get('email') else ''}{cr.get('email') or ''}
                                 </div>
-                                <div style="font-size:11px;color:#2dd4bf;margin-top:4px">{njobs} job{'s' if njobs!=1 else ''}</div>
+                                <div style="font-size:13px;color:#2dd4bf;margin-top:4px">{njobs} job{'s' if njobs!=1 else ''}</div>
                             </div>""", unsafe_allow_html=True)
                             if st.button("Open", key=f"cli_{cid}"):
                                 st.session_state["open_client"] = cid; st.rerun()
@@ -7850,7 +7941,7 @@ elif page == "Timesheets":
         <div style="font-size:16px;font-weight:700;color:#e2e8f0">
             Week of {monday.strftime('%d %B %Y')}
         </div>
-        <div style="font-size:12px;color:#64748b;margin-top:2px">
+        <div style="font-size:13px;color:#64748b;margin-top:2px">
             {monday.strftime('%d %b')} — {week_days[6].strftime('%d %b %Y')}
         </div>
     </div>""", unsafe_allow_html=True)
@@ -7876,12 +7967,12 @@ elif page == "Timesheets":
 
     # Header row
     header_cols = st.columns([2] + [1]*7 + [1])
-    header_cols[0].markdown("<div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase'>Employee</div>", unsafe_allow_html=True)
+    header_cols[0].markdown("<div style='font-size:13px;font-weight:700;color:#475569;text-transform:uppercase'>Employee</div>", unsafe_allow_html=True)
     for i, dl in enumerate(day_labels):
         is_today = week_days[i] == today_ts
         color = "#2dd4bf" if is_today else "#475569"
-        header_cols[i+1].markdown(f"<div style='font-size:10px;font-weight:700;color:{color};text-align:center'>{dl}</div>", unsafe_allow_html=True)
-    header_cols[8].markdown("<div style='font-size:10px;font-weight:700;color:#475569;text-align:center'>TOTAL</div>", unsafe_allow_html=True)
+        header_cols[i+1].markdown(f"<div style='font-size:13px;font-weight:700;color:{color};text-align:center'>{dl}</div>", unsafe_allow_html=True)
+    header_cols[8].markdown("<div style='font-size:13px;font-weight:700;color:#475569;text-align:center'>TOTAL</div>", unsafe_allow_html=True)
 
     st.markdown("<hr style='border-color:#2a3d4f;margin:6px 0'>", unsafe_allow_html=True)
 
@@ -7899,8 +7990,8 @@ elif page == "Timesheets":
 
         row_cols = st.columns([2] + [1]*7 + [1])
         row_cols[0].markdown(
-            f"<div style='font-size:12px;font-weight:600;color:#e2e8f0;padding:6px 0'>{emp_name}</div>"
-            f"<div style='font-size:10px;color:#475569'>${emp['hourly_rate']:.0f}/hr</div>",
+            f"<div style='font-size:13px;font-weight:600;color:#e2e8f0;padding:6px 0'>{emp_name}</div>"
+            f"<div style='font-size:13px;color:#475569'>${emp['hourly_rate']:.0f}/hr</div>",
             unsafe_allow_html=True)
 
         for i, day in enumerate(week_days):
@@ -7915,8 +8006,8 @@ elif page == "Timesheets":
                 row_cols[i+1].markdown(
                     f"<div style='background:{bg};border:1px solid #2dd4bf;border-radius:6px;"
                     f"padding:4px;text-align:center;margin:2px'>"
-                    f"<div style='font-size:12px;font-weight:700;color:#2dd4bf'>{day_hrs:.1f}h</div>"
-                    f"<div style='font-size:9px;color:#64748b;white-space:nowrap;overflow:hidden;"
+                    f"<div style='font-size:13px;font-weight:700;color:#2dd4bf'>{day_hrs:.1f}h</div>"
+                    f"<div style='font-size:13px;color:#64748b;white-space:nowrap;overflow:hidden;"
                     f"text-overflow:ellipsis'>{jobs_on_day}</div></div>",
                     unsafe_allow_html=True)
             else:
@@ -7924,31 +8015,31 @@ elif page == "Timesheets":
                 row_cols[i+1].markdown(
                     f"<div style='background:{bg};border:1px solid #1e2d3d;border-radius:6px;"
                     f"padding:4px;text-align:center;margin:2px;min-height:40px'>"
-                    f"<div style='font-size:11px;color:#2a3d4f'>—</div></div>",
+                    f"<div style='font-size:13px;color:#2a3d4f'>—</div></div>",
                     unsafe_allow_html=True)
 
         row_cols[8].markdown(
             f"<div style='text-align:center;padding:6px 0'>"
             f"<div style='font-size:13px;font-weight:700;color:#e2e8f0'>{emp_total_hrs:.1f}h</div>"
-            f"<div style='font-size:10px;color:#2dd4bf'>${emp_total_cost:,.0f}</div></div>",
+            f"<div style='font-size:13px;color:#2dd4bf'>${emp_total_cost:,.0f}</div></div>",
             unsafe_allow_html=True)
 
     st.markdown("<hr style='border-color:#2a3d4f;margin:6px 0'>", unsafe_allow_html=True)
 
     # Totals row
     tot_cols = st.columns([2] + [1]*7 + [1])
-    tot_cols[0].markdown("<div style='font-size:12px;font-weight:700;color:#2dd4bf'>WEEK TOTAL</div>", unsafe_allow_html=True)
+    tot_cols[0].markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf'>WEEK TOTAL</div>", unsafe_allow_html=True)
     for i, day in enumerate(week_days):
         day_str  = day.isoformat()
         day_tot  = float(week_logs[week_logs["work_date"]==day_str]["hours"].sum()) if not week_logs.empty else 0
         if day_tot > 0:
             tot_cols[i+1].markdown(
-                f"<div style='text-align:center;font-size:12px;font-weight:700;color:#f1f5f9'>{day_tot:.1f}h</div>",
+                f"<div style='text-align:center;font-size:13px;font-weight:700;color:#f1f5f9'>{day_tot:.1f}h</div>",
                 unsafe_allow_html=True)
     tot_cols[8].markdown(
         f"<div style='text-align:center'>"
         f"<div style='font-size:14px;font-weight:800;color:#2dd4bf'>{week_total_hrs:.1f}h</div>"
-        f"<div style='font-size:11px;color:#e2e8f0;font-weight:700'>${week_total_cost:,.0f}</div></div>",
+        f"<div style='font-size:13px;color:#e2e8f0;font-weight:700'>${week_total_cost:,.0f}</div></div>",
         unsafe_allow_html=True)
 
     st.divider()
@@ -8174,7 +8265,7 @@ elif page == "Company P&L":
     ds = date_from.isoformat()
     de = date_to.isoformat()
 
-    st.markdown(f"<div style='font-size:12px;color:#64748b;margin-bottom:1rem'>"
+    st.markdown(f"<div style='font-size:13px;color:#64748b;margin-bottom:1rem'>"
                 f"Showing: {date_from.strftime('%d %b %Y')} — {date_to.strftime('%d %b %Y')}"
                 f"</div>", unsafe_allow_html=True)
 
@@ -8256,7 +8347,7 @@ elif page == "Company P&L":
     utilisation      = (total_hours / available_hours * 100) if available_hours else 0
 
     # ── Hero metrics ──────────────────────────────────────────────────────
-    st.markdown("""<div style="font-size:11px;font-weight:700;letter-spacing:.12em;
+    st.markdown("""<div style="font-size:13px;font-weight:700;letter-spacing:.12em;
         text-transform:uppercase;color:#2dd4bf;margin-bottom:10px">Business snapshot</div>""",
         unsafe_allow_html=True)
 
@@ -8273,7 +8364,7 @@ elif page == "Company P&L":
 
     with left_pl:
         # REVENUE BREAKDOWN
-        st.markdown("""<div style="font-size:11px;font-weight:700;letter-spacing:.12em;
+        st.markdown("""<div style="font-size:13px;font-weight:700;letter-spacing:.12em;
             text-transform:uppercase;color:#2dd4bf;margin:1rem 0 8px">Revenue breakdown</div>""",
             unsafe_allow_html=True)
 
@@ -8290,7 +8381,7 @@ elif page == "Company P&L":
             rev_html += f"""
             <div style="display:flex;justify-content:space-between;align-items:center;
                 padding:8px 0;border-bottom:1px solid #1e2d3d">
-                <span style="font-size:12px;color:#94a3b8">{label}</span>
+                <span style="font-size:13px;color:#94a3b8">{label}</span>
                 <span style="font-size:13px;font-weight:700;color:{color}">${val:,.0f}</span>
             </div>"""
         st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;"
@@ -8298,7 +8389,7 @@ elif page == "Company P&L":
                     unsafe_allow_html=True)
 
         # PIPELINE FORWARD VIEW
-        st.markdown("""<div style="font-size:11px;font-weight:700;letter-spacing:.12em;
+        st.markdown("""<div style="font-size:13px;font-weight:700;letter-spacing:.12em;
             text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 8px">Pipeline forward view</div>""",
             unsafe_allow_html=True)
 
@@ -8314,7 +8405,7 @@ elif page == "Company P&L":
             pipe_html += f"""
             <div style="display:flex;justify-content:space-between;align-items:center;
                 padding:8px 0;border-bottom:1px solid #1e2d3d">
-                <span style="font-size:12px;color:#94a3b8">{label}</span>
+                <span style="font-size:13px;color:#94a3b8">{label}</span>
                 <span style="font-size:13px;font-weight:700;color:{color}">{display}</span>
             </div>"""
         st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;"
@@ -8323,7 +8414,7 @@ elif page == "Company P&L":
 
     with right_pl:
         # COST BREAKDOWN
-        st.markdown("""<div style="font-size:11px;font-weight:700;letter-spacing:.12em;
+        st.markdown("""<div style="font-size:13px;font-weight:700;letter-spacing:.12em;
             text-transform:uppercase;color:#2dd4bf;margin:1rem 0 8px">Cost breakdown</div>""",
             unsafe_allow_html=True)
 
@@ -8342,7 +8433,7 @@ elif page == "Company P&L":
             bar_str  = "" if label == "Total costs" else "<div style='background:#0f172a;border-radius:4px;height:6px'><div style='background:" + color + ";width:" + f"{bar_w:.0f}" + "%;height:6px;border-radius:4px'></div></div>"
             cost_html += (
                 "<div style='margin-bottom:10px'>"
-                "<div style='display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px'>"
+                "<div style='display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px'>"
                 "<span style='color:#94a3b8'>" + label + "</span>"
                 "<span style='font-weight:700;color:" + color + "'>$" + f"{val:,.0f} " + pct_str + "</span>"
                 "</div>" + bar_str + "</div>"
@@ -8352,7 +8443,7 @@ elif page == "Company P&L":
                     unsafe_allow_html=True)
 
         # LABOUR UTILISATION
-        st.markdown("""<div style="font-size:11px;font-weight:700;letter-spacing:.12em;
+        st.markdown("""<div style="font-size:13px;font-weight:700;letter-spacing:.12em;
             text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 8px">Labour utilisation</div>""",
             unsafe_allow_html=True)
 
@@ -8370,7 +8461,7 @@ elif page == "Company P&L":
 
         util_html = f"""
         <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
                 <span style="color:#94a3b8">Utilisation rate</span>
                 <span style="font-weight:800;font-size:16px;color:{util_color}">{utilisation:.0f}%</span>
             </div>
@@ -8378,7 +8469,7 @@ elif page == "Company P&L":
                 <div style="background:{util_color};width:{util_w:.0f}%;height:10px;border-radius:6px"></div>
             </div>
         </div>
-        <div style="display:flex;gap:20px;font-size:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #2a3d4f">
+        <div style="display:flex;gap:20px;font-size:13px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #2a3d4f">
             <div><span style="color:#64748b">Logged hours</span>
                 <span style="color:#e2e8f0;font-weight:700;margin-left:6px">{total_hours:,.0f}h</span></div>
             <div><span style="color:#64748b">Available</span>
@@ -8388,18 +8479,18 @@ elif page == "Company P&L":
         </div>"""
 
         if emp_hours is not None and not emp_hours.empty:
-            util_html += "<div style='font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:6px'>Top by hours</div>"
+            util_html += "<div style='font-size:13px;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:6px'>Top by hours</div>"
             max_emp_hrs = float(emp_hours["Hours"].max()) or 1
             for _, er in emp_hours.iterrows():
                 bar = float(er["Hours"])/max_emp_hrs*100
                 util_html += f"""
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-                    <div style="font-size:11px;color:#94a3b8;width:90px;flex-shrink:0;
+                    <div style="font-size:13px;color:#94a3b8;width:90px;flex-shrink:0;
                         white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{er['employee']}</div>
                     <div style="flex:1;background:#0f172a;border-radius:3px;height:6px">
                         <div style="background:#7dd3fc;width:{bar:.0f}%;height:6px;border-radius:3px"></div>
                     </div>
-                    <div style="font-size:11px;color:#7dd3fc;font-weight:600;width:35px;text-align:right">
+                    <div style="font-size:13px;color:#7dd3fc;font-weight:600;width:35px;text-align:right">
                         {float(er['Hours']):.0f}h</div>
                 </div>"""
 
@@ -8543,7 +8634,7 @@ elif page == "User Management":
             f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-left:3px solid {rc};"
             f"border-radius:9px;padding:10px 14px;margin-bottom:8px'>"
             f"<div style='font-weight:700;color:{rc};margin-bottom:6px'>{role}</div>"
-            f"<div style='font-size:11px;color:#64748b'>{' · '.join(pages_list)}</div>"
+            f"<div style='font-size:13px;color:#64748b'>{' · '.join(pages_list)}</div>"
             f"</div>",
             unsafe_allow_html=True)
 
@@ -8658,24 +8749,24 @@ elif page == "Financial Health":
         padding:16px 20px;margin-bottom:1.2rem;
         display:flex;align-items:center;justify-content:space-between">
         <div>
-            <div style="font-size:11px;font-weight:700;color:{bas_color};
+            <div style="font-size:13px;font-weight:700;color:{bas_color};
                 text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">
                 BAS Due — {q_label}
             </div>
             <div style="font-size:28px;font-weight:800;color:#f1f5f9">
                 {days_to_bas} days
             </div>
-            <div style="font-size:12px;color:#64748b">Due {q_due.strftime('%d %B %Y')}</div>
+            <div style="font-size:13px;color:#64748b">Due {q_due.strftime('%d %B %Y')}</div>
         </div>
         <div style="text-align:right">
-            <div style="font-size:11px;color:#64748b;margin-bottom:4px">Estimated BAS owing</div>
+            <div style="font-size:13px;color:#64748b;margin-bottom:4px">Estimated BAS owing</div>
             <div style="font-size:32px;font-weight:800;color:{bas_color}">${bas_owing:,.0f}</div>
-            <div style="font-size:11px;color:#475569">GST collected − GST paid</div>
+            <div style="font-size:13px;color:#475569">GST collected − GST paid</div>
         </div>
     </div>""", unsafe_allow_html=True)
 
     # ── SET ASIDE dashboard ───────────────────────────────────────────────
-    st.markdown("""<div style="font-size:11px;font-weight:700;letter-spacing:.12em;
+    st.markdown("""<div style="font-size:13px;font-weight:700;letter-spacing:.12em;
         text-transform:uppercase;color:#2dd4bf;margin-bottom:10px">
         💰 What to set aside right now</div>""", unsafe_allow_html=True)
 
@@ -8699,7 +8790,7 @@ elif page == "Financial Health":
                 <span style="font-weight:700;font-size:14px;color:#e2e8f0">{label}</span>
                 <span style="font-size:22px;font-weight:800;color:{color}">${amount:,.0f}</span>
             </div>
-            <div style="font-size:11px;color:#64748b;margin-bottom:8px">{explanation}</div>
+            <div style="font-size:13px;color:#64748b;margin-bottom:8px">{explanation}</div>
             <div style="background:#0f172a;border-radius:4px;height:6px">
                 <div style="background:{color};width:{pct:.0f}%;height:6px;border-radius:4px"></div>
             </div>
@@ -8709,10 +8800,10 @@ elif page == "Financial Health":
     st.markdown(f"""
     <div style="background:#0d2233;border:2px solid #2dd4bf;border-radius:12px;
         padding:16px 20px;margin:12px 0;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:#2dd4bf;text-transform:uppercase;
+        <div style="font-size:13px;font-weight:700;color:#2dd4bf;text-transform:uppercase;
             letter-spacing:.1em;margin-bottom:6px">Total to quarantine</div>
         <div style="font-size:36px;font-weight:900;color:#2dd4bf">${total_quarantine:,.0f}</div>
-        <div style="font-size:12px;color:#64748b;margin-top:4px">
+        <div style="font-size:13px;color:#64748b;margin-top:4px">
             Move this to a separate account today. Don't touch it.
         </div>
     </div>""", unsafe_allow_html=True)
@@ -8732,7 +8823,7 @@ elif page == "Financial Health":
     st.markdown(f"""
     <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;
         padding:16px 20px;margin-top:8px">
-        <div style="font-size:12px;color:#94a3b8;line-height:2">
+        <div style="font-size:13px;color:#94a3b8;line-height:2">
             <div style="display:flex;justify-content:space-between;border-bottom:1px solid #2a3d4f;padding-bottom:6px;margin-bottom:6px">
                 <span>1A — GST on sales (collected from clients)</span>
                 <span style="font-weight:700;color:#e2e8f0">${gst_collected:,.2f}</span>
@@ -8778,7 +8869,7 @@ elif page == "Financial Health":
                 padding:10px 14px;margin-bottom:6px">
                 <span style="font-size:13px;font-weight:600;color:#e2e8f0">{er['employee']}</span>
                 <div style="text-align:right">
-                    <div style="font-size:11px;color:#64748b">Wages: ${float(er['wages']):,.2f}</div>
+                    <div style="font-size:13px;color:#64748b">Wages: ${float(er['wages']):,.2f}</div>
                     <div style="font-size:13px;font-weight:700;color:#a78bfa">
                         Super: ${emp_sup:,.2f}</div>
                 </div>
@@ -8792,7 +8883,7 @@ elif page == "Financial Health":
         <div style="font-size:13px;font-weight:700;color:#2dd4bf;margin-bottom:10px">
             📚 Understanding your obligations
         </div>
-        <div style="font-size:12px;color:#94a3b8;line-height:1.9">
+        <div style="font-size:13px;color:#94a3b8;line-height:1.9">
             <div style="margin-bottom:8px">
                 <strong style="color:#e2e8f0">What is BAS?</strong><br>
                 Business Activity Statement — you report and pay GST to the ATO every quarter.
@@ -9051,7 +9142,7 @@ elif page == "Payroll Rules":
             st.markdown(f"""
             <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:12px;
                 padding:20px;margin-bottom:1rem">
-                <div style="font-size:11px;font-weight:700;color:#2dd4bf;text-transform:uppercase;
+                <div style="font-size:13px;font-weight:700;color:#2dd4bf;text-transform:uppercase;
                     letter-spacing:.1em;margin-bottom:12px">{sel_emp} — True hourly cost</div>
             """, unsafe_allow_html=True)
 
@@ -9074,8 +9165,8 @@ elif page == "Payroll Rules":
                 <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:8px 0;border-bottom:1px solid #2a3d4f">
                     <div>
-                        <div style="font-size:12px;font-weight:600;color:#e2e8f0">{label}</div>
-                        <div style="font-size:10px;color:#475569">{desc}</div>
+                        <div style="font-size:13px;font-weight:600;color:#e2e8f0">{label}</div>
+                        <div style="font-size:13px;color:#475569">{desc}</div>
                     </div>
                     <span style="font-size:14px;font-weight:700;color:{color}">${val:.2f}/hr</span>
                 </div>"""
@@ -9087,19 +9178,19 @@ elif page == "Payroll Rules":
                 padding:14px 18px;margin-top:12px;display:flex;justify-content:space-between;
                 align-items:center">
                 <div>
-                    <div style="font-size:11px;color:#64748b;text-transform:uppercase;
+                    <div style="font-size:13px;color:#64748b;text-transform:uppercase;
                         letter-spacing:.1em">TRUE COST PER HOUR</div>
                     <div style="font-size:36px;font-weight:900;color:#2dd4bf">${true_cost:.2f}</div>
                 </div>
                 <div style="text-align:right">
-                    <div style="font-size:11px;color:#64748b">You quote at</div>
+                    <div style="font-size:13px;color:#64748b">You quote at</div>
                     <div style="font-size:28px;font-weight:700;color:#f43f5e">${base_rate:.2f}</div>
-                    <div style="font-size:12px;color:#f43f5e;font-weight:700">
+                    <div style="font-size:13px;color:#f43f5e;font-weight:700">
                         {oncost_pct:.1f}% gap
                     </div>
                 </div>
             </div>
-            <div style="font-size:11px;color:#475569;text-align:center;margin-top:8px">
+            <div style="font-size:13px;color:#475569;text-align:center;margin-top:8px">
                 Every hour you quote at ${base_rate:.2f} actually costs you ${true_cost:.2f}
                 — a ${true_cost-base_rate:.2f} shortfall per hour
             </div>
@@ -9176,7 +9267,7 @@ elif page == "Payroll Rules":
                     emp_week_ph    = 0
 
                     # Header
-                    st.markdown("""<div style='display:flex;gap:6px;font-size:10px;
+                    st.markdown("""<div style='display:flex;gap:6px;font-size:13px;
                         font-weight:700;color:#475569;text-transform:uppercase;
                         padding:4px 0;margin-bottom:4px'>
                         <span style='width:70px'>Date</span>
@@ -9211,7 +9302,7 @@ elif page == "Payroll Rules":
 
                         with col_date:
                             ph_tag = " 🎉" if is_ph else " 🏗" if is_sat else ""
-                            st.markdown(f"<div style='font-size:11px;color:{day_color};"
+                            st.markdown(f"<div style='font-size:13px;color:{day_color};"
                                         f"background:{day_bg};padding:4px 6px;border-radius:4px'>"
                                         f"{day_label}{ph_tag}</div>", unsafe_allow_html=True)
 
@@ -9240,11 +9331,11 @@ elif page == "Payroll Rules":
                         except:
                             ord_h=ot_h=sat_h=sun_h=ph_h=gross=0.0
 
-                        with col_ord: st.markdown(f"<div style='font-size:11px;color:#2dd4bf;padding:8px 0'>{ord_h:.1f}</div>", unsafe_allow_html=True)
-                        with col_ot:  st.markdown(f"<div style='font-size:11px;color:#f59e0b;padding:8px 0'>{ot_h:.1f}</div>", unsafe_allow_html=True)
-                        with col_sat: st.markdown(f"<div style='font-size:11px;color:#fb923c;padding:8px 0'>{sat_h:.1f}</div>", unsafe_allow_html=True)
-                        with col_ph:  st.markdown(f"<div style='font-size:11px;color:#f43f5e;padding:8px 0'>{ph_h:.1f}</div>", unsafe_allow_html=True)
-                        with col_gross: st.markdown(f"<div style='font-size:12px;font-weight:700;color:#e2e8f0;padding:8px 0'>${gross:,.2f}</div>", unsafe_allow_html=True)
+                        with col_ord: st.markdown(f"<div style='font-size:13px;color:#2dd4bf;padding:8px 0'>{ord_h:.1f}</div>", unsafe_allow_html=True)
+                        with col_ot:  st.markdown(f"<div style='font-size:13px;color:#f59e0b;padding:8px 0'>{ot_h:.1f}</div>", unsafe_allow_html=True)
+                        with col_sat: st.markdown(f"<div style='font-size:13px;color:#fb923c;padding:8px 0'>{sat_h:.1f}</div>", unsafe_allow_html=True)
+                        with col_ph:  st.markdown(f"<div style='font-size:13px;color:#f43f5e;padding:8px 0'>{ph_h:.1f}</div>", unsafe_allow_html=True)
+                        with col_gross: st.markdown(f"<div style='font-size:13px;font-weight:700;color:#e2e8f0;padding:8px 0'>${gross:,.2f}</div>", unsafe_allow_html=True)
 
                         with col_save:
                             if st.button("💾", key=f"save_{eid_pr}_{day_str}"):
@@ -9277,7 +9368,7 @@ elif page == "Payroll Rules":
                     # Employee week summary
                     st.markdown(f"""
                     <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;
-                        padding:10px 14px;margin-top:8px;display:flex;gap:24px;font-size:12px">
+                        padding:10px 14px;margin-top:8px;display:flex;gap:24px;font-size:13px">
                         <span>Ordinary: <b style="color:#2dd4bf">{emp_week_ord:.1f}h</b></span>
                         <span>Overtime: <b style="color:#f59e0b">{emp_week_ot:.1f}h</b></span>
                         <span>Saturday: <b style="color:#fb923c">{emp_week_sat:.1f}h</b></span>
@@ -9290,10 +9381,10 @@ elif page == "Payroll Rules":
             st.markdown(f"""
             <div style="background:#0d2233;border:2px solid #2dd4bf;border-radius:10px;
                 padding:14px 20px;margin-top:12px;text-align:center">
-                <div style="font-size:11px;color:#64748b;text-transform:uppercase;
+                <div style="font-size:13px;color:#64748b;text-transform:uppercase;
                     letter-spacing:.1em">Total weekly payroll</div>
                 <div style="font-size:32px;font-weight:900;color:#2dd4bf">${week_total_gross:,.2f}</div>
-                <div style="font-size:11px;color:#475569;margin-top:4px">
+                <div style="font-size:13px;color:#475569;margin-top:4px">
                     Excl. super, WorkCover and on-costs
                 </div>
             </div>""", unsafe_allow_html=True)
@@ -9314,9 +9405,9 @@ elif page == "Payroll Rules":
                 st.markdown(
                     f"<div style='display:flex;justify-content:space-between;align-items:center;"
                     f"padding:7px 0;border-bottom:1px solid #1e2d3d'>"
-                    f"<span style='font-size:12px;color:{color}'>"
+                    f"<span style='font-size:13px;color:{color}'>"
                     f"{'📅' if is_upcoming else '✓'} {ph['name']}</span>"
-                    f"<span style='font-size:12px;color:{color};font-weight:600'>"
+                    f"<span style='font-size:13px;color:{color};font-weight:600'>"
                     f"{ph_d.strftime('%d %b %Y')}</span>"
                     f"</div>", unsafe_allow_html=True)
 
@@ -9345,7 +9436,7 @@ elif page == "StackCT Import":
     # ── How to export from StackCT ────────────────────────────────────────
     with st.expander("📖 How to export from StackCT", expanded=False):
         st.markdown("""
-        <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:14px 18px;font-size:12px;color:#94a3b8;line-height:1.9">
+        <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:14px 18px;font-size:13px;color:#94a3b8;line-height:1.9">
             <div style="color:#e2e8f0;font-weight:700;margin-bottom:8px">Steps to export from StackCT:</div>
             <div>1. Open your project in StackCT</div>
             <div>2. Click <strong style="color:#2dd4bf">Reports</strong> in the top menu</div>
@@ -9389,7 +9480,7 @@ elif page == "StackCT Import":
     fc = fc_map.get(sel_finish,"#64748b")
     st.markdown(f"""
     <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-left:4px solid {fc};
-        border-radius:8px;padding:10px 14px;margin:8px 0;font-size:12px;color:#94a3b8">
+        border-radius:8px;padding:10px 14px;margin:8px 0;font-size:13px;color:#94a3b8">
         Importing into <strong style="color:#e2e8f0">{target_job}</strong> with finish
         <strong style="color:{fc}">{sel_finish}</strong> — all items will use {sel_finish} rates.
         Override individual lines after import if needed.
@@ -9524,7 +9615,7 @@ elif page == "StackCT Import":
                         with st.form(f"map_{um['StackCT Name']}"):
                             um1,um2 = st.columns([2,3])
                             with um1:
-                                st.markdown(f"<div style='font-weight:600;color:#f59e0b;font-size:12px;padding:8px 0'>{um['StackCT Name']}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='font-weight:600;color:#f59e0b;font-size:13px;padding:8px 0'>{um['StackCT Name']}</div>", unsafe_allow_html=True)
                             with um2:
                                 cat_choice = st.selectbox("Map to catalogue item",
                                     ["— skip —"] + cat_items,
@@ -9552,7 +9643,7 @@ elif page == "StackCT Import":
             with col_imp2:
                 st.markdown(f"""
                 <div style="background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;
-                    padding:10px 14px;margin-top:4px;font-size:12px;color:#94a3b8">
+                    padding:10px 14px;margin-top:4px;font-size:13px;color:#94a3b8">
                     <strong style="color:#e2e8f0">{len(import_rows)} items</strong> from StackCT →
                     importing into <strong style="color:#2dd4bf">{target_job}</strong> with
                     <strong style="color:{fc}">{sel_finish}</strong> finish
