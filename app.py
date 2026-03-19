@@ -866,6 +866,23 @@ def init_db():
             cur.execute(f"ALTER TABLE jobs ADD COLUMN {_col} {_def}")
         except: pass
 
+    # ── Expenses table ──────────────────────────────────────────────────────
+    cur.execute("""CREATE TABLE IF NOT EXISTS expenses (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        expense_date  TEXT DEFAULT '',
+        category      TEXT DEFAULT '',
+        description   TEXT DEFAULT '',
+        amount        REAL DEFAULT 0,
+        gst           REAL DEFAULT 0,
+        job_id        TEXT DEFAULT '',
+        submitted_by  TEXT DEFAULT '',
+        status        TEXT DEFAULT 'Pending',
+        receipt_filename TEXT DEFAULT '',
+        notes         TEXT DEFAULT '',
+        created_at    TEXT DEFAULT ''
+    )""")
+    conn.commit()
+
     # ── Add client contact columns if missing ─────────────────────────────
     for _ccol in ["billing_name","billing_email","billing_phone",
                   "ca_name","ca_email","ca_phone",
@@ -2087,7 +2104,7 @@ ROLE_PAGES = {
     "Admin": [
         "Dashboard","Jobs","Schedule Calendar","Clients","Employees","Timesheets",
         "Payroll Rules","Catalogue","Recipes","StackCT Import","Pipeline","Budget Planner","Company P&L",
-        "Financial Health","Job Costing Report","Notifications",
+        "Financial Health","Job Costing Report","Expenses","Notifications",
         "Company Settings","User Management",
     ],
     "Estimator": [
@@ -8772,6 +8789,13 @@ elif page == "Company P&L":
 
     total_mat_cost   = float(mat_pl["amount"].sum()) if not mat_pl.empty else 0
     total_lab_cost   = float(lab_pl["cost"].sum()) if not lab_pl.empty else 0
+
+    # Expenses
+    exp_pl = fetch_df("""
+        SELECT amount, category FROM expenses
+        WHERE expense_date >= ? AND expense_date <= ? AND status != 'Rejected'
+    """, (ds, de))
+    total_expenses = float(exp_pl["amount"].sum()) if not exp_pl.empty else 0
     _co_settings     = get_company_settings()
     _overhead_rate   = float(_co_settings.get("overhead_pct", 11.0) or 11.0) / 100
     total_overhead   = total_contract * _overhead_rate
@@ -9080,6 +9104,144 @@ elif page == "User Management":
             f"<div style='font-size:13px;color:#64748b'>{' · '.join(pages_list)}</div>"
             f"</div>",
             unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────
+#  PAGE: EXPENSES
+# ─────────────────────────────────────────────
+elif page == "Expenses":
+    st.title("Expenses")
+    st.caption("Track business expenditure — tools, client lunches, fuel, subscriptions and more.")
+
+    EXP_CATEGORIES = [
+        "Tools & Equipment", "Client Entertainment", "Fuel & Vehicle",
+        "Phone & Subscriptions", "Office & Admin", "Travel & Accommodation",
+        "Training & Education", "Marketing", "Subcontractors", "Other"
+    ]
+    EXP_STATUSES = ["Pending", "Approved", "Rejected", "Reimbursed"]
+
+    # ── Summary metrics ────────────────────────────────────────────────────
+    exp_summary = fetch_df("""
+        SELECT
+            COALESCE(SUM(amount),0) AS total,
+            COALESCE(SUM(gst),0) AS total_gst,
+            COALESCE(SUM(CASE WHEN status='Pending' THEN amount ELSE 0 END),0) AS pending,
+            COALESCE(SUM(CASE WHEN status='Approved' THEN amount ELSE 0 END),0) AS approved
+        FROM expenses WHERE expense_date >= date('now', '-30 days')
+    """)
+    if not exp_summary.empty:
+        es = exp_summary.iloc[0]
+        em1,em2,em3,em4 = st.columns(4)
+        em1.metric("Total (30 days)", f"${float(es['total']):,.2f}")
+        em2.metric("GST claimable", f"${float(es['total_gst']):,.2f}")
+        em3.metric("Pending approval", f"${float(es['pending']):,.2f}")
+        em4.metric("Approved", f"${float(es['approved']):,.2f}")
+
+    st.divider()
+
+    # ── Add expense ────────────────────────────────────────────────────────
+    with st.expander("+ Log New Expense", expanded=False):
+        with st.form("add_expense_form"):
+            ec1, ec2 = st.columns(2)
+            with ec1:
+                ex_date = st.date_input("Date", value=_today_aest())
+                ex_cat  = st.selectbox("Category", EXP_CATEGORIES)
+                ex_desc = st.text_input("Description *", placeholder="e.g. Client lunch — Peter Smith Builder")
+                ex_by   = st.text_input("Submitted by", value=str(current_user.get("full_name","") or current_user.get("username","")))
+            with ec2:
+                ex_amount = st.number_input("Amount (inc. GST)", min_value=0.0, step=1.0, value=0.0)
+                ex_gst_inc = st.checkbox("GST included", value=True)
+                ex_gst = round(ex_amount / 11, 2) if ex_gst_inc else 0.0
+                st.metric("GST component", f"${ex_gst:.2f}")
+                jobs_exp = fetch_df("SELECT job_id FROM jobs WHERE archived=0 ORDER BY job_id")
+                job_opts = ["— Company expense —"] + (jobs_exp["job_id"].tolist() if not jobs_exp.empty else [])
+                ex_job = st.selectbox("Link to job (optional)", job_opts)
+                ex_notes = st.text_area("Notes", height=68)
+            if st.form_submit_button("Save Expense", type="primary"):
+                if ex_desc.strip() and ex_amount > 0:
+                    job_id = "" if ex_job.startswith("—") else ex_job
+                    execute("""INSERT INTO expenses
+                        (expense_date,category,description,amount,gst,job_id,submitted_by,status,notes,created_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                        (ex_date.isoformat(), ex_cat, ex_desc.strip(),
+                         ex_amount, ex_gst, job_id, ex_by, "Pending",
+                         ex_notes.strip(), _today_aest().isoformat()))
+                    st.success(f"Expense logged!")
+                    st.rerun()
+                else:
+                    st.error("Description and amount required.")
+
+    # ── Filter ─────────────────────────────────────────────────────────────
+    fc1, fc2, fc3 = st.columns(3)
+    with fc1: exp_cat_f = st.selectbox("Category", ["All"] + EXP_CATEGORIES, key="exp_cf")
+    with fc2: exp_status_f = st.selectbox("Status", ["All"] + EXP_STATUSES, key="exp_sf")
+    with fc3: exp_search = st.text_input("Search", placeholder="Description or person...", key="exp_s")
+
+    exp_df = fetch_df("""SELECT id,expense_date,category,description,amount,gst,
+        job_id,submitted_by,status,notes FROM expenses ORDER BY expense_date DESC, id DESC""")
+
+    if not exp_df.empty:
+        if exp_cat_f != "All":
+            exp_df = exp_df[exp_df["category"] == exp_cat_f]
+        if exp_status_f != "All":
+            exp_df = exp_df[exp_df["status"] == exp_status_f]
+        if exp_search:
+            mask = (exp_df["description"].str.contains(exp_search, case=False, na=False) |
+                    exp_df["submitted_by"].str.contains(exp_search, case=False, na=False))
+            exp_df = exp_df[mask]
+
+    STATUS_COLORS = {"Pending":"#f59e0b","Approved":"#2dd4bf","Rejected":"#f43f5e","Reimbursed":"#4ade80"}
+    CAT_ICONS = {"Tools & Equipment":"🔧","Client Entertainment":"🍽️","Fuel & Vehicle":"⛽",
+        "Phone & Subscriptions":"📱","Office & Admin":"🏢","Travel & Accommodation":"✈️",
+        "Training & Education":"📚","Marketing":"📣","Subcontractors":"👷","Other":"💳"}
+
+    if exp_df.empty:
+        st.info("No expenses yet.")
+    else:
+        total_shown = exp_df["amount"].sum()
+        st.markdown(f"<div style='color:#475569;font-size:14px;margin-bottom:12px'>{len(exp_df)} expenses · Total: <b style='color:#e2e8f0'>${total_shown:,.2f}</b></div>", unsafe_allow_html=True)
+
+        for _, ex in exp_df.iterrows():
+            eid = int(ex["id"])
+            sc = STATUS_COLORS.get(str(ex.get("status","Pending")), "#64748b")
+            icon = CAT_ICONS.get(str(ex.get("category","")), "💳")
+            job_badge = f" · <span style='color:#2dd4bf'>{ex.get('job_id','')}</span>" if ex.get("job_id") else ""
+
+            ecl1, ecl2, ecl3 = st.columns([6,2,1])
+            with ecl1:
+                st.markdown(f"""
+                <div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:12px 16px;margin-bottom:6px'>
+                    <div style='display:flex;align-items:center;gap:12px'>
+                        <span style='font-size:22px'>{icon}</span>
+                        <div style='flex:1'>
+                            <div style='font-weight:700;color:#e2e8f0;font-size:15px'>{ex.get("description","")} {job_badge}</div>
+                            <div style='color:#64748b;font-size:13px'>{ex.get("category","")} · {ex.get("submitted_by","")} · {ex.get("expense_date","")}</div>
+                        </div>
+                        <div style='text-align:right'>
+                            <div style='font-size:18px;font-weight:800;color:#e2e8f0'>${float(ex.get("amount",0)):,.2f}</div>
+                            <div style='font-size:12px;color:#475569'>GST ${float(ex.get("gst",0)):,.2f}</div>
+                        </div>
+                        <span style='background:{sc}22;color:{sc};border-radius:999px;padding:3px 12px;font-size:12px;font-weight:700'>{ex.get("status","Pending")}</span>
+                    </div>
+                </div>""", unsafe_allow_html=True)
+
+            with ecl2:
+                new_st = st.selectbox("Status", EXP_STATUSES,
+                    index=EXP_STATUSES.index(str(ex.get("status","Pending"))) if str(ex.get("status","Pending")) in EXP_STATUSES else 0,
+                    key=f"exp_st_{eid}", label_visibility="collapsed")
+                if new_st != str(ex.get("status","Pending")):
+                    execute("UPDATE expenses SET status=? WHERE id=?", (new_st, eid))
+                    st.rerun()
+
+            with ecl3:
+                if st.button("🗑", key=f"del_ex_{eid}"):
+                    execute("DELETE FROM expenses WHERE id=?", (eid,))
+                    st.rerun()
+
+        st.divider()
+        csv_exp = exp_df.to_csv(index=False)
+        st.download_button("📊 Export CSV", data=csv_exp,
+            file_name=f"expenses_{_today_aest().isoformat()}.csv", mime="text/csv")
 
 # ─────────────────────────────────────────────
 #  PAGE: FINANCIAL HEALTH
