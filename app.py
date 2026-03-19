@@ -3808,27 +3808,248 @@ elif page == "Jobs":
             st.divider()
 
             emp_ho = fetch_df("SELECT name FROM employees WHERE active=1 ORDER BY name")["name"].tolist()
-            with st.form("handover_f"):
-                hc1,hc2 = st.columns(2)
-                with hc1:
-                    h_crew  = st.selectbox("Leading hand", emp_ho if emp_ho else [""])
-                    h_days  = st.number_input("Days allowed", min_value=1, value=5, step=1)
-                    h_start = st.date_input("Start date", value=date.today())
-                with hc2:
-                    h_daily = lb3/h_days if h_days else 0
-                    st.metric("Daily labour target", f"${h_daily:,.0f}")
-                    h_risks = st.text_area("Site risks", placeholder="e.g. Steep roof — harness required", height=80)
-                    h_notes = st.text_area("Handover notes", placeholder="e.g. Materials booked for Day 1", height=80)
-                if st.form_submit_button("Complete handover → Live Job", type="primary"):
-                    upsert_job(open_job, wjob.get("client",""), wjob.get("address",""),
-                               wjob.get("estimator",""), "Live Job")
-                    for bd in pd.bdate_range(h_start, periods=h_days):
-                        execute(
-                            "INSERT INTO day_assignments (job_id,client,employee,date,note) VALUES (?,?,?,?,?)",
-                            (open_job, wjob.get("client",""), h_crew,
-                             bd.date().isoformat(), h_notes or "Handover block"),
-                        )
-                    st.success(f"Job is Live. {h_days} days created for {h_crew}."); st.rerun()
+
+            htab1, htab2 = st.tabs(["📋 Handover Details", "📄 Generate Handover PDF"])
+
+            with htab1:
+                with st.form("handover_f"):
+                    hc1,hc2 = st.columns(2)
+                    with hc1:
+                        h_crew  = st.selectbox("Leading hand", emp_ho if emp_ho else [""])
+                        h_days  = st.number_input("Days allowed", min_value=1, value=5, step=1)
+                        h_start = st.date_input("Start date", value=date.today())
+                    with hc2:
+                        h_daily = lb3/h_days if h_days else 0
+                        st.metric("Daily labour target", f"${h_daily:,.0f}")
+                        h_risks = st.text_area("Site risks / Safety notes", placeholder="e.g. Steep roof, harness required. SWMS: refer to site folder.", height=80)
+                        h_access = st.text_area("Site access details", placeholder="e.g. Key with PM. Gate code: 1234. Park on street.", height=60)
+                    h_notes = st.text_area("Special instructions", placeholder="e.g. Materials booked for Day 1. Client wants daily updates.", height=80)
+                    if st.form_submit_button("Complete handover → Live Job", type="primary"):
+                        upsert_job(open_job, wjob.get("client",""), wjob.get("address",""),
+                                   wjob.get("estimator",""), "Live Job")
+                        for bd in pd.bdate_range(h_start, periods=h_days):
+                            execute(
+                                "INSERT INTO day_assignments (job_id,client,employee,date,note) VALUES (?,?,?,?,?)",
+                                (open_job, wjob.get("client",""), h_crew,
+                                 bd.date().isoformat(), h_notes or "Handover block"),
+                            )
+                        # Save handover details to job
+                        try:
+                            execute("ALTER TABLE jobs ADD COLUMN handover_crew TEXT DEFAULT ''")
+                        except: pass
+                        try:
+                            execute("ALTER TABLE jobs ADD COLUMN handover_notes TEXT DEFAULT ''")
+                        except: pass
+                        try:
+                            execute("ALTER TABLE jobs ADD COLUMN handover_risks TEXT DEFAULT ''")
+                        except: pass
+                        try:
+                            execute("ALTER TABLE jobs ADD COLUMN handover_access TEXT DEFAULT ''")
+                        except: pass
+                        execute("UPDATE jobs SET handover_crew=?, handover_notes=?, handover_risks=?, handover_access=? WHERE job_id=?",
+                            (h_crew, h_notes, h_risks, h_access, open_job))
+                        st.success(f"Job is Live. {h_days} days created for {h_crew}."); st.rerun()
+
+            with htab2:
+                st.markdown("### 📄 Handover Pack PDF")
+                st.caption("Generates a professional handover document for the leading hand — auto-saves to Documents.")
+
+                # Load saved handover details
+                ho_saved = fetch_df("SELECT * FROM jobs WHERE job_id=?", (open_job,))
+                ho_data = ho_saved.iloc[0].to_dict() if not ho_saved.empty else {}
+
+                # Load scope from estimate lines
+                scope_df = fetch_df("""
+                    SELECT section, item, qty, uom, material_cost, labour_cost
+                    FROM estimate_lines WHERE job_id=? ORDER BY section, id
+                """, (open_job,))
+
+                # Load materials from material invoices
+                mats_df = fetch_df("""
+                    SELECT supplier, invoice_date, amount FROM material_invoices
+                    WHERE job_id=? ORDER BY invoice_date
+                """, (open_job,))
+
+                # Preview
+                col_prev, col_gen = st.columns(2)
+                with col_prev:
+                    st.markdown(f"""
+                    <div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:16px'>
+                        <div style='color:#2dd4bf;font-weight:700;margin-bottom:8px'>HANDOVER PACK PREVIEW</div>
+                        <div style='color:#94a3b8;font-size:13px'>
+                            <b style='color:#e2e8f0'>Job:</b> {open_job}<br>
+                            <b style='color:#e2e8f0'>Client:</b> {wjob.get('client','—')}<br>
+                            <b style='color:#e2e8f0'>Address:</b> {wjob.get('address','—')}<br>
+                            <b style='color:#e2e8f0'>Leading Hand:</b> {ho_data.get('handover_crew','—')}<br>
+                            <b style='color:#e2e8f0'>Scope items:</b> {len(scope_df)} line items<br>
+                            <b style='color:#e2e8f0'>Material invoices:</b> {len(mats_df)}<br>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                with col_gen:
+                    if st.button("📄 Generate & Save Handover PDF", type="primary", use_container_width=True):
+                        try:
+                            from reportlab.lib.pagesizes import A4
+                            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                            from reportlab.lib.units import mm
+                            from reportlab.lib import colors
+                            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+                            from reportlab.lib.enums import TA_LEFT, TA_CENTER
+                            import io as _io
+
+                            buf = _io.BytesIO()
+                            doc = SimpleDocTemplate(buf, pagesize=A4,
+                                topMargin=15*mm, bottomMargin=15*mm,
+                                leftMargin=15*mm, rightMargin=15*mm)
+
+                            styles = getSampleStyleSheet()
+                            TEAL   = colors.HexColor("#2dd4bf")
+                            DARK   = colors.HexColor("#0f172a")
+                            SLATE  = colors.HexColor("#475569")
+                            WHITE  = colors.white
+
+                            h1 = ParagraphStyle("h1", fontSize=20, fontName="Helvetica-Bold", textColor=TEAL, spaceAfter=2*mm)
+                            h2 = ParagraphStyle("h2", fontSize=12, fontName="Helvetica-Bold", textColor=DARK, spaceBefore=5*mm, spaceAfter=2*mm)
+                            body = ParagraphStyle("body", fontSize=9, fontName="Helvetica", textColor=DARK, spaceAfter=1.5*mm, leading=13)
+                            label = ParagraphStyle("label", fontSize=8, fontName="Helvetica-Bold", textColor=SLATE)
+
+                            story = []
+
+                            # Header
+                            settings_pdf = fetch_df("SELECT * FROM company_settings WHERE id=1")
+                            co_name = settings_pdf.iloc[0].get("company_name","Limitless") if not settings_pdf.empty else "Limitless"
+                            story.append(Paragraph(co_name, h1))
+                            story.append(Paragraph(f"SITE HANDOVER PACK — {open_job}", ParagraphStyle("sub", fontSize=14, fontName="Helvetica-Bold", textColor=DARK)))
+                            story.append(HRFlowable(width="100%", thickness=2, color=TEAL, spaceAfter=4*mm))
+
+                            # Job details
+                            story.append(Paragraph("JOB DETAILS", h2))
+                            details = [
+                                ["Job Number:", open_job, "Client:", wjob.get("client","—")],
+                                ["Address:", wjob.get("address","—"), "Estimator:", wjob.get("estimator","—")],
+                                ["Leading Hand:", ho_data.get("handover_crew","—"), "Date:", date.today().strftime("%d/%m/%Y")],
+                            ]
+                            t = Table(details, colWidths=[35*mm, 65*mm, 35*mm, 55*mm])
+                            t.setStyle(TableStyle([
+                                ("FONTNAME", (0,0),(-1,-1), "Helvetica"),
+                                ("FONTSIZE", (0,0),(-1,-1), 9),
+                                ("FONTNAME", (0,0),(0,-1), "Helvetica-Bold"),
+                                ("FONTNAME", (2,0),(2,-1), "Helvetica-Bold"),
+                                ("TEXTCOLOR", (0,0),(0,-1), SLATE),
+                                ("TEXTCOLOR", (2,0),(2,-1), SLATE),
+                                ("BOTTOMPADDING", (0,0),(-1,-1), 3),
+                            ]))
+                            story.append(t)
+                            story.append(Spacer(1, 4*mm))
+
+                            # Site access
+                            if ho_data.get("handover_access","").strip():
+                                story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
+                                story.append(Paragraph("SITE ACCESS", h2))
+                                story.append(Paragraph(str(ho_data.get("handover_access","")), body))
+
+                            # Safety / SWMS
+                            if ho_data.get("handover_risks","").strip():
+                                story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
+                                story.append(Paragraph("SAFETY REQUIREMENTS & SWMS", h2))
+                                story.append(Paragraph(str(ho_data.get("handover_risks","")), body))
+
+                            # Special instructions
+                            if ho_data.get("handover_notes","").strip():
+                                story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
+                                story.append(Paragraph("SPECIAL INSTRUCTIONS", h2))
+                                story.append(Paragraph(str(ho_data.get("handover_notes","")), body))
+
+                            # Scope of works
+                            story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
+                            story.append(Paragraph("SCOPE OF WORKS", h2))
+                            if not scope_df.empty:
+                                current_section = None
+                                scope_rows = [["Item", "Qty", "UOM"]]
+                                for _, row in scope_df.iterrows():
+                                    sec = str(row.get("section","") or "General")
+                                    if sec != current_section:
+                                        scope_rows.append([f"— {sec} —", "", ""])
+                                        current_section = sec
+                                    scope_rows.append([
+                                        str(row.get("item",""))[:60],
+                                        f"{float(row.get('qty',0)):,.2f}",
+                                        str(row.get("uom",""))
+                                    ])
+                                st_table = Table(scope_rows, colWidths=[130*mm, 25*mm, 25*mm])
+                                st_table.setStyle(TableStyle([
+                                    ("FONTNAME", (0,0),(-1,0), "Helvetica-Bold"),
+                                    ("FONTSIZE", (0,0),(-1,-1), 8),
+                                    ("BACKGROUND", (0,0),(-1,0), TEAL),
+                                    ("TEXTCOLOR", (0,0),(-1,0), WHITE),
+                                    ("ROWBACKGROUNDS", (0,1),(-1,-1), [colors.HexColor("#f8fafc"), WHITE]),
+                                    ("GRID", (0,0),(-1,-1), 0.3, colors.HexColor("#e2e8f0")),
+                                    ("PADDING", (0,0),(-1,-1), 3),
+                                    ("FONTNAME", (0,1),(-1,-1), "Helvetica"),
+                                ]))
+                                story.append(st_table)
+                            else:
+                                story.append(Paragraph("No scope items found — add items in Quote Builder.", body))
+
+                            # Materials list
+                            if not mats_df.empty:
+                                story.append(Spacer(1, 4*mm))
+                                story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
+                                story.append(Paragraph("MATERIALS", h2))
+                                mat_rows = [["Supplier", "Date", "Amount"]]
+                                for _, row in mats_df.iterrows():
+                                    mat_rows.append([
+                                        str(row.get("supplier","—")),
+                                        str(row.get("invoice_date","—")),
+                                        f"${float(row.get('amount',0)):,.2f}"
+                                    ])
+                                mt = Table(mat_rows, colWidths=[100*mm, 35*mm, 45*mm])
+                                mt.setStyle(TableStyle([
+                                    ("FONTNAME", (0,0),(-1,0), "Helvetica-Bold"),
+                                    ("FONTSIZE", (0,0),(-1,-1), 8),
+                                    ("BACKGROUND", (0,0),(-1,0), TEAL),
+                                    ("TEXTCOLOR", (0,0),(-1,0), WHITE),
+                                    ("GRID", (0,0),(-1,-1), 0.3, colors.HexColor("#e2e8f0")),
+                                    ("PADDING", (0,0),(-1,-1), 3),
+                                ]))
+                                story.append(mt)
+
+                            # Sign off
+                            story.append(Spacer(1, 8*mm))
+                            story.append(HRFlowable(width="100%", thickness=0.5, color=SLATE))
+                            story.append(Paragraph("SIGN OFF", h2))
+                            sign_data = [
+                                ["Leading Hand:", "_" * 40, "Date:", "_" * 20],
+                                ["Supervisor:", "_" * 40, "Date:", "_" * 20],
+                            ]
+                            st2 = Table(sign_data, colWidths=[30*mm, 70*mm, 20*mm, 60*mm])
+                            st2.setStyle(TableStyle([
+                                ("FONTNAME", (0,0),(-1,-1), "Helvetica"),
+                                ("FONTSIZE", (0,0),(-1,-1), 9),
+                                ("FONTNAME", (0,0),(0,-1), "Helvetica-Bold"),
+                                ("FONTNAME", (2,0),(2,-1), "Helvetica-Bold"),
+                                ("BOTTOMPADDING", (0,0),(-1,-1), 6),
+                                ("TOPPADDING", (0,0),(-1,-1), 8),
+                            ]))
+                            story.append(st2)
+
+                            doc.build(story)
+                            pdf_bytes = buf.getvalue()
+
+                            # Save to job files
+                            fname = f"Handover_{open_job}_{date.today().isoformat()}.pdf"
+                            execute("""INSERT INTO job_files (job_id, filename, filetype, filedata, uploaded_at)
+                                VALUES (?,?,?,?,?)""",
+                                (open_job, fname, "application/pdf", pdf_bytes, date.today().isoformat()))
+
+                            # Download button
+                            st.download_button("⬇️ Download Handover PDF", data=pdf_bytes,
+                                file_name=fname, mime="application/pdf", type="primary")
+                            st.success("✅ PDF generated and saved to Documents tab!")
+
+                        except Exception as _he:
+                            st.error(f"PDF error: {_he}")
 
         # ── TAB 5: Labour ────────────────────────────────────────────────
         with wtab5:
