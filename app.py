@@ -2897,7 +2897,7 @@ if page == "Dashboard":
             "border-radius:16px;padding:2rem 2.5rem;height:100%'>"
             "<div style='font-size:13px;font-weight:600;letter-spacing:.15em;"
             "color:#2dd4bf;text-transform:uppercase;margin-bottom:6px'>Operations Centre</div>"
-            "<div style='font-size:28px;font-weight:800;color:#fff;margin-bottom:4px'>" + greeting + ".</div>"
+            "<div style='font-size:28px;font-weight:800;color:#fff;margin-bottom:4px'>" + greeting + ", " + str(current_user.get("full_name","") or current_user.get("username","")).split()[0] + ".</div>"
             "<div style='font-size:60px;font-weight:900;color:#2dd4bf;letter-spacing:-.02em;line-height:1'>" + time_str + "</div>"
             "<div style='font-size:14px;color:#94a3b8;margin-top:6px'>" + today_label + "</div>"
             "</div>",
