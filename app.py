@@ -7597,6 +7597,8 @@ elif page == "Company P&L":
                j.sell_price, j.running_cost_pct,
                j.tender_material_budget, j.tender_labour_budget
         FROM jobs j WHERE j.archived=0
+        AND j.stage IN ('Live Job','Completed','Pre-Live Handover')
+        AND COALESCE(j.is_variation,0)=0
     """)
 
     # Revenue — invoiced and collected
