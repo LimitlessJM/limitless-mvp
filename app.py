@@ -5080,7 +5080,6 @@ No explanation, only JSON."""
         if all_jobs_df.empty:
             st.info("No jobs yet — click + New Job to get started.")
         else:
-            # Split normal jobs and variation jobs — coerce to int first
             if "is_variation" in all_jobs_df.columns:
                 all_jobs_df["is_variation"] = pd.to_numeric(all_jobs_df["is_variation"], errors="coerce").fillna(0).astype(int)
                 var_jobs_board  = all_jobs_df[all_jobs_df["is_variation"] == 1].copy()
@@ -5089,67 +5088,72 @@ No explanation, only JSON."""
                 var_jobs_board  = pd.DataFrame()
                 main_jobs_board = all_jobs_df.copy()
 
-
-
-            # Group by stage — main jobs only
-            board_stages = ["Lead","Take-off","Tender Review","Pre-Live Handover","Live Job","Completed"]
-            for stage in board_stages:
-                stage_jobs = main_jobs_board[main_jobs_board["stage"]==stage]
-                if stage_jobs.empty:
-                    continue
-
-                sc, tc = STAGE_COLORS.get(stage, ("#1e2d3d","#94a3b8"))
-                st.markdown(
-                    f"<div style='display:flex;align-items:center;gap:10px;margin:1.2rem 0 0.6rem'>"
-                    f"<span style='background:{tc}22;color:{tc};padding:3px 12px;border-radius:999px;"
-                    f"font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase'>"
-                    f"{stage}</span>"
-                    f"<span style='font-size:12px;color:#475569'>{len(stage_jobs)} job{'s' if len(stage_jobs)!=1 else ''}</span>"
-                    f"</div>",
-                    unsafe_allow_html=True,
+            # ── Search bar ─────────────────────────────────────────────
+            board_search = st.text_input("🔍 Search jobs", placeholder="Job ID, client, address, estimator...", key="board_search")
+            if board_search:
+                mask = (
+                    main_jobs_board["job_id"].str.contains(board_search, case=False, na=False) |
+                    main_jobs_board["client"].str.contains(board_search, case=False, na=False) |
+                    main_jobs_board["address"].str.contains(board_search, case=False, na=False) |
+                    main_jobs_board["estimator"].str.contains(board_search, case=False, na=False)
                 )
+                main_jobs_board = main_jobs_board[mask]
 
-                # 3 cards per row
-                for i in range(0, len(stage_jobs), 3):
-                    chunk = stage_jobs.iloc[i:i+3]
-                    cols  = st.columns(3)
-                    for col, (_, jrow) in zip(cols, chunk.iterrows()):
-                        with col:
-                            last      = str(jrow.get("last_labour") or jrow.get("last_invoice") or "—")
-                            sell      = float(jrow.get("sell_price") or 0)
-                            jtype     = str(jrow.get("job_type","") or "Residential")
-                            jtype_col = TYPE_COLORS.get(jtype, "#64748b")
-                            is_var    = int(jrow.get("is_variation",0) or 0) == 1
-                            var_title = str(jrow.get("variation_title","") or "")
-                            var_badge = "<span style='background:#f59e0b22;color:#f59e0b;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:4px'>VAR</span>" if is_var else ""
-                            # Build HTML as single string — no f-string interpolation issues
-                            card_parts = [
-                                "<div style='background:#1e2d3d;border:1px solid " + ("#f59e0b44" if is_var else "#2a3d4f") + ";",
-                                "border-top:3px solid ", "#f59e0b" if is_var else tc, ";",
-                                "border-radius:10px;padding:14px 16px;margin-bottom:8px'>",
-                                "<div style='display:flex;justify-content:space-between;",
-                                "align-items:center;margin-bottom:6px'>",
-                                "<b style='font-size:15px;color:#f1f5f9'>", str(jrow['job_id']), "</b>",
-                                var_badge,
-                                "<span style='background:", jtype_col, "33;color:", jtype_col, ";",
-                                "font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px'>",
-                                jtype, "</span></div>",
-                                *( ["<div style='font-size:11px;color:#f59e0b;margin-bottom:2px'>", var_title, "</div>"] if is_var and var_title else []),
-                                "<div style='font-size:13px;color:#e2e8f0'>",
-                                str(jrow.get('client') or 'No client'), "</div>",
-                                "<div style='font-size:11px;color:#64748b;margin-top:4px'>",
-                                "Est: ", str(jrow.get('estimator') or '—'), "</div>",
-                            ]
-                            if sell > 0:
-                                card_parts += [
-                                    "<div style='font-size:14px;font-weight:800;color:#2dd4bf;margin-top:6px'>",
-                                    "$", f"{sell:,.0f}", "</div>"
-                                ]
-                            card_parts.append("</div>")
-                            st.markdown("".join(card_parts), unsafe_allow_html=True)
-                            if st.button("Open →", key=f"open_{jrow['job_id']}", type="primary"):
-                                st.session_state["open_job"] = jrow["job_id"]
-                                st.rerun()
+            # ── Kanban columns ─────────────────────────────────────────
+            board_stages = ["Lead","Take-off","Tender Review","Pre-Live Handover","Live Job","Completed"]
+
+            # CSS for scrollable columns
+            st.markdown("""
+            <style>
+            .kanban-col { 
+                background:#111c27; border:1px solid #1e2d3d; border-radius:12px; 
+                padding:12px 8px; min-height:200px;
+            }
+            .kanban-header {
+                font-size:11px; font-weight:700; letter-spacing:.1em;
+                text-transform:uppercase; padding:4px 8px 10px; 
+            }
+            .kanban-card {
+                background:#1e2d3d; border:1px solid #2a3d4f;
+                border-radius:8px; padding:10px 12px; margin-bottom:8px;
+                cursor:pointer;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            cols = st.columns(len(board_stages))
+            for col, stage in zip(cols, board_stages):
+                sc, tc = STAGE_COLORS.get(stage, ("#1e2d3d","#94a3b8"))
+                stage_jobs = main_jobs_board[main_jobs_board["stage"]==stage]
+                with col:
+                    st.markdown(
+                        f"<div style='background:{tc}15;border:1px solid {tc}33;border-radius:10px;padding:8px;margin-bottom:8px'>"
+                        f"<div style='color:{tc};font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase'>{stage}</div>"
+                        f"<div style='color:#475569;font-size:12px'>{len(stage_jobs)} job{'s' if len(stage_jobs)!=1 else ''}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                    for _, jrow in stage_jobs.iterrows():
+                        sell  = float(jrow.get("sell_price") or 0)
+                        jtype = str(jrow.get("job_type","") or "Res")[:3]
+                        jtype_col = TYPE_COLORS.get(str(jrow.get("job_type","") or "Residential"), "#64748b")
+                        var_pending = int(jrow.get("var_pending",0) or 0)
+
+                        card_html = (
+                            f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;"
+                            f"border-left:3px solid {tc};border-radius:8px;"
+                            f"padding:10px 12px;margin-bottom:6px'>"
+                            f"<div style='font-size:13px;font-weight:700;color:#f1f5f9'>{jrow['job_id']}"
+                            + (f" <span style='background:#f59e0b22;color:#f59e0b;font-size:9px;padding:1px 5px;border-radius:3px'>{var_pending} VAR</span>" if var_pending else "") +
+                            f"</div>"
+                            f"<div style='font-size:12px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>{str(jrow.get('client') or '—')}</div>"
+                            + (f"<div style='font-size:12px;font-weight:700;color:#2dd4bf;margin-top:4px'>${sell:,.0f}</div>" if sell > 0 else "") +
+                            f"</div>"
+                        )
+                        st.markdown(card_html, unsafe_allow_html=True)
+                        if st.button("Open", key=f"open_{jrow['job_id']}", use_container_width=True):
+                            st.session_state["open_job"] = jrow["job_id"]
+                            st.rerun()
 
             # ── Variation jobs section ─────────────────────────────────
             if not var_jobs_board.empty:
