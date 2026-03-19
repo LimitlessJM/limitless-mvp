@@ -5449,8 +5449,57 @@ No explanation, only JSON."""
 
         # New job form
         if st.session_state.get("show_new_job"):
-            # Preview the next job ID
-            nj_preview = get_next_job_id.__doc__ and "LES" or "LES"
+            # Load full client data OUTSIDE form so selection triggers rerun
+            _clients_df = fetch_df("""
+                SELECT id, name, company, address, phone, email,
+                       billing_name, billing_email,
+                       ca_name, ca_email, ca_phone,
+                       pm_name, pm_email, pm_phone
+                FROM clients ORDER BY company, name
+            """)
+
+            # Build display names — company first
+            if not _clients_df.empty:
+                _clients_df["display"] = _clients_df.apply(
+                    lambda r: f"{r.get('company','') or r.get('name','')} — {r.get('name','') or ''}".strip(" —"),
+                    axis=1
+                )
+                _client_options = ["— Select client —"] + _clients_df["display"].tolist()
+            else:
+                _client_options = ["— Select client —"]
+
+            # Client selector OUTSIDE form — triggers auto-fill
+            nj_cl_select = st.selectbox("Select client", _client_options, key="nj_client_select")
+
+            # Auto-fill from client record
+            _sel_client = {}
+            _sel_name = ""
+            if nj_cl_select != "— Select client —" and not _clients_df.empty:
+                _idx = _client_options.index(nj_cl_select) - 1
+                if 0 <= _idx < len(_clients_df):
+                    _sel_client = _clients_df.iloc[_idx].to_dict()
+                    _sel_name = str(_sel_client.get("company","") or _sel_client.get("name",""))
+
+            # Show client info card if selected
+            if _sel_client:
+                _ca = str(_sel_client.get("ca_name","") or "")
+                _pm = str(_sel_client.get("pm_name","") or "")
+                _bill = str(_sel_client.get("billing_name","") or "")
+                _bill_email = str(_sel_client.get("billing_email","") or "")
+                st.markdown(f"""
+                <div style='background:#1e2d3d;border:1px solid #2dd4bf33;border-radius:10px;
+                    padding:12px 16px;margin-bottom:12px;display:flex;gap:24px;flex-wrap:wrap'>
+                    <div>
+                        <div style='color:#2dd4bf;font-size:13px;font-weight:700'>{_sel_name}</div>
+                        <div style='color:#64748b;font-size:13px'>{_sel_client.get('address','')}</div>
+                        <div style='color:#64748b;font-size:13px'>{_sel_client.get('phone','')} · {_sel_client.get('email','')}</div>
+                    </div>
+                    {f"<div><div style='color:#a78bfa;font-size:13px;font-weight:700'>CA</div><div style='color:#94a3b8;font-size:13px'>{_ca}</div></div>" if _ca else ""}
+                    {f"<div><div style='color:#60a5fa;font-size:13px;font-weight:700'>PM</div><div style='color:#94a3b8;font-size:13px'>{_pm}</div></div>" if _pm else ""}
+                    {f"<div><div style='color:#2dd4bf;font-size:13px;font-weight:700'>Billing</div><div style='color:#94a3b8;font-size:13px'>{_bill} · {_bill_email}</div></div>" if _bill_email else ""}
+                </div>
+                """, unsafe_allow_html=True)
+
             with st.form("new_job_form"):
                 st.subheader("New Job")
                 # Job ID row
@@ -5470,18 +5519,11 @@ No explanation, only JSON."""
 
                 nj1, nj2 = st.columns(2)
                 with nj1:
-                    # Pull from clients register
-                    _clients_df = fetch_df("SELECT name, address FROM clients ORDER BY name")
-                    _client_names = ["— type manually —"] + _clients_df["name"].tolist() if not _clients_df.empty else ["— type manually —"]
-                    nj_cl_select = st.selectbox("Client", _client_names)
-                    # Auto-fill address if client selected
-                    _auto_addr = ""
-                    if nj_cl_select != "— type manually —" and not _clients_df.empty:
-                        _crow = _clients_df[_clients_df["name"]==nj_cl_select]
-                        if not _crow.empty:
-                            _auto_addr = str(_crow.iloc[0].get("address","") or "")
-                    nj_cl   = nj_cl_select if nj_cl_select != "— type manually —" else st.text_input("Client name *")
-                    nj_addr = st.text_input("Address", value=_auto_addr)
+                    # Manual override fields — pre-filled from client
+                    nj_cl   = st.text_input("Client name *",
+                        value=str(_sel_client.get("name","") or _sel_name or ""))
+                    nj_addr = st.text_input("Address",
+                        value=str(_sel_client.get("address","") or ""))
                     nj_est  = st.text_input("Estimator",
                         value=str(current_user.get("full_name","") or ""))
                 with nj2:
@@ -5499,12 +5541,15 @@ No explanation, only JSON."""
                         execute("UPDATE jobs SET job_type=?, job_finish=? WHERE job_id=?",
                                 (nj_type, nj_finish, final_id))
                         st.session_state.pop("show_new_job", None)
+                        st.session_state.pop("nj_client_select", None)
                         st.session_state["open_job"] = final_id
                         st.success(f"Job {final_id} created!")
                         st.rerun()
                 with sb2:
                     if st.form_submit_button("Cancel"):
-                        st.session_state.pop("show_new_job", None); st.rerun()
+                        st.session_state.pop("show_new_job", None)
+                        st.session_state.pop("nj_client_select", None)
+                        st.rerun()
 
             st.divider()
 
