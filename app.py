@@ -1072,10 +1072,11 @@ def supa_pull(table):
 
 def sync_to_mobile():
     """Push employees, jobs, day_assignments to Supabase for mobile to read."""
-    if not USE_SUPABASE:
+    if not USE_SUPABASE or not _supa_client:
         return
     try:
-        # Sync employees
+        # ── Employees — delete all then re-push clean list ────────────────
+        _supa_client.table("employees").delete().neq("id", -999).execute()
         emps = fetch_df("SELECT id, name, role, hourly_rate, active, pin FROM employees WHERE active=1")
         for _, r in emps.iterrows():
             supa_push("employees", {
@@ -1083,14 +1084,15 @@ def sync_to_mobile():
                 "role": str(r.get("role","")), "hourly_rate": float(r.get("hourly_rate",0)),
                 "active": int(r.get("active",1)), "pin": str(r.get("pin",""))
             })
-        # Sync jobs
+        # ── Jobs — delete all then re-push active jobs ────────────────────
+        _supa_client.table("jobs").delete().neq("job_id", "__none__").execute()
         jobs = fetch_df("SELECT job_id, client, address, stage FROM jobs WHERE archived=0 AND COALESCE(is_variation,0)=0")
         for _, r in jobs.iterrows():
             supa_push("jobs", {
                 "job_id": str(r["job_id"]), "client": str(r.get("client","")),
                 "address": str(r.get("address","")), "stage": str(r.get("stage",""))
             })
-        # Sync day assignments — last 7 days and next 30 days
+        # ── Day assignments — last 7 days and next 30 days ────────────────
         assigns = fetch_df("SELECT id, job_id, client, employee, date, note FROM day_assignments WHERE date >= date('now', '-7 days')")
         for _, r in assigns.iterrows():
             supa_push("day_assignments", {
