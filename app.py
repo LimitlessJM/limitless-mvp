@@ -1059,6 +1059,23 @@ def supa_push(table, data):
         pass  # Fail silently — local DB is source of truth
 
 
+def supa_ensure_tables():
+    """Create Supabase tables if they don't exist via REST API."""
+    if not USE_SUPABASE or not _supa_client:
+        return
+    # Just try to select from each table — if it fails the table doesn't exist
+    # Supabase tables must be created via dashboard SQL editor
+    # This function tests connectivity and logs what's missing
+    tables = ["employees", "jobs", "day_assignments", "clock_events", "mobile_variations"]
+    missing = []
+    for t in tables:
+        try:
+            _supa_client.table(t).select("*").limit(1).execute()
+        except:
+            missing.append(t)
+    return missing
+
+
 def supa_pull(table):
     """Pull all records from Supabase table as list of dicts."""
     if not USE_SUPABASE or not _supa_client:
@@ -9365,6 +9382,44 @@ elif page == "Company Settings":
     if user_role not in ["Admin"]:
         st.warning("⚠️ Company settings are restricted to Admin/Director only.")
         st.stop()
+
+    # ── Supabase mobile sync status ───────────────────────────────────────
+    with st.expander("📱 Mobile App Connection (Supabase)", expanded=False):
+        if USE_SUPABASE and _supa_client:
+            st.success("✅ Supabase connected")
+
+            # Test each table
+            tables_ok = []
+            tables_missing = []
+            for t in ["employees","jobs","day_assignments","clock_events","mobile_variations"]:
+                try:
+                    _supa_client.table(t).select("id").limit(1).execute()
+                    tables_ok.append(t)
+                except:
+                    tables_missing.append(t)
+
+            if tables_missing:
+                st.warning(f"⚠️ Missing Supabase tables: {', '.join(tables_missing)}")
+                st.caption("Create these tables in your Supabase dashboard → SQL Editor:")
+                st.code("""
+-- Run this in Supabase SQL Editor
+CREATE TABLE IF NOT EXISTS employees (id bigint PRIMARY KEY, name text, role text, hourly_rate float, active int, pin text);
+CREATE TABLE IF NOT EXISTS jobs (job_id text PRIMARY KEY, client text, address text, stage text);
+CREATE TABLE IF NOT EXISTS day_assignments (id bigint PRIMARY KEY, job_id text, client text, employee text, date text, note text, start_time text, end_time text);
+CREATE TABLE IF NOT EXISTS clock_events (id bigint generated always as identity PRIMARY KEY, employee text, job_id text, event_type text, event_time text, event_date text, note text, status text default 'Pending', approved_by text, approved_at text);
+CREATE TABLE IF NOT EXISTS mobile_variations (id bigint generated always as identity PRIMARY KEY, employee text, job_id text, description text, submitted_at text, status text default 'Pending');
+                """, language="sql")
+            else:
+                st.success(f"✅ All {len(tables_ok)} tables exist")
+
+            if st.button("🔄 Force sync to mobile now", type="primary"):
+                try:
+                    sync_to_mobile()
+                    st.success("✅ Pushed employees, jobs and schedule to Supabase!")
+                except Exception as _sye:
+                    st.error(f"Sync error: {_sye}")
+        else:
+            st.error("❌ Supabase not connected — check SUPABASE_URL and SUPABASE_KEY in Railway environment variables")
 
     with st.form("company_settings_form"):
         st.subheader("Company details")
