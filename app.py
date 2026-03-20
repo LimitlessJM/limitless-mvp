@@ -2332,6 +2332,8 @@ def upsert_job(job_id, client, address, estimator, stage):
             "UPDATE jobs SET client=?, address=?, estimator=?, stage=? WHERE job_id=?",
             (client, address, estimator, stage, job_id),
         )
+    try: sync_to_mobile()
+    except: pass
 
 
 # ─────────────────────────────────────────────
@@ -3676,6 +3678,8 @@ elif page == "Quote Builder":
                                 "INSERT INTO day_assignments (job_id, client, employee, date, note) VALUES (?,?,?,?,?)",
                                 (selected_job, job["client"] if job else "", sel_emp, d.isoformat(), block_name),
                             )
+                        try: sync_to_mobile()
+                        except: pass
                         st.success(f"{rd} day assignment(s) created for {sel_emp}.")
         else:
             st.info("Add lines from the left panel.")
@@ -6727,6 +6731,8 @@ elif page == "Employees":
                     "UPDATE employees SET role=?, hourly_rate=?, phone=?, active=? WHERE name=?",
                     (f_role, f_rate, f_phone, int(f_active), f_name.strip()),
                 )
+            try: sync_to_mobile()
+            except: pass
             st.success(f"{f_name} saved."); st.rerun()
         elif saved:
             st.warning("Name is required.")
