@@ -6525,6 +6525,11 @@ elif page == "Schedule Calendar":
             with ac1:
                 ca_emp = st.selectbox("Employee", emp_names if emp_names else [""])
                 ca_job = st.selectbox("Job", jobs_list_cal["job_id"].tolist() if not jobs_list_cal.empty else [""])
+                # Show client for selected job
+                if ca_job and not jobs_list_cal.empty and ca_job in jobs_list_cal["job_id"].values:
+                    _jcli = str(jobs_list_cal[jobs_list_cal["job_id"]==ca_job]["client"].iloc[0] or "")
+                    if _jcli:
+                        st.markdown(f"<div style='background:#1e2d3d;border-radius:6px;padding:6px 10px;font-size:13px;color:#2dd4bf;margin-top:-8px'>{ca_job} · {_jcli}</div>", unsafe_allow_html=True)
             with ac2:
                 ca_date = st.date_input("Date", value=_today_aest())
                 ca_note = st.text_input("Note", placeholder="e.g. Install gutters")
@@ -6544,6 +6549,10 @@ elif page == "Schedule Calendar":
             with bc1:
                 bulk_emps = st.multiselect("Employees", emp_names, help="Select one or more")
                 bulk_job  = st.selectbox("Job", jobs_list_cal["job_id"].tolist() if not jobs_list_cal.empty else [""])
+                if bulk_job and not jobs_list_cal.empty and bulk_job in jobs_list_cal["job_id"].values:
+                    _bjcli = str(jobs_list_cal[jobs_list_cal["job_id"]==bulk_job]["client"].iloc[0] or "")
+                    if _bjcli:
+                        st.markdown(f"<div style='background:#1e2d3d;border-radius:6px;padding:6px 10px;font-size:13px;color:#2dd4bf;margin-top:-8px'>{bulk_job} · {_bjcli}</div>", unsafe_allow_html=True)
                 bulk_note = st.text_input("Note", placeholder="e.g. Full install")
             with bc2:
                 bulk_start_date = st.date_input("From date", value=_today_aest(), key="bulk_from")
