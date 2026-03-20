@@ -1110,26 +1110,45 @@ def sync_from_mobile():
         # Pull clock events
         events = supa_pull("clock_events")
         for e in events:
-            existing = fetch_df("SELECT id FROM clock_events WHERE id=?", (e["id"],))
+            eid = e.get("id")
+            if not eid: continue
+            existing = fetch_df("SELECT id FROM clock_events WHERE id=?", (eid,))
             if existing.empty:
                 execute("""INSERT INTO clock_events
-                    (id, employee, job_id, event_type, event_time, event_date, note)
-                    VALUES (?,?,?,?,?,?,?)""",
-                    (e["id"], e.get("employee",""), e.get("job_id",""),
+                    (id, employee, job_id, event_type, event_time, event_date, note, status)
+                    VALUES (?,?,?,?,?,?,?,?)""",
+                    (eid, e.get("employee",""), e.get("job_id",""),
                      e.get("event_type",""), e.get("event_time",""),
-                     e.get("event_date",""), e.get("note","")))
+                     e.get("event_date",""), e.get("note",""),
+                     e.get("status","Pending")))
         # Pull mobile variations
         vars_data = supa_pull("mobile_variations")
         for v in vars_data:
-            existing = fetch_df("SELECT id FROM mobile_variations WHERE id=?", (v["id"],))
+            vid = v.get("id")
+            if not vid: continue
+            existing = fetch_df("SELECT id FROM mobile_variations WHERE id=?", (vid,))
             if existing.empty:
                 execute("""INSERT INTO mobile_variations
                     (id, employee, job_id, description, submitted_at, status)
                     VALUES (?,?,?,?,?,?)""",
-                    (v["id"], v.get("employee",""), v.get("job_id",""),
+                    (vid, v.get("employee",""), v.get("job_id",""),
                      v.get("description",""), v.get("submitted_at",""),
                      v.get("status","Pending")))
     except Exception as _se:
+        pass
+
+
+def sync_approval_to_supabase(clock_event_id, status, approved_by):
+    """Push approval status back to Supabase so mobile app sees it."""
+    if not USE_SUPABASE or not _supa_client:
+        return
+    try:
+        _supa_client.table("clock_events").update({
+            "status": status,
+            "approved_by": approved_by,
+            "approved_at": _today_aest().isoformat()
+        }).eq("id", clock_event_id).execute()
+    except:
         pass
 
 
@@ -3106,6 +3125,10 @@ selected_job = None
 if page == "Dashboard":
     from datetime import datetime as _dt
     import json as _json
+
+    # ── Auto-sync from mobile every page load ────────────────────────────
+    try: sync_from_mobile()
+    except: pass
 
     # ── Pull all-jobs data ────────────────────────────────────────────────
     all_active_jobs = fetch_df("SELECT job_id, client, stage, job_type FROM jobs WHERE archived=0 ORDER BY job_id")
@@ -9080,11 +9103,14 @@ elif page == "Timesheets":
                             if st.button("✅", key=f"app_{pair['in_id']}", help="Approve"):
                                 now_str = _today_aest().isoformat()
                                 approver = current_user.get("full_name") or current_user.get("username","")
-                                # Mark both events approved
+                                # Mark both events approved locally
                                 execute("UPDATE clock_events SET status='Approved', approved_by=?, approved_at=? WHERE id=?",
                                     (approver, now_str, pair["in_id"]))
                                 execute("UPDATE clock_events SET status='Approved', approved_by=?, approved_at=? WHERE id=?",
                                     (approver, now_str, pair["out_id"]))
+                                # Push approval back to Supabase so mobile sees it
+                                sync_approval_to_supabase(pair["in_id"], "Approved", approver)
+                                sync_approval_to_supabase(pair["out_id"], "Approved", approver)
                                 # Write to labour_logs
                                 execute("""INSERT INTO labour_logs (work_date,job_id,employee,hours,hourly_rate,note)
                                     VALUES (?,?,?,?,?,?)""",
@@ -9096,6 +9122,9 @@ elif page == "Timesheets":
                             if st.button("❌", key=f"rej_{pair['in_id']}", help="Reject"):
                                 execute("UPDATE clock_events SET status='Rejected' WHERE id=?", (pair["in_id"],))
                                 execute("UPDATE clock_events SET status='Rejected' WHERE id=?", (pair["out_id"],))
+                                # Push rejection to Supabase
+                                sync_approval_to_supabase(pair["in_id"], "Rejected", "")
+                                sync_approval_to_supabase(pair["out_id"], "Rejected", "")
                                 st.rerun()
 
                     if pair["note"]:
