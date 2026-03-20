@@ -1493,7 +1493,7 @@ def generate_supplier_po_pdf(job, estimate_df):
     if not comp_map:
         try:
             db_items = fetch_df("""
-                SELECT ci.description AS parent, cc.description AS comp_desc,
+                SELECT TRIM(ci.description) AS parent, TRIM(cc.description) AS comp_desc,
                        cc.item_type, cc.qty, cc.uom, cc.unit_cost
                 FROM catalogue_items ci
                 JOIN catalogue_components cc ON cc.item_id = ci.id
@@ -1533,8 +1533,15 @@ def generate_supplier_po_pdf(job, estimate_df):
         if sec not in sections_comps:
             sections_comps[sec] = {}
 
-        # Get components for this item
-        components = comp_map.get(item, [])
+        # Get components — try exact match first, then stripped
+        components = comp_map.get(item, []) or comp_map.get(item.strip(), [])
+        # If still nothing, try case-insensitive match
+        if not components:
+            item_lower = item.strip().lower()
+            for k, v in comp_map.items():
+                if k.strip().lower() == item_lower:
+                    components = v
+                    break
 
         if components:
             for comp in components:
@@ -3876,13 +3883,13 @@ elif page == "Catalogue":
 
                             if not existing.empty:
                                 item_id = int(existing.iloc[0]["id"])
-                                execute("UPDATE catalogue_items SET uom=?,unit_cost=?,labour_cost=? WHERE id=?",
-                                    (uom, mat_cost, round(lab_cost,2), item_id))
+                                execute("UPDATE catalogue_items SET description=?,uom=?,unit_cost=?,labour_cost=? WHERE id=?",
+                                    (desc.strip(), uom.strip(), mat_cost, round(lab_cost,2), item_id))
                                 execute("DELETE FROM catalogue_components WHERE item_id=?", (item_id,))
                             else:
                                 execute("""INSERT INTO catalogue_items (category,description,uom,unit_cost,labour_cost,source,created_at)
                                     VALUES (?,?,?,?,?,?,?)""",
-                                    (cat, desc, uom, mat_cost, round(lab_cost,2), "Buildxact", _today_aest().isoformat()))
+                                    (cat.strip(), desc.strip(), uom.strip(), mat_cost, round(lab_cost,2), "Buildxact", _today_aest().isoformat()))
                                 new_row = fetch_df("SELECT id FROM catalogue_items WHERE description=? AND category=? ORDER BY id DESC LIMIT 1", (desc, cat))
                                 item_id = int(new_row.iloc[0]["id"]) if not new_row.empty else None
                                 imported += 1
