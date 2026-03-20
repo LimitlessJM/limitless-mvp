@@ -33,12 +33,16 @@ st.markdown("""
 LOGO_B64 = ""  # Logo removed - using text wordmark
 
 # ── Supabase ───────────────────────────────────────────────────────────────
+import os as _os
+SUPABASE_URL = _os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = _os.environ.get("SUPABASE_KEY", "")
 try:
-    SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
-    SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+    if not SUPABASE_URL:
+        SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+    if not SUPABASE_KEY:
+        SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 except:
-    SUPABASE_URL = ""
-    SUPABASE_KEY = ""
+    pass
 
 USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_KEY)
 
@@ -583,11 +587,28 @@ elif page == "variation":
 elif page == "profile":
     st.markdown(f"<div style='font-size:22px;font-weight:800;color:#e2e8f0;margin-bottom:16px'>👤 {user}</div>", unsafe_allow_html=True)
 
-    # Connection status
+    # ── Connection status + diagnostics ───────────────────────────────────
     if USE_SUPABASE:
-        st.markdown("<div style='background:#0d2a1f;border:1px solid #2dd4bf;border-radius:8px;padding:8px 14px;font-size:13px;color:#2dd4bf;margin-bottom:12px'>🟢 Connected to office</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background:#0d2a1f;border:1px solid #2dd4bf;border-radius:8px;padding:8px 14px;font-size:13px;color:#2dd4bf;margin-bottom:12px'>🟢 Connected to Supabase</div>", unsafe_allow_html=True)
+        with st.expander("🔍 Sync Diagnostics"):
+            tables = ["employees","jobs","day_assignments","clock_events","mobile_variations","labour_logs","job_photos"]
+            for t in tables:
+                try:
+                    rows = supa_get(t)
+                    st.markdown(f"<span style='color:#2dd4bf'>✅ {t}</span> — {len(rows)} rows", unsafe_allow_html=True)
+                except Exception as _te:
+                    st.markdown(f"<span style='color:#f43f5e'>❌ {t} — {_te}</span>", unsafe_allow_html=True)
+            st.divider()
+            st.caption("Local unsynced:")
+            ce_u = local_fetch("SELECT COUNT(*) as n FROM clock_events WHERE synced=0")
+            ll_u = local_fetch("SELECT COUNT(*) as n FROM labour_logs WHERE synced=0")
+            ph_u = local_fetch("SELECT COUNT(*) as n FROM job_photos WHERE synced=0")
+            st.write(f"Clock events: {ce_u[0]['n']} | Labour logs: {ll_u[0]['n']} | Photos: {ph_u[0]['n']}")
+            st.caption(f"URL: {SUPABASE_URL[:40] if SUPABASE_URL else 'NOT SET'}")
     else:
-        st.markdown("<div style='background:#2d0f0f;border:1px solid #f43f5e;border-radius:8px;padding:8px 14px;font-size:13px;color:#f43f5e;margin-bottom:12px'>🔴 No office connection — check Supabase secrets in Streamlit settings</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background:#2d0f0f;border:1px solid #f43f5e;border-radius:8px;padding:8px 14px;font-size:13px;color:#f43f5e;margin-bottom:12px'>🔴 No Supabase connection</div>", unsafe_allow_html=True)
+        st.warning(f"SUPABASE_URL set: {bool(SUPABASE_URL)} | SUPABASE_KEY set: {bool(SUPABASE_KEY)}")
+        st.info("Add SUPABASE_URL and SUPABASE_KEY to your Streamlit secrets or environment variables.")
 
     week_total = local_fetch("SELECT SUM(hours) AS h FROM labour_logs WHERE employee=? AND work_date >= date('now','-7 days')", (user,))
     week_h = float(week_total[0]["h"] or 0) if week_total and week_total[0]["h"] else 0
