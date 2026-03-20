@@ -3182,20 +3182,22 @@ if page == "Dashboard":
                 _en_t = str(ts.get('end_time','') or '')
                 _time = f"{_st_t[:5]}–{_en_t[:5]}" if _st_t and _en_t else ""
                 emp_color = emp_color_map.get(str(ts['employee']), "#2dd4bf")
+                _addr_html = f"<div style='font-size:13px;color:#64748b'>📍 {_addr}</div>" if _addr else ""
+                _time_html = f"<div style='font-size:12px;color:#f59e0b'>🕐 {_time}</div>" if _time else ""
+                _note_html = f"<div style='font-size:13px;color:#475569'>{ts.get('note','') or ''}</div>" if ts.get('note') else ""
                 onsite_html = (
-                    "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:9px;"
-                    "padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px'>"
-                    "<div style='width:36px;height:36px;border-radius:50%;background:#1a3a3a;"
-                    "border:2px solid " + emp_color + ";display:flex;align-items:center;justify-content:center;"
-                    "font-size:13px;font-weight:700;color:" + emp_color + ";flex-shrink:0'>" + str(emp_init) + "</div>"
-                    "<div style='flex:1'>"
-                    "<div style='font-size:15px;font-weight:700;color:#e2e8f0'>" + str(ts['employee']) + "</div>"
-                    "<div style='font-size:13px;color:#2dd4bf'>" + str(ts['job_id']) + " · " + str(ts.get('client','') or '') + "</div>"
-                    + (f"<div style='font-size:13px;color:#64748b'>📍 {_addr}</div>" if _addr else "") +
-                    + (f"<div style='font-size:12px;color:#f59e0b'>🕐 {_time}</div>" if _time else "") +
-                    "</div>"
-                    + (f"<div style='font-size:13px;color:#475569'>{ts.get('note','') or ''}</div>" if ts.get('note') else "") +
-                    "</div>"
+                    f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:9px;"
+                    f"padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px'>"
+                    f"<div style='width:36px;height:36px;border-radius:50%;background:#1a3a3a;"
+                    f"border:2px solid {emp_color};display:flex;align-items:center;justify-content:center;"
+                    f"font-size:13px;font-weight:700;color:{emp_color};flex-shrink:0'>{emp_init}</div>"
+                    f"<div style='flex:1'>"
+                    f"<div style='font-size:15px;font-weight:700;color:#e2e8f0'>{ts['employee']}</div>"
+                    f"<div style='font-size:13px;color:#2dd4bf'>{ts['job_id']} · {ts.get('client','') or ''}</div>"
+                    f"{_addr_html}{_time_html}"
+                    f"</div>"
+                    f"{_note_html}"
+                    f"</div>"
                 )
                 st.markdown(onsite_html, unsafe_allow_html=True)
         else:
