@@ -9,6 +9,21 @@ def _today_aest():
     """Return today's date in AEST (UTC+10)."""
     return (_datetime.now(_tz.utc) + _td(hours=10)).date()
 
+def _fmt_date(d):
+    """Format a date string or date object as Australian format: 18 May 2026"""
+    if not d: return ""
+    try:
+        if hasattr(d, "strftime"):
+            return d.strftime("%-d %b %Y")
+        # Try parsing common formats
+        for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"]:
+            try:
+                from datetime import datetime as _dtp
+                return _dtp.strptime(str(d).strip(), fmt).strftime("%-d %b %Y")
+            except: pass
+        return str(d)
+    except: return str(d)
+
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -1089,7 +1104,7 @@ def generate_quote_pdf(job, estimate_df, quote_opts=None):
 
     # Job details
     detail_data = [
-        ["Client",    job.get("client","—"),    "Date",      date.today().strftime("%d %B %Y")],
+        ["Client",    job.get("client","—"),    "Date",      date.today().strftime("%-d %B %Y")],
         ["Address",   job.get("address","—"),   "Estimator", job.get("estimator","—")],
         ["Job ID",    job.get("job_id","—"),    "Type",      job.get("job_type","—")],
     ]
@@ -1349,7 +1364,7 @@ def generate_supplier_po_pdf(job, estimate_df):
 
     # Job info
     det = Table([
-        ["Job", job.get("job_id","—"), "Date", date.today().strftime("%d %B %Y")],
+        ["Job", job.get("job_id","—"), "Date", date.today().strftime("%-d %B %Y")],
         ["Client", job.get("client","—"), "Address", job.get("address","—")],
     ], colWidths=[20*mm,80*mm,20*mm,50*mm])
     det.setStyle(TableStyle([
@@ -1502,7 +1517,7 @@ def generate_supplier_po_pdf(job, estimate_df):
         Spacer(1,3*mm),
         Paragraph(
             "<font size=8 color='#64748b'>PO generated " +
-            date.today().strftime("%d %B %Y") + " — " +
+            date.today().strftime("%-d %B %Y") + " — " +
             str(_po_co.get("company_name","Limitless Estimation Services")) +
             " — " + str(mat_count) + " material lines — " + comp_note + "</font>",
             styles["Normal"])
@@ -1780,7 +1795,7 @@ def generate_tender_analysis_pdf(job, analysis):
     # Job meta
     meta = Table([
         ["Project", job.get("address","—"), "Report Type", "Tender Stage Analysis"],
-        ["Client",  job.get("client","—"),  "Date",        date.today().strftime("%d %B %Y")],
+        ["Client",  job.get("client","—"),  "Date",        date.today().strftime("%-d %B %Y")],
         ["Estimator", job.get("estimator","—"), "Job Type", job.get("job_type","—")],
     ], colWidths=[25*mm,75*mm,25*mm,45*mm])
     meta.setStyle(TableStyle([
@@ -1929,7 +1944,7 @@ def generate_tender_analysis_pdf(job, analysis):
     story += [HRFlowable(width="100%",thickness=0.5,color=SLATE), Spacer(1,3*mm)]
     story.append(Paragraph(
         "<font size=8 color='#64748b'>Tender Stage Analysis — " +
-        str(job.get("job_id","")) + " — Generated " + date.today().strftime("%d %B %Y") +
+        str(job.get("job_id","")) + " — Generated " + date.today().strftime("%-d %B %Y") +
         " — " + str(settings.get("company_name","")) + " — CONFIDENTIAL</font>",
         styles["Normal"]))
 
@@ -1977,7 +1992,7 @@ def generate_variation_pdf(job, variation, approved_total):
 
     # Job details
     det = Table([
-        ["Job",      job.get("job_id","—"),   "Date",     date.today().strftime("%d %B %Y")],
+        ["Job",      job.get("job_id","—"),   "Date",     date.today().strftime("%-d %B %Y")],
         ["Client",   job.get("client","—"),    "Address",  job.get("address","—")],
         ["Estimator",job.get("estimator","—"), "Status",   variation.get("status","Pending")],
     ], colWidths=[25*mm,75*mm,20*mm,50*mm])
@@ -4481,7 +4496,7 @@ elif page == "Jobs":
                             details = [
                                 ["Job Number:", open_job, "Client:", wjob.get("client","—")],
                                 ["Address:", wjob.get("address","—"), "Estimator:", wjob.get("estimator","—")],
-                                ["Leading Hand:", ho_data.get("handover_crew","—"), "Date:", date.today().strftime("%d/%m/%Y")],
+                                ["Leading Hand:", ho_data.get("handover_crew","—"), "Date:", date.today().strftime("%-d %b %Y")],
                             ]
                             t = Table(details, colWidths=[35*mm, 65*mm, 35*mm, 55*mm])
                             t.setStyle(TableStyle([
@@ -4689,7 +4704,7 @@ elif page == "Jobs":
                         st.markdown(
                             "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;"
                             "padding:10px 16px;margin-bottom:4px;display:flex;gap:16px;align-items:center'>"
-                            "<span style='color:#2dd4bf;font-weight:700;min-width:90px'>" + str(lr["work_date"]) + "</span>"
+                            "<span style='color:#2dd4bf;font-weight:700;min-width:90px'>" + _fmt_date(str(lr["work_date"])) + "</span>"
                             "<span style='color:#e2e8f0'>" + str(lr["employee"]) + "</span>"
                             "<span style='color:#64748b'>" + f"{float(lr['hours']):.1f}h @ ${float(lr['hourly_rate']):.0f}/hr" + "</span>"
                             "<span style='color:#2dd4bf;font-weight:700;margin-left:auto'>$" + f"{float(lr['cost']):,.2f}" + "</span>"
@@ -6605,7 +6620,7 @@ elif page == "Schedule Calendar":
         for _, row in upcoming.iterrows():
             uc1,uc2,uc3,uc4,uc5 = st.columns([2,2,2,3,1])
             color = emp_color_map.get(str(row.get("employee","")), "#64748b")
-            uc1.markdown(f"<div style='color:#94a3b8;font-size:13px'>{str(row['date'])}</div>", unsafe_allow_html=True)
+            uc1.markdown(f"<div style='color:#94a3b8;font-size:13px'>{_fmt_date(str(row['date']))}</div>", unsafe_allow_html=True)
             uc2.markdown(f"<div style='color:{color};font-weight:700;font-size:13px'>{str(row.get('employee',''))}</div>", unsafe_allow_html=True)
             uc3.markdown(f"<div style='color:#e2e8f0;font-size:13px'>{str(row.get('job_id',''))}</div>", unsafe_allow_html=True)
             uc4.markdown(f"<div style='color:#64748b;font-size:13px'>{str(row.get('note',''))}</div>", unsafe_allow_html=True)
