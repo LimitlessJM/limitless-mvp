@@ -3058,7 +3058,7 @@ _uname = str(current_user.get('full_name') or current_user.get('username',''))
 _urole = str(user_role)
 st.sidebar.markdown(
     "<div style='padding:1.2rem 0 1rem;text-align:center'>"
-    "<div style="font-size:22px;font-weight:700;letter-spacing:.08em;color:#2dd4bf;font-family:'Barlow Semi Condensed',sans-serif">LIMITLESS</div><br>"
+    "<div style='font-size:22px;font-weight:700;letter-spacing:.08em;color:#2dd4bf;font-family:\"Barlow Semi Condensed\",sans-serif'>LIMITLESS</div><br>"
     "<div style='font-size:11px;font-weight:600;letter-spacing:0.15em;color:#2dd4bf;text-transform:uppercase;margin-top:2px'>Limitless Job Management</div>"
     "</div>"
     "<hr style='border-color:#2a2a2a;margin:0 0 .5rem'>"
