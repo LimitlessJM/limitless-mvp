@@ -53,14 +53,15 @@ def supa_get(table, filters=None):
     except: return []
 
 def supa_post(table, data):
-    if not USE_SUPABASE: return False
+    if not USE_SUPABASE: return False, ""
     try:
         url = f"{SUPABASE_URL}/rest/v1/{table}"
         headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
                    "Content-Type": "application/json", "Prefer": "return=minimal"}
         r = requests.post(url, headers=headers, data=json.dumps(data), timeout=5)
-        return r.status_code in [200, 201]
-    except: return False
+        return r.status_code in [200, 201], f"{r.status_code}: {r.text[:100]}"
+    except Exception as _e:
+        return False, str(_e)
 
 # ── Local DB ───────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "limitless_mobile.db")
@@ -168,11 +169,12 @@ def sync_from_supabase():
     return count
 
 def sync_to_supabase(employee):
-    if not USE_SUPABASE: return
+    if not USE_SUPABASE: return []
+    errors = []
     try:
         unsynced = local_fetch("SELECT * FROM clock_events WHERE synced=0 AND employee=?", (employee,))
         for e in unsynced:
-            ok = supa_post("clock_events", {
+            ok, msg = supa_post("clock_events", {
                 "employee": e["employee"], "job_id": e["job_id"] or "",
                 "event_type": e["event_type"], "event_time": e["event_time"],
                 "event_date": e["event_date"], "note": e["note"] or "",
@@ -180,16 +182,22 @@ def sync_to_supabase(employee):
             })
             if ok:
                 local_execute("UPDATE clock_events SET synced=1 WHERE id=?", (e["id"],))
+            else:
+                errors.append(f"clock_event: {msg}")
         unsynced_v = local_fetch("SELECT * FROM mobile_variations WHERE synced=0 AND employee=?", (employee,))
         for v in unsynced_v:
-            ok = supa_post("mobile_variations", {
+            ok, msg = supa_post("mobile_variations", {
                 "employee": v["employee"], "job_id": v["job_id"],
                 "description": v["description"], "submitted_at": v["submitted_at"],
                 "status": v["status"]
             })
             if ok:
                 local_execute("UPDATE mobile_variations SET synced=1 WHERE id=?", (v["id"],))
-    except: pass
+            else:
+                errors.append(f"variation: {msg}")
+    except Exception as _e:
+        errors.append(str(_e))
+    return errors
 
 if "synced" not in st.session_state:
     sync_from_supabase()
@@ -410,15 +418,21 @@ elif page == "clock":
                 (user, selected_job, "out", now.strftime("%H:%M:%S"), today_str, clock_note, "Pending"))
             emp = local_fetch("SELECT hourly_rate FROM employees WHERE name=?", (user,))
             rate = float(emp[0]["hourly_rate"]) if emp else 0
-            sync_to_supabase(user)
-            st.success(f"✅ Clocked out — {today_hours}h logged · Pending director approval")
+            errs = sync_to_supabase(user)
+            if errs:
+                st.warning(f"⚠️ Sync issue: {errs[0]}")
+            else:
+                st.success(f"✅ Clocked out — {today_hours}h logged · Pending director approval")
             st.rerun()
     else:
         if st.button("▶  Clock In", type="primary", use_container_width=True):
             local_execute("INSERT INTO clock_events (employee,job_id,event_type,event_time,event_date,note,status,synced) VALUES (?,?,?,?,?,?,?,0)",
                 (user, selected_job, "in", datetime.now().strftime("%H:%M:%S"), today_str, clock_note, "Pending"))
-            sync_to_supabase(user)
-            st.success(f"✅ Clocked in on {selected_job}")
+            errs = sync_to_supabase(user)
+            if errs:
+                st.warning(f"⚠️ Sync issue: {errs[0]}")
+            else:
+                st.success(f"✅ Clocked in on {selected_job}")
             st.rerun()
 
     history = local_fetch("SELECT event_type, event_time, job_id, status FROM clock_events WHERE employee=? AND event_date=? ORDER BY id", (user, today_str))
