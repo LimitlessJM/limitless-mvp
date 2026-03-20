@@ -1489,6 +1489,30 @@ def generate_supplier_po_pdf(job, estimate_df):
     except Exception as _e:
         comp_map = {}
 
+    # ── DB fallback — if Excel comp_map empty, use catalogue_components ──
+    if not comp_map:
+        try:
+            db_items = fetch_df("""
+                SELECT ci.description AS parent, cc.description AS comp_desc,
+                       cc.item_type, cc.qty, cc.uom, cc.unit_cost
+                FROM catalogue_items ci
+                JOIN catalogue_components cc ON cc.item_id = ci.id
+                WHERE cc.item_type != 'Labour'
+                ORDER BY ci.description, cc.sort_order
+            """)
+            if not db_items.empty:
+                for _, row in db_items.iterrows():
+                    parent = str(row["parent"]).strip()
+                    if parent not in comp_map:
+                        comp_map[parent] = []
+                    comp_map[parent].append({
+                        "desc":     str(row["comp_desc"]).strip(),
+                        "uom":      str(row["uom"]).strip(),
+                        "unit_qty": float(row["qty"] or 1),
+                    })
+        except Exception as _dbe:
+            pass
+
     # Build expanded PO lines grouped by section
     tbl_header = [["Ref","Description","UOM","Qty"]]
     tbl_data   = []
