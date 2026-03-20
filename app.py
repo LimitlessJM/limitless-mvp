@@ -8999,15 +8999,18 @@ elif page == "Timesheets":
         st.markdown("### Director Approval")
         st.caption("Review and approve hours submitted by the team. Only approved hours count toward timesheets and P&L.")
 
-        pending = fetch_df("""
-            SELECT ce.id, ce.employee, ce.job_id, ce.event_type,
-                   ce.event_time, ce.event_date, ce.note,
-                   ce.status, e.hourly_rate
-            FROM clock_events ce
-            LEFT JOIN employees e ON e.name = ce.employee
-            WHERE ce.status = 'Pending' OR ce.status IS NULL
-            ORDER BY ce.event_date DESC, ce.employee, ce.id
-        """)
+        try:
+            pending = fetch_df("""
+                SELECT ce.id, ce.employee, ce.job_id, ce.event_type,
+                       ce.event_time, ce.event_date, ce.note,
+                       ce.status, e.hourly_rate
+                FROM clock_events ce
+                LEFT JOIN employees e ON e.name = ce.employee
+                WHERE ce.status = 'Pending' OR ce.status IS NULL
+                ORDER BY ce.event_date DESC, ce.employee, ce.id
+            """)
+        except:
+            import pandas as _pd3; pending = _pd3.DataFrame()
 
         if pending.empty:
             st.success("✅ All hours approved — nothing pending!")
