@@ -171,6 +171,21 @@ def sync_from_supabase():
             status = ce.get("status","Pending")
             if cid and status in ("Approved","Rejected"):
                 local_execute("UPDATE clock_events SET status=? WHERE id=?", (status, cid))
+        # Pull approved labour_logs from desktop so Profile shows real hours
+        approved_ll = supa_get("labour_logs")
+        for ll in approved_ll:
+            emp   = ll.get("employee","")
+            wdate = ll.get("work_date","")
+            jid   = ll.get("job_id","")
+            hrs   = ll.get("hours",0)
+            if not emp or not wdate: continue
+            rows = local_fetch(
+                "SELECT id FROM labour_logs WHERE employee=? AND work_date=? AND job_id=? AND hours=?",
+                (emp, wdate, jid, hrs))
+            if not rows:
+                local_execute(
+                    "INSERT INTO labour_logs (work_date,job_id,employee,hours,hourly_rate,note,synced) VALUES (?,?,?,?,?,?,1)",
+                    (wdate, jid, emp, hrs, ll.get("hourly_rate",0), ll.get("note","") or ""))
     except: pass
     return count
 
@@ -216,6 +231,30 @@ def sync_to_supabase(employee):
                 local_execute("UPDATE labour_logs SET synced=1 WHERE id=?", (ll["id"],))
             else:
                 errors.append(f"labour_log: {msg}")
+        # ── Push job_photos ────────────────────────────────────────────────
+        unsynced_ph = local_fetch("SELECT * FROM job_photos WHERE id NOT IN (SELECT COALESCE(id,0) FROM job_photos WHERE photo_data IS NULL) ORDER BY id")
+        # Use a simpler unsynced flag approach — add synced col if missing
+        try:
+            import sqlite3 as _sq
+            with _sq.connect(DB_PATH) as _c:
+                _c.execute("ALTER TABLE job_photos ADD COLUMN synced INTEGER DEFAULT 0")
+                _c.commit()
+        except: pass
+        unsynced_ph = local_fetch("SELECT * FROM job_photos WHERE synced=0")
+        for ph in unsynced_ph:
+            import base64 as _b64
+            photo_b64 = _b64.b64encode(ph["photo_data"]).decode() if ph["photo_data"] else ""
+            ok, msg = supa_post("job_photos", {
+                "job_id":      ph["job_id"] or "",
+                "photo_date":  ph["photo_date"] or "",
+                "caption":     ph["caption"] or "",
+                "photo_data":  photo_b64,
+                "uploaded_by": ph["uploaded_by"] or ""
+            })
+            if ok:
+                local_execute("UPDATE job_photos SET synced=1 WHERE id=?", (ph["id"],))
+            else:
+                errors.append(f"photo: {msg}")
     except Exception as _e:
         errors.append(str(_e))
     return errors
@@ -455,6 +494,7 @@ elif page == "clock":
         if st.button("▶  Clock In", type="primary", use_container_width=True):
             local_execute("INSERT INTO clock_events (employee,job_id,event_type,event_time,event_date,note,status,synced) VALUES (?,?,?,?,?,?,?,0)",
                 (user, selected_job, "in", datetime.now().strftime("%H:%M:%S"), today_str, clock_note, "Pending"))
+            sync_from_supabase()   # pull latest approvals + assignments
             errs = sync_to_supabase(user)
             if errs:
                 st.warning(f"⚠️ Sync issue: {errs[0]}")
