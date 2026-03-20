@@ -6607,24 +6607,54 @@ elif page == "Schedule Calendar":
     # ── Upcoming assignments list ──────────────────────────────────────────
     st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:16px 0 8px'>UPCOMING ASSIGNMENTS</div>", unsafe_allow_html=True)
     upcoming = fetch_df("""
-        SELECT da.date, da.employee, da.job_id, da.client, da.note, da.id
+        SELECT da.date, da.employee, da.job_id, da.client,
+               COALESCE(da.start_time,'') AS start_time,
+               COALESCE(da.end_time,'') AS end_time,
+               COALESCE(da.note,'') AS note, da.id
         FROM day_assignments da
         WHERE da.date >= ? AND da.employee != '__unassigned__'
-        ORDER BY da.date, da.employee
-        LIMIT 20
+        ORDER BY da.date, da.start_time, da.employee
+        LIMIT 60
     """, (today_str,))
 
     if upcoming.empty:
         st.info("No upcoming assignments.")
     else:
+        # Group by date
+        current_date = None
         for _, row in upcoming.iterrows():
-            uc1,uc2,uc3,uc4,uc5 = st.columns([2,2,2,3,1])
+            row_date = str(row["date"])
+            # Date header when date changes
+            if row_date != current_date:
+                current_date = row_date
+                is_today = row_date == today_str
+                date_label = "Today" if is_today else _fmt_date(row_date)
+                st.markdown(
+                    f"<div style='background:{'#0d2233' if is_today else '#111c27'};"
+                    f"border-left:3px solid {'#2dd4bf' if is_today else '#2a3d4f'};"
+                    f"padding:8px 14px;margin:10px 0 4px;border-radius:0 6px 6px 0'>"
+                    f"<span style='font-weight:700;color:{'#2dd4bf' if is_today else '#94a3b8'};font-size:14px'>"
+                    f"{date_label}</span></div>",
+                    unsafe_allow_html=True)
+
             color = emp_color_map.get(str(row.get("employee","")), "#64748b")
-            uc1.markdown(f"<div style='color:#94a3b8;font-size:13px'>{_fmt_date(str(row['date']))}</div>", unsafe_allow_html=True)
-            uc2.markdown(f"<div style='color:{color};font-weight:700;font-size:13px'>{str(row.get('employee',''))}</div>", unsafe_allow_html=True)
-            uc3.markdown(f"<div style='color:#e2e8f0;font-size:13px'>{str(row.get('job_id',''))}</div>", unsafe_allow_html=True)
-            uc4.markdown(f"<div style='color:#64748b;font-size:13px'>{str(row.get('note',''))}</div>", unsafe_allow_html=True)
-            with uc5:
+            st_t = str(row.get("start_time","") or "")
+            en_t = str(row.get("end_time","") or "")
+            time_str = f"{st_t[:5]}–{en_t[:5]}" if st_t and en_t else ""
+
+            rc1, rc2 = st.columns([8,1])
+            with rc1:
+                st.markdown(
+                    f"<div style='display:flex;align-items:center;gap:10px;padding:6px 8px;"
+                    f"background:#1e2d3d;border-radius:8px;margin-bottom:3px'>"
+                    f"<div style='width:8px;height:8px;border-radius:50%;background:{color};flex-shrink:0'></div>"
+                    f"<span style='color:{color};font-weight:700;min-width:130px;font-size:14px'>{row.get('employee','')}</span>"
+                    f"<span style='color:#e2e8f0;font-size:14px'>{row.get('job_id','')}</span>"
+                    f"<span style='color:#64748b;font-size:13px'>{row.get('client','')}</span>"
+                    + (f"<span style='color:#f59e0b;font-size:12px;margin-left:auto'>{time_str}</span>" if time_str else "") +
+                    (f"<span style='color:#475569;font-size:12px;margin-left:8px'>{row.get('note','')[:30]}</span>" if row.get('note') else "") +
+                    f"</div>", unsafe_allow_html=True)
+            with rc2:
                 if st.button("🗑", key=f"del_assign_{row['id']}"):
                     execute("DELETE FROM day_assignments WHERE id=?", (int(row["id"]),))
                     st.rerun()
