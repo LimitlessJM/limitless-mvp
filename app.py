@@ -1138,33 +1138,37 @@ def sync_from_mobile():
     if not USE_SUPABASE:
         return
     try:
-        # Pull clock events
+        # Pull clock events — match on employee+date+type+time not id
         events = supa_pull("clock_events")
         for e in events:
-            eid = e.get("id")
-            if not eid: continue
-            existing = fetch_df("SELECT id FROM clock_events WHERE id=?", (eid,))
+            emp   = e.get("employee","")
+            edate = e.get("event_date","")
+            etype = e.get("event_type","")
+            etime = e.get("event_time","")
+            if not emp or not edate: continue
+            existing = fetch_df("""SELECT id FROM clock_events
+                WHERE employee=? AND event_date=? AND event_type=? AND event_time=?""",
+                (emp, edate, etype, etime))
             if existing.empty:
                 execute("""INSERT INTO clock_events
-                    (id, employee, job_id, event_type, event_time, event_date, note, status)
-                    VALUES (?,?,?,?,?,?,?,?)""",
-                    (eid, e.get("employee",""), e.get("job_id",""),
-                     e.get("event_type",""), e.get("event_time",""),
-                     e.get("event_date",""), e.get("note",""),
-                     e.get("status","Pending")))
-        # Pull mobile variations
+                    (employee, job_id, event_type, event_time, event_date, note, status)
+                    VALUES (?,?,?,?,?,?,?)""",
+                    (emp, e.get("job_id",""), etype, etime, edate,
+                     e.get("note",""), e.get("status","Pending")))
+        # Pull mobile variations — match on employee+submitted_at
         vars_data = supa_pull("mobile_variations")
         for v in vars_data:
-            vid = v.get("id")
-            if not vid: continue
-            existing = fetch_df("SELECT id FROM mobile_variations WHERE id=?", (vid,))
+            emp  = v.get("employee","")
+            subm = v.get("submitted_at","")
+            if not emp or not subm: continue
+            existing = fetch_df("""SELECT id FROM mobile_variations
+                WHERE employee=? AND submitted_at=?""", (emp, subm))
             if existing.empty:
                 execute("""INSERT INTO mobile_variations
-                    (id, employee, job_id, description, submitted_at, status)
-                    VALUES (?,?,?,?,?,?)""",
-                    (vid, v.get("employee",""), v.get("job_id",""),
-                     v.get("description",""), v.get("submitted_at",""),
-                     v.get("status","Pending")))
+                    (employee, job_id, description, submitted_at, status)
+                    VALUES (?,?,?,?,?)""",
+                    (emp, v.get("job_id",""), v.get("description",""),
+                     subm, v.get("status","Pending")))
     except Exception as _se:
         pass
 
