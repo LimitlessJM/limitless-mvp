@@ -125,15 +125,20 @@ def sync_from_supabase():
     count = 0
     try:
         emps = supa_get("employees", {"active": "1"})
-        for e in emps:
-            local_execute("INSERT OR REPLACE INTO employees (id,name,role,hourly_rate,active,pin) VALUES (?,?,?,?,?,?)",
-                (e.get("id"), e.get("name",""), e.get("role",""),
-                 e.get("hourly_rate",0), e.get("active",1), e.get("pin","")))
-            count += 1
+        if emps:
+            # Clear local employees and replace with fresh list from desktop
+            local_execute("DELETE FROM employees")
+            for e in emps:
+                local_execute("INSERT OR REPLACE INTO employees (id,name,role,hourly_rate,active,pin) VALUES (?,?,?,?,?,?)",
+                    (e.get("id"), e.get("name",""), e.get("role",""),
+                     e.get("hourly_rate",0), e.get("active",1), e.get("pin","")))
+                count += 1
         jobs = supa_get("jobs")
-        for j in jobs:
-            local_execute("INSERT OR REPLACE INTO jobs (job_id,client,address,stage) VALUES (?,?,?,?)",
-                (j.get("job_id"), j.get("client",""), j.get("address",""), j.get("stage","")))
+        if jobs:
+            local_execute("DELETE FROM jobs")
+            for j in jobs:
+                local_execute("INSERT OR REPLACE INTO jobs (job_id,client,address,stage) VALUES (?,?,?,?)",
+                    (j.get("job_id"), j.get("client",""), j.get("address",""), j.get("stage","")))
         assigns = supa_get("day_assignments")
         today = date.today().isoformat()
         for a in assigns:
