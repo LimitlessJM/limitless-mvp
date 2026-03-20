@@ -948,6 +948,20 @@ def init_db():
     try:
         cur.execute("DROP INDEX IF EXISTS idx_cat_items_desc")
     except: pass
+    # ── Create clock_events table if missing ─────────────────────────────
+    cur.execute("""CREATE TABLE IF NOT EXISTS clock_events (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        employee    TEXT NOT NULL,
+        job_id      TEXT DEFAULT '',
+        event_type  TEXT NOT NULL,
+        event_time  TEXT NOT NULL,
+        event_date  TEXT NOT NULL,
+        note        TEXT DEFAULT '',
+        status      TEXT DEFAULT 'Pending',
+        approved_by TEXT DEFAULT '',
+        approved_at TEXT DEFAULT '',
+        synced      INTEGER DEFAULT 0
+    )""")
     # ── Add status column to clock_events for director approval ──────────
     try:
         cur.execute("ALTER TABLE clock_events ADD COLUMN status TEXT DEFAULT 'Pending'")
@@ -3099,24 +3113,27 @@ if page == "Dashboard":
     total_active    = len(all_active_jobs)
 
     # On Site Today — reads ACTUAL clock-ins, falls back to schedule
-    on_site_clocked = fetch_df("""
-        SELECT DISTINCT ce.employee
-        FROM clock_events ce
-        WHERE ce.event_date=? AND ce.event_type='in'
-        AND ce.employee NOT IN (
-            SELECT DISTINCT employee FROM clock_events
-            WHERE event_date=? AND event_type='out'
-            AND id > (SELECT MAX(id) FROM clock_events c2
-                      WHERE c2.employee=clock_events.employee
-                      AND c2.event_date=clock_events.event_date
-                      AND c2.event_type='in')
-        )
-    """, (today_str, today_str))
+    try:
+        on_site_clocked = fetch_df("""
+            SELECT DISTINCT ce.employee
+            FROM clock_events ce
+            WHERE ce.event_date=? AND ce.event_type='in'
+            AND ce.employee NOT IN (
+                SELECT DISTINCT employee FROM clock_events
+                WHERE event_date=? AND event_type='out'
+                AND id > (SELECT MAX(id) FROM clock_events c2
+                          WHERE c2.employee=clock_events.employee
+                          AND c2.event_date=clock_events.event_date
+                          AND c2.event_type='in')
+            )
+        """, (today_str, today_str))
+    except:
+        import pandas as _pd2
+        on_site_clocked = _pd2.DataFrame()
     on_site_scheduled = fetch_df("""
         SELECT DISTINCT da.employee FROM day_assignments da
         WHERE da.date=? AND da.employee != '__unassigned__'
     """, (today_str,))
-    # Merge — clocked in takes priority
     clocked_names = set(on_site_clocked["employee"].tolist()) if not on_site_clocked.empty else set()
     scheduled_names = set(on_site_scheduled["employee"].tolist()) if not on_site_scheduled.empty else set()
     all_onsite_names = clocked_names | scheduled_names
