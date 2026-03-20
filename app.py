@@ -878,10 +878,18 @@ def init_db():
     # ── Custom catalogue table ─────────────────────────────────────────────
     cur.execute("""CREATE TABLE IF NOT EXISTS custom_catalogue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        supplier_code TEXT DEFAULT '',
+        supplier_name TEXT DEFAULT '',
         category TEXT DEFAULT '', description TEXT NOT NULL,
         uom TEXT DEFAULT 'lm', material_cost REAL DEFAULT 0,
         labour_cost REAL DEFAULT 0, sell_unit_rate REAL DEFAULT 0,
         created_by TEXT DEFAULT '', created_at TEXT DEFAULT '')""")
+    try:
+        cur.execute("ALTER TABLE custom_catalogue ADD COLUMN supplier_code TEXT DEFAULT ''")
+    except: pass
+    try:
+        cur.execute("ALTER TABLE custom_catalogue ADD COLUMN supplier_name TEXT DEFAULT ''")
+    except: pass
 
     # ── Add handover columns if missing ──────────────────────────────────
     for _col, _def in [
@@ -2217,6 +2225,22 @@ def get_estimate(job_id):
 
 
 def load_catalogue():
+    # If no Excel file, use custom_catalogue only
+    if not CATALOGUE_PATH.exists():
+        try:
+            custom_only = fetch_df("""
+                SELECT category AS Category, description AS Description,
+                       uom AS UOM, material_cost AS MaterialCost,
+                       labour_cost AS LabourCost,
+                       COALESCE(sell_unit_rate,0) AS SellUnitRate
+                FROM custom_catalogue ORDER BY category, description
+            """)
+            if not custom_only.empty:
+                for col in ["MaterialCost","LabourCost","SellUnitRate"]:
+                    custom_only[col] = pd.to_numeric(custom_only[col], errors="coerce").fillna(0.0)
+                return custom_only
+        except: pass
+        raise FileNotFoundError(f"Catalogue file not found: {CATALOGUE_PATH}")
     try:
         import openpyxl  # noqa — ensure it's available
     except ImportError:
@@ -3411,135 +3435,295 @@ elif page == "Quote Builder":
 # ─────────────────────────────────────────────
 elif page == "Catalogue":
     st.title("Catalogue")
+    st.caption("Your editable catalogue — import from CSV, adjust prices, add custom items. All items flow into Quote Builder.")
 
-    # ── Add custom item ───────────────────────────────────────────────
-    with st.expander("+ Add custom item", expanded=False):
-        # Get existing categories from base catalogue + custom
-        try:
-            base_cats = load_catalogue()["Category"].dropna().unique().tolist()
-        except:
-            base_cats = []
-        try:
-            custom_cats = fetch_df("SELECT DISTINCT category FROM custom_catalogue WHERE category != ''")["category"].tolist()
-        except:
-            custom_cats = []
-        all_cats = sorted(set(base_cats + custom_cats)) + ["+ New category"]
+    UOM_OPTIONS = ["lm","m2","Ea","each","m3","hr","item","allow","t","kg","L"]
 
-        with st.form("add_custom_cat"):
-            cc1, cc2 = st.columns(2)
-            with cc1:
-                cc_cat_pick = st.selectbox("Category", all_cats)
-                cc_cat_new  = st.text_input("New category name", placeholder="e.g. Plumbing Installation",
-                    help="Only used if '+ New category' selected above")
+    cat_tabs = st.tabs(["📋 My Catalogue", "📥 Import CSV", "➕ Add Item", "🔧 Price Adjustment"])
+
+    # ── TAB 1: MY CATALOGUE (editable) ────────────────────────────────
+    with cat_tabs[0]:
+        custom_df = fetch_df("SELECT * FROM custom_catalogue ORDER BY category, description")
+
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            cat_search = st.text_input("Search", placeholder="Item name...", key="cat_srch")
+        with cc2:
+            all_cats_list = sorted(custom_df["category"].dropna().unique().tolist()) if not custom_df.empty else []
+            cat_filter = st.selectbox("Category", ["All"] + all_cats_list, key="cat_filt")
+        with cc3:
+            st.metric("Total items", len(custom_df))
+
+        if not custom_df.empty:
+            disp = custom_df.copy()
+            if cat_search:
+                disp = disp[disp["description"].str.contains(cat_search, case=False, na=False)]
+            if cat_filter != "All":
+                disp = disp[disp["category"] == cat_filter]
+
+            # Column headers
+            h0,h1,h2,h3,h4,h5,h6,h7,h8 = st.columns([1.2,2.5,1.5,1.5,1,1.2,1.2,1.2,1])
+            for col, lbl in zip([h0,h1,h2,h3,h4,h5,h6,h7,h8],
+                ["Code","Description","Supplier","Category","UOM","Mat $","Lab $","Sell $",""]):
+                col.markdown(f"<div style='color:#475569;font-size:13px;font-weight:700'>{lbl}</div>", unsafe_allow_html=True)
+            st.divider()
+
+            for _, cr in disp.iterrows():
+                cid = int(cr["id"])
+                is_editing = st.session_state.get("cat_editing") == cid
+
+                if is_editing:
+                    with st.form(f"cat_edit_{cid}"):
+                        ef0,ef1,ef2,ef3,ef4,ef5,ef6,ef7,ef8 = st.columns([1.2,2.5,1.5,1.5,1,1.2,1.2,1.2,1])
+                        with ef0: e_scode = st.text_input("", value=str(cr.get("supplier_code","") or ""), label_visibility="collapsed", placeholder="Code")
+                        with ef1: e_desc  = st.text_input("", value=str(cr.get("description","") or ""), label_visibility="collapsed")
+                        with ef2: e_supp  = st.text_input("", value=str(cr.get("supplier_name","") or ""), label_visibility="collapsed", placeholder="Supplier")
+                        with ef3: e_cat   = st.text_input("", value=str(cr.get("category","") or ""), label_visibility="collapsed")
+                        with ef4: e_uom   = st.selectbox("", UOM_OPTIONS,
+                            index=UOM_OPTIONS.index(str(cr.get("uom","lm"))) if str(cr.get("uom","lm")) in UOM_OPTIONS else 0,
+                            label_visibility="collapsed")
+                        with ef5: e_mat  = st.number_input("", value=float(cr.get("material_cost",0) or 0), step=0.5, label_visibility="collapsed")
+                        with ef6: e_lab  = st.number_input("", value=float(cr.get("labour_cost",0) or 0), step=0.5, label_visibility="collapsed")
+                        with ef7: e_sell = st.number_input("", value=float(cr.get("sell_unit_rate",0) or 0), step=0.5, label_visibility="collapsed")
+                        with ef8:
+                            if st.form_submit_button("💾", type="primary"):
+                                execute("""UPDATE custom_catalogue SET
+                                    supplier_code=?,supplier_name=?,category=?,description=?,uom=?,
+                                    material_cost=?,labour_cost=?,sell_unit_rate=?
+                                    WHERE id=?""",
+                                    (e_scode.strip(),e_supp.strip(),e_cat.strip(),e_desc.strip(),
+                                     e_uom,e_mat,e_lab,e_sell,cid))
+                                st.session_state.pop("cat_editing",None)
+                                st.rerun()
+                else:
+                    _scode = str(cr.get("supplier_code","") or "")
+                    _sname = str(cr.get("supplier_name","") or "")
+                    r0,r1,r2,r3,r4,r5,r6,r7,r8 = st.columns([1.2,2.5,1.5,1.5,1,1.2,1.2,1.2,1])
+                    r0.markdown(f"<div style='font-size:12px;color:#475569;padding:6px 0;font-family:monospace'>{_scode or '—'}</div>", unsafe_allow_html=True)
+                    r1.markdown(f"<div style='font-size:14px;color:#e2e8f0;padding:6px 0'>{cr.get('description','')}</div>", unsafe_allow_html=True)
+                    r2.markdown(f"<div style='font-size:13px;color:#f59e0b;padding:6px 0'>{_sname or '—'}</div>", unsafe_allow_html=True)
+                    r3.markdown(f"<div style='font-size:13px;color:#64748b;padding:6px 0'>{cr.get('category','')}</div>", unsafe_allow_html=True)
+                    r4.markdown(f"<div style='font-size:13px;color:#94a3b8;padding:6px 0'>{cr.get('uom','')}</div>", unsafe_allow_html=True)
+                    r5.markdown(f"<div style='font-size:14px;color:#e2e8f0;padding:6px 0'>${float(cr.get('material_cost',0)):,.2f}</div>", unsafe_allow_html=True)
+                    r6.markdown(f"<div style='font-size:14px;color:#e2e8f0;padding:6px 0'>${float(cr.get('labour_cost',0)):,.2f}</div>", unsafe_allow_html=True)
+                    r7.markdown(f"<div style='font-size:14px;color:#2dd4bf;font-weight:700;padding:6px 0'>${float(cr.get('sell_unit_rate',0)):,.2f}</div>", unsafe_allow_html=True)
+                    with r8:
+                        bc1,bc2,bc3 = st.columns(3)
+                        with bc1:
+                            if st.button("✏️", key=f"ed_{cid}"):
+                                st.session_state["cat_editing"] = cid; st.rerun()
+                        with bc2:
+                            if st.button("⧉", key=f"dup_{cid}", help="Duplicate for another supplier"):
+                                execute("""INSERT INTO custom_catalogue
+                                    (supplier_code,supplier_name,category,description,uom,
+                                     material_cost,labour_cost,sell_unit_rate,created_by,created_at)
+                                    VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                                    (_scode, "", str(cr.get("category","") or ""),
+                                     str(cr.get("description","") or ""),
+                                     str(cr.get("uom","lm") or "lm"),
+                                     float(cr.get("material_cost",0) or 0),
+                                     float(cr.get("labour_cost",0) or 0),
+                                     float(cr.get("sell_unit_rate",0) or 0),
+                                     "Duplicate", _today_aest().isoformat()))
+                                st.success("✅ Duplicated! Edit the supplier name and price.")
+                                st.rerun()
+                        with bc3:
+                            if st.button("🗑", key=f"dl_{cid}"):
+                                execute("DELETE FROM custom_catalogue WHERE id=?", (cid,))
+                                st.rerun()
+                    st.divider()
+        else:
+            st.info("No items yet — import a CSV or add items manually.")
+
+    # ── TAB 2: IMPORT CSV ──────────────────────────────────────────────
+    with cat_tabs[1]:
+        st.markdown("### Import from CSV")
+        st.markdown("""
+        <div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:10px;padding:16px;margin-bottom:16px'>
+            <div style='color:#2dd4bf;font-weight:700;margin-bottom:8px'>Expected CSV columns:</div>
+            <div style='color:#94a3b8;font-size:14px'>
+                <b style='color:#e2e8f0'>Category</b> · <b style='color:#e2e8f0'>Description</b> · 
+                <b style='color:#e2e8f0'>UOM</b> · <b style='color:#e2e8f0'>MaterialCost</b> · 
+                <b style='color:#e2e8f0'>LabourCost</b> · <b style='color:#e2e8f0'>SellUnitRate</b>
+                <br><span style='color:#475569;font-size:13px'>Column names are flexible — we'll try to match them automatically.</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        csv_file = st.file_uploader("Upload CSV or Excel file", type=["csv","xlsx","xls"], key="cat_csv_upload")
+
+        if csv_file:
+            try:
+                import io as _io2
+                if csv_file.name.endswith(".csv"):
+                    import_df = pd.read_csv(csv_file)
+                else:
+                    import_df = pd.read_excel(csv_file)
+
+                st.success(f"Found {len(import_df)} rows, {len(import_df.columns)} columns")
+                st.write("**Preview (first 5 rows):**")
+                st.dataframe(import_df.head(), hide_index=True)
+
+                # Auto-map columns
+                col_map = {}
+                for col in import_df.columns:
+                    cl = col.lower().strip().replace(" ","").replace("_","")
+                    if cl in ["category","cat","section","group"]:        col_map["Category"] = col
+                    elif cl in ["description","desc","item","name","itemname"]: col_map["Description"] = col
+                    elif cl in ["uom","unit","measure"]:                  col_map["UOM"] = col
+                    elif cl in ["materialcost","matcost","material","mat","matrate"]: col_map["MaterialCost"] = col
+                    elif cl in ["labourcost","labcost","labour","labor","labrate"]:  col_map["LabourCost"] = col
+                    elif cl in ["sellunitrate","sellrate","sell","rate","unitrate"]: col_map["SellUnitRate"] = col
+
+                st.markdown("**Column mapping:**")
+                mc1,mc2,mc3,mc4,mc5,mc6,mc7 = st.columns(7)
+                all_cols = ["(skip)"] + list(import_df.columns)
+                with mc1: map_code = st.selectbox("Supplier Code", all_cols, index=0, key="map_code")
+                with mc2: map_cat  = st.selectbox("Category",     all_cols, index=all_cols.index(col_map.get("Category","(skip)"))  if col_map.get("Category") in all_cols else 0, key="map_cat")
+                with mc3: map_desc = st.selectbox("Description",  all_cols, index=all_cols.index(col_map.get("Description","(skip)")) if col_map.get("Description") in all_cols else 0, key="map_desc")
+                with mc4: map_uom  = st.selectbox("UOM",          all_cols, index=all_cols.index(col_map.get("UOM","(skip)"))       if col_map.get("UOM") in all_cols else 0, key="map_uom")
+                with mc5: map_mat  = st.selectbox("Material $",   all_cols, index=all_cols.index(col_map.get("MaterialCost","(skip)")) if col_map.get("MaterialCost") in all_cols else 0, key="map_mat")
+                with mc6: map_lab  = st.selectbox("Labour $",     all_cols, index=all_cols.index(col_map.get("LabourCost","(skip)"))  if col_map.get("LabourCost") in all_cols else 0, key="map_lab")
+                with mc7: map_sell = st.selectbox("Sell $",       all_cols, index=all_cols.index(col_map.get("SellUnitRate","(skip)")) if col_map.get("SellUnitRate") in all_cols else 0, key="map_sell")
+
+                imp_mode = st.radio("Import mode",
+                    ["Add new items only", "Update existing + add new", "Replace all items in matching categories"],
+                    horizontal=True)
+
+                if st.button("📥 Import to My Catalogue", type="primary"):
+                    if map_desc == "(skip)":
+                        st.error("Description column required!")
+                    else:
+                        imported = 0
+                        updated  = 0
+                        for _, row in import_df.iterrows():
+                            _desc = str(row.get(map_desc,"") or "").strip()
+                            if not _desc: continue
+                            _cat  = str(row.get(map_cat,"General") if map_cat != "(skip)" else "Imported") or "General"
+                            _uom  = str(row.get(map_uom,"Ea") if map_uom != "(skip)" else "Ea") or "Ea"
+                            _mat  = float(pd.to_numeric(row.get(map_mat,0) if map_mat != "(skip)" else 0, errors="coerce") or 0)
+                            _lab  = float(pd.to_numeric(row.get(map_lab,0) if map_lab != "(skip)" else 0, errors="coerce") or 0)
+                            _sell = float(pd.to_numeric(row.get(map_sell,0) if map_sell != "(skip)" else 0, errors="coerce") or 0)
+
+                            # Check if exists
+                            existing = fetch_df("SELECT id FROM custom_catalogue WHERE description=? AND category=?", (_desc, _cat))
+
+                            if not existing.empty and imp_mode != "Add new items only":
+                                execute("""UPDATE custom_catalogue SET
+                                    uom=?,material_cost=?,labour_cost=?,sell_unit_rate=?
+                                    WHERE description=? AND category=?""",
+                                    (_uom,_mat,_lab,_sell,_desc,_cat))
+                                updated += 1
+                            elif existing.empty:
+                                execute("""INSERT INTO custom_catalogue
+                                    (supplier_code,category,description,uom,material_cost,labour_cost,sell_unit_rate,created_by,created_at)
+                                    VALUES (?,?,?,?,?,?,?,?,?)""",
+                                    ("",_cat,_desc,_uom,_mat,_lab,_sell,"CSV Import",_today_aest().isoformat()))
+                                imported += 1
+
+                        st.success(f"✅ Done! {imported} new items added, {updated} updated.")
+                        st.rerun()
+
+            except Exception as _ie:
+                st.error(f"Import error: {_ie}")
+
+        # Download template
+        st.divider()
+        st.markdown("**Don't have a CSV? Download the template:**")
+        template_df = pd.DataFrame({
+            "Category": ["Roofing","Roofing","Guttering"],
+            "Description": ["Supply and Install Colorbond Roofing","Ridge Cap Colorbond","Supply and Install Quad Gutter 100mm"],
+            "UOM": ["m2","lm","lm"],
+            "MaterialCost": [28.50, 8.20, 12.40],
+            "LabourCost": [18.00, 6.50, 9.00],
+            "SellUnitRate": [55.00, 18.00, 25.00]
+        })
+        st.download_button("⬇️ Download CSV Template",
+            data=template_df.to_csv(index=False),
+            file_name="catalogue_template.csv", mime="text/csv")
+
+    # ── TAB 3: ADD ITEM ────────────────────────────────────────────────
+    with cat_tabs[2]:
+        st.markdown("### Add Single Item")
+        try:
+            custom_cats_add = fetch_df("SELECT DISTINCT category FROM custom_catalogue WHERE category != ''")["category"].tolist()
+        except:
+            custom_cats_add = []
+        all_cats_add = sorted(set(custom_cats_add)) + ["+ New category"]
+
+        with st.form("add_custom_item"):
+            ac1, ac2 = st.columns(2)
+            with ac1:
+                cc_cat_pick = st.selectbox("Category", all_cats_add)
+                cc_cat_new  = st.text_input("New category name", placeholder="e.g. Plumbing")
                 cc_desc = st.text_input("Description *", placeholder="e.g. Supply and Install 15mm Copper Pipe")
-                cc_uom  = st.selectbox("UOM", ["lm","m2","Ea","each","m3","hr","item","allow"])
-            with cc2:
+                cc_uom  = st.selectbox("UOM", UOM_OPTIONS)
+            with ac2:
                 cc_mat  = st.number_input("Material cost ($/UOM)", min_value=0.0, value=0.0, step=1.0)
                 cc_lab  = st.number_input("Labour cost ($/UOM)",   min_value=0.0, value=0.0, step=1.0)
                 cc_sell = st.number_input("Sell rate ($/UOM)",     min_value=0.0, value=0.0, step=1.0)
-            if st.form_submit_button("Add to catalogue", type="primary"):
+                st.caption("All items go into My Catalogue and are fully editable.")
+            if st.form_submit_button("Add to Catalogue", type="primary"):
                 if cc_desc.strip():
                     cc_cat = cc_cat_new.strip() if cc_cat_pick == "+ New category" else cc_cat_pick
                     execute("""INSERT INTO custom_catalogue
-                        (category, description, uom, material_cost, labour_cost, sell_unit_rate, created_by, created_at)
+                        (category,description,uom,material_cost,labour_cost,sell_unit_rate,created_by,created_at)
                         VALUES (?,?,?,?,?,?,?,?)""",
-                        (cc_cat, cc_desc.strip(), cc_uom,
-                         cc_mat, cc_lab, cc_sell,
-                         st.session_state.get("username","admin"),
-                         date.today().isoformat()))
-                    st.success(f"✅ '{cc_desc}' added to {cc_cat}!")
+                        (cc_cat,cc_desc.strip(),cc_uom,cc_mat,cc_lab,cc_sell,
+                         st.session_state.get("username","admin"),_today_aest().isoformat()))
+                    st.success(f"✅ Added!")
                     st.rerun()
                 else:
                     st.error("Description required.")
 
-    # ── Display catalogue ─────────────────────────────────────────────
-    tab_base, tab_custom = st.tabs(["📦 Base catalogue", "⭐ My custom items"])
+    # ── TAB 4: PRICE ADJUSTMENT ────────────────────────────────────────
+    with cat_tabs[3]:
+        st.markdown("### Bulk Price Adjustment")
+        st.caption("e.g. Lysaght sends a 5% price rise — update your whole catalogue in one click.")
 
-    with tab_base:
-        st.caption(f"Loaded from: {CATALOGUE_PATH.name}")
-        try:
-            cat_display = load_catalogue()
-            show_cols = [c for c in ["Category","Description","UOM","MaterialCost","LabourCost","SellUnitRate"]
-                         if c in cat_display.columns]
-            st.metric("Total items", len(cat_display))
-            search_cat = st.text_input("🔍 Search", placeholder="Search catalogue...", key="cat_search")
-            if search_cat:
-                mask = cat_display["Description"].str.contains(search_cat, case=False, na=False)
-                cat_display = cat_display[mask]
-            st.dataframe(cat_display[show_cols], width="stretch", hide_index=True)
-        except FileNotFoundError:
-            st.error(f"Catalogue file not found: {CATALOGUE_PATH.name}")
-        except Exception as e:
-            st.error(f"Error loading catalogue: {e}")
-
-    with tab_custom:
-        # Ensure table exists before querying
-        try:
-            execute("""CREATE TABLE IF NOT EXISTS custom_catalogue (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                category TEXT DEFAULT '', description TEXT NOT NULL,
-                uom TEXT DEFAULT 'lm', material_cost REAL DEFAULT 0,
-                labour_cost REAL DEFAULT 0, sell_unit_rate REAL DEFAULT 0,
-                created_by TEXT DEFAULT '', created_at TEXT DEFAULT '')""")
-        except: pass
-        custom_df = fetch_df("SELECT * FROM custom_catalogue ORDER BY category, description")
-        if custom_df.empty:
-            st.info("No custom items yet — add one above.")
+        custom_df_pa = fetch_df("SELECT * FROM custom_catalogue ORDER BY category")
+        if custom_df_pa.empty:
+            st.info("No items in catalogue yet.")
         else:
-            st.metric("Custom items", len(custom_df))
-            for _, cr in custom_df.iterrows():
-                cid = int(cr["id"])
-                c1, c2, c3 = st.columns([5,1,1])
-                with c1:
-                    st.markdown(
-                        "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;"
-                        "padding:10px 16px;margin-bottom:6px'>"
-                        "<div style='font-weight:700;color:#e2e8f0'>" + str(cr["description"]) + "</div>"
-                        "<div style='font-size:13px;color:#64748b'>" + str(cr.get("category","")) + " · " + str(cr.get("uom","")) +
-                        " · Mat: $" + f"{float(cr.get('material_cost',0)):,.2f}" +
-                        " · Lab: $" + f"{float(cr.get('labour_cost',0)):,.2f}" +
-                        " · Sell: $" + f"{float(cr.get('sell_unit_rate',0)):,.2f}" + "</div>"
-                        "</div>", unsafe_allow_html=True)
-                with c2:
-                    if st.button("✏️", key=f"edit_cc_{cid}", help="Edit"):
-                        st.session_state[f"editing_cc"] = cid
-                        st.rerun()
-                with c3:
-                    if st.button("🗑", key=f"del_cc_{cid}", help="Delete"):
-                        execute("DELETE FROM custom_catalogue WHERE id=?", (cid,))
-                        st.session_state.pop("editing_cc", None)
-                        st.rerun()
+            cats_pa = ["All categories"] + sorted(custom_df_pa["category"].dropna().unique().tolist())
 
-                # Inline edit form
-                if st.session_state.get("editing_cc") == cid:
-                    with st.form(f"edit_cc_form_{cid}"):
-                        ec1, ec2 = st.columns(2)
-                        with ec1:
-                            e_cat  = st.text_input("Category",    value=str(cr.get("category","") or ""))
-                            e_desc = st.text_input("Description", value=str(cr.get("description","") or ""))
-                            e_uom  = st.selectbox("UOM", ["lm","m2","Ea","each","m3","hr","item","allow"],
-                                index=["lm","m2","Ea","each","m3","hr","item","allow"].index(str(cr.get("uom","lm")))
-                                if str(cr.get("uom","lm")) in ["lm","m2","Ea","each","m3","hr","item","allow"] else 0)
-                        with ec2:
-                            e_mat  = st.number_input("Material cost", value=float(cr.get("material_cost",0) or 0), step=1.0)
-                            e_lab  = st.number_input("Labour cost",   value=float(cr.get("labour_cost",0)   or 0), step=1.0)
-                            e_sell = st.number_input("Sell rate",     value=float(cr.get("sell_unit_rate",0) or 0), step=1.0)
-                        es1, es2 = st.columns(2)
-                        with es1:
-                            if st.form_submit_button("💾 Save", type="primary"):
-                                execute("""UPDATE custom_catalogue SET
-                                    category=?, description=?, uom=?,
-                                    material_cost=?, labour_cost=?, sell_unit_rate=?
-                                    WHERE id=?""",
-                                    (e_cat.strip(), e_desc.strip(), e_uom,
-                                     e_mat, e_lab, e_sell, cid))
-                                st.session_state.pop("editing_cc", None)
-                                st.success("✅ Updated!")
-                                st.rerun()
-                        with es2:
-                            if st.form_submit_button("Cancel"):
-                                st.session_state.pop("editing_cc", None)
-                                st.rerun()
+            pa1,pa2,pa3 = st.columns(3)
+            with pa1:
+                pa_cat = st.selectbox("Apply to", cats_pa, key="pa_cat")
+            with pa2:
+                pa_field = st.selectbox("Adjust", ["Material cost", "Labour cost", "Sell rate", "All rates"], key="pa_field")
+            with pa3:
+                pa_pct = st.number_input("Change %", min_value=-50.0, max_value=100.0, value=5.0, step=0.5,
+                    help="Positive = increase. e.g. 5 = +5%", key="pa_pct")
+
+            # Preview
+            if pa_cat == "All categories":
+                preview_df = custom_df_pa.copy()
+            else:
+                preview_df = custom_df_pa[custom_df_pa["category"]==pa_cat].copy()
+
+            multiplier = 1 + (pa_pct / 100)
+            st.markdown(f"<div style='background:#1e2d3d;border-radius:8px;padding:10px 16px;margin:12px 0;color:#94a3b8;font-size:14px'>Will update <b style='color:#e2e8f0'>{len(preview_df)} items</b> in <b style='color:#e2e8f0'>{pa_cat}</b> — {pa_field} × {multiplier:.3f}</div>", unsafe_allow_html=True)
+
+            if pa_pct != 0:
+                col_preview = st.columns(4)
+                for i, (_, pr) in enumerate(preview_df.head(4).iterrows()):
+                    with col_preview[i % 4]:
+                        _old = float(pr.get("material_cost",0) if "Material" in pa_field or pa_field=="All rates" else pr.get("sell_unit_rate",0))
+                        _new = round(_old * multiplier, 2)
+                        st.markdown(f"<div style='background:#111c27;border-radius:6px;padding:8px;margin-bottom:6px'><div style='font-size:13px;color:#94a3b8'>{str(pr.get('description',''))[:30]}</div><div style='color:#f59e0b;font-size:13px'>${_old:.2f} → <b style='color:#2dd4bf'>${_new:.2f}</b></div></div>", unsafe_allow_html=True)
+
+            if st.button(f"Apply {pa_pct:+.1f}% to {len(preview_df)} items", type="primary"):
+                for _, row in preview_df.iterrows():
+                    rid = int(row["id"])
+                    if pa_field == "Material cost" or pa_field == "All rates":
+                        execute("UPDATE custom_catalogue SET material_cost=ROUND(material_cost*?,2) WHERE id=?", (multiplier, rid))
+                    if pa_field == "Labour cost" or pa_field == "All rates":
+                        execute("UPDATE custom_catalogue SET labour_cost=ROUND(labour_cost*?,2) WHERE id=?", (multiplier, rid))
+                    if pa_field == "Sell rate" or pa_field == "All rates":
+                        execute("UPDATE custom_catalogue SET sell_unit_rate=ROUND(sell_unit_rate*?,2) WHERE id=?", (multiplier, rid))
+                st.success(f"✅ {pa_pct:+.1f}% applied to {len(preview_df)} items!")
+                st.rerun()
 
 
 # ─────────────────────────────────────────────
