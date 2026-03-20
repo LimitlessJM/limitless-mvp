@@ -1148,6 +1148,7 @@ def sync_from_mobile():
     """Pull clock events and variations from Supabase into local DB."""
     if not USE_SUPABASE:
         return
+    # Each table wrapped individually so one failure doesn't kill rest
     try:
         # Pull clock events — match on employee+date+type+time not id
         events = supa_pull("clock_events")
@@ -11324,3 +11325,4 @@ elif page == "StackCT Import":
     """)
     if not fr_df.empty:
         st.dataframe(fr_df, width="stretch", hide_index=True)
+        
