@@ -4350,7 +4350,7 @@ elif page == "Jobs":
                     with hc1:
                         h_crew  = st.selectbox("Leading hand", emp_ho if emp_ho else [""])
                         h_days  = st.number_input("Days allowed", min_value=1, value=5, step=1)
-                        h_start = st.date_input("Start date", value=date.today())
+                        h_start = st.date_input("Start date", value=date.today(), format="DD/MM/YYYY")
                     with hc2:
                         h_daily = lb3/h_days if h_days else 0
                         st.metric("Daily labour target", f"${h_daily:,.0f}")
@@ -4760,7 +4760,7 @@ elif page == "Jobs":
                     with st.form("lab_f"):
                         la1,la2,la3 = st.columns(3)
                         with la1:
-                            lf_date = st.date_input("Date", value=date.today())
+                            lf_date = st.date_input("Date", value=date.today(), format="DD/MM/YYYY")
                             lf_emp  = st.selectbox("Employee", emp_names)
                         with la2:
                             default_rate = emp_rates.get(emp_names[0], 225.0)
@@ -5685,7 +5685,7 @@ No explanation, only JSON."""
             with st.form("diary_form"):
                 df1,df2 = st.columns(2)
                 with df1:
-                    d_date    = st.date_input("Date", value=date.today())
+                    d_date    = st.date_input("Date", value=date.today(), format="DD/MM/YYYY")
                     d_weather = st.selectbox("Weather", WEATHER_OPTS)
                     d_temp    = st.text_input("Temperature", placeholder="e.g. 28°C")
                     d_workers = st.multiselect("Workers on site", emp_names_d)
@@ -6546,7 +6546,7 @@ elif page == "Schedule Calendar":
                     if _jcli:
                         st.markdown(f"<div style='background:#1e2d3d;border-radius:6px;padding:6px 10px;font-size:13px;color:#2dd4bf;margin-top:-8px'>{ca_job} · {_jcli}</div>", unsafe_allow_html=True)
             with ac2:
-                ca_date = st.date_input("Date", value=_today_aest())
+                ca_date = st.date_input("Date", value=_today_aest(), format="DD/MM/YYYY")
                 ca_note = st.text_input("Note", placeholder="e.g. Install gutters")
             with ac3:
                 ca_start = st.selectbox("Start time", time_options, index=5)
@@ -6570,8 +6570,8 @@ elif page == "Schedule Calendar":
                         st.markdown(f"<div style='background:#1e2d3d;border-radius:6px;padding:6px 10px;font-size:13px;color:#2dd4bf;margin-top:-8px'>{bulk_job} · {_bjcli}</div>", unsafe_allow_html=True)
                 bulk_note = st.text_input("Note", placeholder="e.g. Full install")
             with bc2:
-                bulk_start_date = st.date_input("From date", value=_today_aest(), key="bulk_from")
-                bulk_end_date   = st.date_input("To date",   value=_today_aest(), key="bulk_to")
+                bulk_start_date = st.date_input("From date", value=_today_aest(), key="bulk_from", format="DD/MM/YYYY")
+                bulk_end_date   = st.date_input("To date",   value=_today_aest(), key="bulk_to",  format="DD/MM/YYYY")
                 bulk_start_time = st.selectbox("Start time", time_options, index=5, key="bulk_st")
                 bulk_end_time   = st.selectbox("End time",   time_options, index=19, key="bulk_et")
 
@@ -8305,7 +8305,7 @@ elif page == "Clients":
                 ic1,ic2 = st.columns(2)
                 with ic1:
                     i_type  = st.selectbox("Type", INTERACT_TYPES)
-                    i_date  = st.date_input("Date", value=date.today())
+                    i_date  = st.date_input("Date", value=date.today(), format="DD/MM/YYYY")
                     i_job   = st.selectbox("Linked job", job_opts)
                 with ic2:
                     i_notes = st.text_area("Notes", height=100,
@@ -10072,7 +10072,7 @@ elif page == "Payroll Rules":
         with st.form("add_ph"):
             ph1,ph2 = st.columns(2)
             with ph1: a_ph_name = st.text_input("Holiday name")
-            with ph2: a_ph_date = st.date_input("Date", value=date.today())
+            with ph2: a_ph_date = st.date_input("Date", value=date.today(), format="DD/MM/YYYY")
             if st.form_submit_button("Add", type="primary"):
                 if a_ph_name.strip():
                     execute("INSERT INTO public_holidays (holiday_date,name,state) VALUES (?,?,?)",
