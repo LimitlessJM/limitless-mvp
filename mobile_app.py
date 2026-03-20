@@ -103,7 +103,8 @@ def init_db():
         conn.execute("""CREATE TABLE IF NOT EXISTS labour_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT, work_date TEXT,
             job_id TEXT, employee TEXT, hours REAL DEFAULT 0,
-            hourly_rate REAL DEFAULT 0, note TEXT DEFAULT '')""")
+            hourly_rate REAL DEFAULT 0, note TEXT DEFAULT '',
+            synced INTEGER DEFAULT 0)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS job_photos (
             id INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT,
             photo_date TEXT, caption TEXT DEFAULT '',
@@ -121,6 +122,9 @@ def init_db():
         except: pass
         try:
             conn.execute("ALTER TABLE clock_events ADD COLUMN approved_at TEXT DEFAULT ''")
+        except: pass
+        try:
+            conn.execute("ALTER TABLE labour_logs ADD COLUMN synced INTEGER DEFAULT 0")
         except: pass
         conn.commit()
         if not conn.execute("SELECT COUNT(*) FROM employees").fetchone()[0]:
@@ -197,6 +201,21 @@ def sync_to_supabase(employee):
                 local_execute("UPDATE mobile_variations SET synced=1 WHERE id=?", (v["id"],))
             else:
                 errors.append(f"variation: {msg}")
+        # ── Push labour_logs ───────────────────────────────────────────────
+        unsynced_ll = local_fetch("SELECT * FROM labour_logs WHERE synced=0 AND employee=?", (employee,))
+        for ll in unsynced_ll:
+            ok, msg = supa_post("labour_logs", {
+                "work_date":   ll["work_date"],
+                "job_id":      ll["job_id"] or "",
+                "employee":    ll["employee"],
+                "hours":       ll["hours"],
+                "hourly_rate": ll["hourly_rate"],
+                "note":        ll["note"] or ""
+            })
+            if ok:
+                local_execute("UPDATE labour_logs SET synced=1 WHERE id=?", (ll["id"],))
+            else:
+                errors.append(f"labour_log: {msg}")
     except Exception as _e:
         errors.append(str(_e))
     return errors
@@ -418,8 +437,14 @@ elif page == "clock":
             now = datetime.now()
             local_execute("INSERT INTO clock_events (employee,job_id,event_type,event_time,event_date,note,status,synced) VALUES (?,?,?,?,?,?,?,0)",
                 (user, selected_job, "out", now.strftime("%H:%M:%S"), today_str, clock_note, "Pending"))
+            # ── Calculate hours and write labour_logs ──────────────────────
             emp = local_fetch("SELECT hourly_rate FROM employees WHERE name=?", (user,))
-            rate = float(emp[0]["hourly_rate"]) if emp else 0
+            rate = float(emp[0]["hourly_rate"]) if emp else 0.0
+            hours_worked = get_today_hours(user)
+            if hours_worked > 0:
+                local_execute(
+                    "INSERT INTO labour_logs (work_date, job_id, employee, hours, hourly_rate, note, synced) VALUES (?,?,?,?,?,?,0)",
+                    (today_str, selected_job, user, hours_worked, rate, clock_note or ""))
             errs = sync_to_supabase(user)
             if errs:
                 st.warning(f"⚠️ Sync issue: {errs[0]}")
