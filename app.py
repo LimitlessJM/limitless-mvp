@@ -6513,33 +6513,72 @@ elif page == "Schedule Calendar":
     st.divider()
 
     # ── Assignment form ────────────────────────────────────────────────────
-    st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin-bottom:8px'>ADD ASSIGNMENT</div>", unsafe_allow_html=True)
-
-    emp_names = fetch_df("SELECT name FROM employees WHERE active=1 ORDER BY name")["name"].tolist() if not assignments.empty or True else []
+    emp_names = fetch_df("SELECT name FROM employees WHERE active=1 ORDER BY name")["name"].tolist() if True else []
     jobs_list_cal = fetch_df("SELECT job_id, client FROM jobs WHERE archived=0 ORDER BY job_id")
+    time_options = [""] + [f"{h:02d}:{m:02d}" for h in range(5,20) for m in [0,30]]
 
-    with st.form("cal_assign_form"):
-        ac1, ac2, ac3 = st.columns(3)
-        with ac1:
-            ca_emp = st.selectbox("Employee", emp_names if emp_names else [""])
-            ca_job = st.selectbox("Job", jobs_list_cal["job_id"].tolist() if not jobs_list_cal.empty else [""])
-        with ac2:
-            ca_date = st.date_input("Date", value=_today_aest())
-            ca_note = st.text_input("Note", placeholder="e.g. Install gutters")
-        with ac3:
-            ca_start = st.selectbox("Start time", 
-                [""] + [f"{h:02d}:{m:02d}" for h in range(5,20) for m in [0,30]],
-                index=5)  # Default 07:00
-            ca_end = st.selectbox("End time",
-                [""] + [f"{h:02d}:{m:02d}" for h in range(5,20) for m in [0,30]],
-                index=19)  # Default 16:30
-        if st.form_submit_button("Add Assignment", type="primary"):
-            execute("INSERT INTO day_assignments (job_id, client, employee, date, note, start_time, end_time) VALUES (?,?,?,?,?,?,?)",
-                (ca_job,
-                 str(jobs_list_cal[jobs_list_cal["job_id"]==ca_job]["client"].iloc[0]) if not jobs_list_cal.empty and ca_job in jobs_list_cal["job_id"].values else "",
-                 ca_emp, ca_date.isoformat(), ca_note, ca_start, ca_end))
-            st.success(f"✅ {ca_emp} → {ca_job} on {ca_date.strftime('%d %b')} {ca_start}–{ca_end}")
-            st.rerun()
+    assign_mode = st.radio("Assignment mode", ["Single day", "Date range (bulk)"], horizontal=True, key="assign_mode")
+
+    if assign_mode == "Single day":
+        with st.form("cal_assign_form"):
+            ac1, ac2, ac3 = st.columns(3)
+            with ac1:
+                ca_emp = st.selectbox("Employee", emp_names if emp_names else [""])
+                ca_job = st.selectbox("Job", jobs_list_cal["job_id"].tolist() if not jobs_list_cal.empty else [""])
+            with ac2:
+                ca_date = st.date_input("Date", value=_today_aest())
+                ca_note = st.text_input("Note", placeholder="e.g. Install gutters")
+            with ac3:
+                ca_start = st.selectbox("Start time", time_options, index=5)
+                ca_end   = st.selectbox("End time",   time_options, index=19)
+            if st.form_submit_button("Add Assignment", type="primary"):
+                _cli = str(jobs_list_cal[jobs_list_cal["job_id"]==ca_job]["client"].iloc[0]) if not jobs_list_cal.empty and ca_job in jobs_list_cal["job_id"].values else ""
+                execute("INSERT INTO day_assignments (job_id,client,employee,date,note,start_time,end_time) VALUES (?,?,?,?,?,?,?)",
+                    (ca_job, _cli, ca_emp, ca_date.isoformat(), ca_note, ca_start, ca_end))
+                st.success(f"✅ {ca_emp} → {ca_job} on {ca_date.strftime('%d %b')}")
+                st.rerun()
+    else:
+        # ── Bulk date range ────────────────────────────────────────────────
+        with st.form("cal_bulk_form"):
+            bc1, bc2 = st.columns(2)
+            with bc1:
+                bulk_emps = st.multiselect("Employees", emp_names, help="Select one or more")
+                bulk_job  = st.selectbox("Job", jobs_list_cal["job_id"].tolist() if not jobs_list_cal.empty else [""])
+                bulk_note = st.text_input("Note", placeholder="e.g. Full install")
+            with bc2:
+                bulk_start_date = st.date_input("From date", value=_today_aest(), key="bulk_from")
+                bulk_end_date   = st.date_input("To date",   value=_today_aest(), key="bulk_to")
+                bulk_start_time = st.selectbox("Start time", time_options, index=5, key="bulk_st")
+                bulk_end_time   = st.selectbox("End time",   time_options, index=19, key="bulk_et")
+
+            # Day checkboxes
+            st.markdown("<div style='font-size:13px;font-weight:600;color:#94a3b8;margin-top:8px'>Include days:</div>", unsafe_allow_html=True)
+            dc = st.columns(7)
+            day_labels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+            day_checks = []
+            for i, (col, lbl) in enumerate(zip(dc, day_labels)):
+                with col:
+                    day_checks.append(st.checkbox(lbl, value=(i < 5), key=f"bulk_day_{i}"))
+
+            if st.form_submit_button("Add Bulk Assignments", type="primary"):
+                if not bulk_emps:
+                    st.error("Select at least one employee.")
+                elif bulk_end_date < bulk_start_date:
+                    st.error("End date must be after start date.")
+                else:
+                    _cli = str(jobs_list_cal[jobs_list_cal["job_id"]==bulk_job]["client"].iloc[0]) if not jobs_list_cal.empty and bulk_job in jobs_list_cal["job_id"].values else ""
+                    count = 0
+                    d = bulk_start_date
+                    import datetime as _dtt
+                    while d <= bulk_end_date:
+                        if day_checks[d.weekday()]:
+                            for emp in bulk_emps:
+                                execute("INSERT INTO day_assignments (job_id,client,employee,date,note,start_time,end_time) VALUES (?,?,?,?,?,?,?)",
+                                    (bulk_job, _cli, emp, d.isoformat(), bulk_note, bulk_start_time, bulk_end_time))
+                                count += 1
+                        d += _dtt.timedelta(days=1)
+                    st.success(f"✅ {count} assignments created for {len(bulk_emps)} employee(s) across {(bulk_end_date - bulk_start_date).days + 1} days!")
+                    st.rerun()
 
     # ── Upcoming assignments list ──────────────────────────────────────────
     st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:16px 0 8px'>UPCOMING ASSIGNMENTS</div>", unsafe_allow_html=True)
