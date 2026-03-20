@@ -948,6 +948,16 @@ def init_db():
     try:
         cur.execute("DROP INDEX IF EXISTS idx_cat_items_desc")
     except: pass
+    # ── Add status column to clock_events for director approval ──────────
+    try:
+        cur.execute("ALTER TABLE clock_events ADD COLUMN status TEXT DEFAULT 'Pending'")
+    except: pass
+    try:
+        cur.execute("ALTER TABLE clock_events ADD COLUMN approved_by TEXT DEFAULT ''")
+    except: pass
+    try:
+        cur.execute("ALTER TABLE clock_events ADD COLUMN approved_at TEXT DEFAULT ''")
+    except: pass
 
     # ── Add handover columns if missing ──────────────────────────────────
     for _col, _def in [
@@ -3088,11 +3098,30 @@ if page == "Dashboard":
     today_str       = _today_aest().isoformat()
     total_active    = len(all_active_jobs)
 
-    on_site_today = fetch_df("""
+    # On Site Today — reads ACTUAL clock-ins, falls back to schedule
+    on_site_clocked = fetch_df("""
+        SELECT DISTINCT ce.employee
+        FROM clock_events ce
+        WHERE ce.event_date=? AND ce.event_type='in'
+        AND ce.employee NOT IN (
+            SELECT DISTINCT employee FROM clock_events
+            WHERE event_date=? AND event_type='out'
+            AND id > (SELECT MAX(id) FROM clock_events c2
+                      WHERE c2.employee=clock_events.employee
+                      AND c2.event_date=clock_events.event_date
+                      AND c2.event_type='in')
+        )
+    """, (today_str, today_str))
+    on_site_scheduled = fetch_df("""
         SELECT DISTINCT da.employee FROM day_assignments da
         WHERE da.date=? AND da.employee != '__unassigned__'
     """, (today_str,))
-    people_today = len(on_site_today)
+    # Merge — clocked in takes priority
+    clocked_names = set(on_site_clocked["employee"].tolist()) if not on_site_clocked.empty else set()
+    scheduled_names = set(on_site_scheduled["employee"].tolist()) if not on_site_scheduled.empty else set()
+    all_onsite_names = clocked_names | scheduled_names
+    people_today = len(all_onsite_names)
+    on_site_today = on_site_clocked if not on_site_clocked.empty else on_site_scheduled
 
     # Build emp_color_map for dashboard
     EMP_COLORS_DASH = ["#2dd4bf","#f59e0b","#a78bfa","#f43f5e","#60a5fa","#4ade80","#fb923c","#e879f9"]
@@ -8946,7 +8975,114 @@ elif page == "Clients":
 # ─────────────────────────────────────────────
 elif page == "Timesheets":
     st.title("Timesheets")
-    st.caption("Weekly view of all employee hours across all jobs.")
+
+    ts_tab1, ts_tab2 = st.tabs(["📋 Weekly View", "✅ Approve Hours"])
+
+    with ts_tab2:
+        st.markdown("### Director Approval")
+        st.caption("Review and approve hours submitted by the team. Only approved hours count toward timesheets and P&L.")
+
+        pending = fetch_df("""
+            SELECT ce.id, ce.employee, ce.job_id, ce.event_type,
+                   ce.event_time, ce.event_date, ce.note,
+                   ce.status, e.hourly_rate
+            FROM clock_events ce
+            LEFT JOIN employees e ON e.name = ce.employee
+            WHERE ce.status = 'Pending' OR ce.status IS NULL
+            ORDER BY ce.event_date DESC, ce.employee, ce.id
+        """)
+
+        if pending.empty:
+            st.success("✅ All hours approved — nothing pending!")
+        else:
+            # Group by date + employee
+            st.metric("Pending approvals", len(pending))
+            st.divider()
+
+            # Process clock in/out pairs
+            pairs = []
+            by_emp_date = pending.groupby(["employee","event_date"])
+            for (emp, dt), grp in by_emp_date:
+                ins  = grp[grp["event_type"]=="in"].sort_values("event_time")
+                outs = grp[grp["event_type"]=="out"].sort_values("event_time")
+                rate = float(grp.iloc[0].get("hourly_rate",0) or 0)
+
+                for i in range(min(len(ins), len(outs))):
+                    try:
+                        cin  = datetime.strptime(str(ins.iloc[i]["event_time"])[:8], "%H:%M:%S")
+                        cout = datetime.strptime(str(outs.iloc[i]["event_time"])[:8], "%H:%M:%S")
+                        hrs  = round((cout - cin).seconds / 3600, 2)
+                    except:
+                        hrs = 0
+                    pairs.append({
+                        "in_id":   int(ins.iloc[i]["id"]),
+                        "out_id":  int(outs.iloc[i]["id"]),
+                        "employee": emp,
+                        "date":     dt,
+                        "job_id":   str(ins.iloc[i].get("job_id","") or ""),
+                        "clock_in": str(ins.iloc[i]["event_time"])[:5],
+                        "clock_out":str(outs.iloc[i]["event_time"])[:5],
+                        "hours":    hrs,
+                        "cost":     round(hrs * rate, 2),
+                        "rate":     rate,
+                        "note":     str(ins.iloc[i].get("note","") or ""),
+                    })
+
+            if not pairs:
+                st.info("Clock-in/out pairs still being submitted — check back soon.")
+            else:
+                # Header
+                ah1,ah2,ah3,ah4,ah5,ah6,ah7,ah8 = st.columns([2,1.5,1,1,1,1.5,1,1.5])
+                for col,lbl in zip([ah1,ah2,ah3,ah4,ah5,ah6,ah7,ah8],
+                    ["Employee","Date","Job","In","Out","Hours","Cost","Action"]):
+                    col.markdown(f"<div style='color:#475569;font-size:12px;font-weight:700'>{lbl}</div>", unsafe_allow_html=True)
+                st.divider()
+
+                for pair in pairs:
+                    r1,r2,r3,r4,r5,r6,r7,r8 = st.columns([2,1.5,1,1,1,1.5,1,1.5])
+                    r1.markdown(f"<div style='color:#e2e8f0;font-size:13px;padding:4px 0'>{pair['employee']}</div>", unsafe_allow_html=True)
+                    r2.markdown(f"<div style='color:#94a3b8;font-size:13px;padding:4px 0'>{pair['date']}</div>", unsafe_allow_html=True)
+                    r3.markdown(f"<div style='color:#7dd3fc;font-size:13px;padding:4px 0'>{pair['job_id']}</div>", unsafe_allow_html=True)
+                    r4.markdown(f"<div style='color:#94a3b8;font-size:13px;padding:4px 0'>{pair['clock_in']}</div>", unsafe_allow_html=True)
+                    r5.markdown(f"<div style='color:#94a3b8;font-size:13px;padding:4px 0'>{pair['clock_out']}</div>", unsafe_allow_html=True)
+
+                    # Editable hours
+                    with r6:
+                        edited_hrs = st.number_input("", value=float(pair["hours"]),
+                            min_value=0.0, max_value=24.0, step=0.5,
+                            key=f"hrs_{pair['in_id']}", label_visibility="collapsed")
+
+                    r7.markdown(f"<div style='color:#2dd4bf;font-size:13px;font-weight:700;padding:4px 0'>${round(edited_hrs*pair['rate'],2):,.2f}</div>", unsafe_allow_html=True)
+
+                    with r8:
+                        ac1, ac2 = st.columns(2)
+                        with ac1:
+                            if st.button("✅", key=f"app_{pair['in_id']}", help="Approve"):
+                                now_str = _today_aest().isoformat()
+                                approver = current_user.get("full_name") or current_user.get("username","")
+                                # Mark both events approved
+                                execute("UPDATE clock_events SET status='Approved', approved_by=?, approved_at=? WHERE id=?",
+                                    (approver, now_str, pair["in_id"]))
+                                execute("UPDATE clock_events SET status='Approved', approved_by=?, approved_at=? WHERE id=?",
+                                    (approver, now_str, pair["out_id"]))
+                                # Write to labour_logs
+                                execute("""INSERT INTO labour_logs (work_date,job_id,employee,hours,hourly_rate,note)
+                                    VALUES (?,?,?,?,?,?)""",
+                                    (pair["date"], pair["job_id"], pair["employee"],
+                                     edited_hrs, pair["rate"],
+                                     f"Approved by {approver} | {pair['note']}"))
+                                st.rerun()
+                        with ac2:
+                            if st.button("❌", key=f"rej_{pair['in_id']}", help="Reject"):
+                                execute("UPDATE clock_events SET status='Rejected' WHERE id=?", (pair["in_id"],))
+                                execute("UPDATE clock_events SET status='Rejected' WHERE id=?", (pair["out_id"],))
+                                st.rerun()
+
+                    if pair["note"]:
+                        st.markdown(f"<div style='color:#475569;font-size:12px;padding:2px 0 8px 8px'>📝 {pair['note']}</div>", unsafe_allow_html=True)
+
+    with ts_tab1:
+        st.caption("Weekly view of all employee hours across all jobs.")
 
     import datetime as _dtt
 
