@@ -109,6 +109,16 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, employee TEXT,
             job_id TEXT, description TEXT, submitted_at TEXT,
             status TEXT DEFAULT 'Pending', synced INTEGER DEFAULT 0)""")
+        # ── Add status column to clock_events if missing ─────────────────
+        try:
+            conn.execute("ALTER TABLE clock_events ADD COLUMN status TEXT DEFAULT 'Pending'")
+        except: pass
+        try:
+            conn.execute("ALTER TABLE clock_events ADD COLUMN approved_by TEXT DEFAULT ''")
+        except: pass
+        try:
+            conn.execute("ALTER TABLE clock_events ADD COLUMN approved_at TEXT DEFAULT ''")
+        except: pass
         conn.commit()
         if not conn.execute("SELECT COUNT(*) FROM employees").fetchone()[0]:
             conn.execute("INSERT OR IGNORE INTO employees (name,role,hourly_rate,active,pin) VALUES (?,?,?,?,?)",
