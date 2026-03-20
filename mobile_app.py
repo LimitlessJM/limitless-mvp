@@ -142,6 +142,13 @@ def sync_from_supabase():
                     (a.get("id"), a.get("job_id",""), a.get("client",""),
                      a.get("employee",""), a.get("date",""), a.get("note",""),
                      a.get("start_time",""), a.get("end_time","")))
+        # Pull back approval status for clock events
+        clock_updates = supa_get("clock_events")
+        for ce in clock_updates:
+            cid = ce.get("id")
+            status = ce.get("status","Pending")
+            if cid and status in ("Approved","Rejected"):
+                local_execute("UPDATE clock_events SET status=? WHERE id=?", (status, cid))
     except: pass
     return count
 
