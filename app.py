@@ -875,6 +875,14 @@ def init_db():
         cur.execute("ALTER TABLE jobs ADD COLUMN created_date TEXT DEFAULT ''")
     except: pass
 
+    # ── Custom catalogue table ─────────────────────────────────────────────
+    cur.execute("""CREATE TABLE IF NOT EXISTS custom_catalogue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT DEFAULT '', description TEXT NOT NULL,
+        uom TEXT DEFAULT 'lm', material_cost REAL DEFAULT 0,
+        labour_cost REAL DEFAULT 0, sell_unit_rate REAL DEFAULT 0,
+        created_by TEXT DEFAULT '', created_at TEXT DEFAULT '')""")
+
     # ── Add handover columns if missing ──────────────────────────────────
     for _col, _def in [
         ("handover_crew", "TEXT DEFAULT ''"),
@@ -2879,6 +2887,14 @@ if page == "Dashboard":
         WHERE da.date=? AND da.employee != '__unassigned__'
     """, (today_str,))
     people_today = len(on_site_today)
+
+    # Build emp_color_map for dashboard
+    EMP_COLORS_DASH = ["#2dd4bf","#f59e0b","#a78bfa","#f43f5e","#60a5fa","#4ade80","#fb923c","#e879f9"]
+    _emp_list_dash = fetch_df("SELECT name FROM employees WHERE active=1 ORDER BY name")
+    emp_color_map = {}
+    if not _emp_list_dash.empty:
+        for _i, _n in enumerate(_emp_list_dash["name"].tolist()):
+            emp_color_map[_n] = EMP_COLORS_DASH[_i % len(EMP_COLORS_DASH)]
 
     today_cost_df = fetch_df("""
         SELECT COALESCE(SUM(e.hourly_rate*8),0) AS cost
