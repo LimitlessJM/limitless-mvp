@@ -910,9 +910,6 @@ def init_db():
         unit_cost REAL DEFAULT 0,
         sort_order INTEGER DEFAULT 0
     )""")
-    try:
-        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_cat_items_desc ON catalogue_items(description, category)")
-    except: pass
     conn.commit()
 
     # ── Catalogue overrides table (edits to base catalogue) ──────────────
@@ -945,6 +942,11 @@ def init_db():
     except: pass
     try:
         cur.execute("ALTER TABLE custom_catalogue ADD COLUMN supplier_name TEXT DEFAULT ''")
+    except: pass
+
+    # ── Drop unique index on catalogue_items if exists (allows re-import) ─
+    try:
+        cur.execute("DROP INDEX IF EXISTS idx_cat_items_desc")
     except: pass
 
     # ── Add handover columns if missing ──────────────────────────────────
