@@ -3104,8 +3104,17 @@ if USE_SUPABASE:
             st.sidebar.error(f"Error: {_e}")
     if st.sidebar.button("📥 Pull from mobile", use_container_width=True):
         try:
-            sync_from_mobile()
-            st.sidebar.success("✅ Pulled clock-ins!")
+            if not USE_SUPABASE or not _supa_client:
+                st.sidebar.error("❌ Supabase not connected")
+            else:
+                # Debug — show raw Supabase data
+                raw = supa_pull("clock_events")
+                st.sidebar.write(f"Supabase has {len(raw)} clock events")
+                if raw:
+                    st.sidebar.write("Latest:", raw[-1])
+                sync_from_mobile()
+                local_count = fetch_df("SELECT COUNT(*) as n FROM clock_events")
+                st.sidebar.success(f"✅ Done — {int(local_count.iloc[0]['n'])} events in local DB")
         except Exception as _e:
             st.sidebar.error(str(_e))
 
