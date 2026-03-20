@@ -492,6 +492,12 @@ elif page == "variation":
 elif page == "profile":
     st.markdown(f"<div style='font-size:22px;font-weight:800;color:#e2e8f0;margin-bottom:16px'>👤 {user}</div>", unsafe_allow_html=True)
 
+    # Connection status
+    if USE_SUPABASE:
+        st.markdown("<div style='background:#0d2a1f;border:1px solid #2dd4bf;border-radius:8px;padding:8px 14px;font-size:13px;color:#2dd4bf;margin-bottom:12px'>🟢 Connected to office</div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div style='background:#2d0f0f;border:1px solid #f43f5e;border-radius:8px;padding:8px 14px;font-size:13px;color:#f43f5e;margin-bottom:12px'>🔴 No office connection — check Supabase secrets in Streamlit settings</div>", unsafe_allow_html=True)
+
     week_total = local_fetch("SELECT SUM(hours) AS h FROM labour_logs WHERE employee=? AND work_date >= date('now','-7 days')", (user,))
     week_h = float(week_total[0]["h"] or 0) if week_total and week_total[0]["h"] else 0
 
