@@ -2308,20 +2308,20 @@ def load_catalogue():
             return cat_items
     except: pass
 
-    # If no catalogue_items, fall back to Excel
+    # If no Excel, fall back to catalogue_items DB table
     if not CATALOGUE_PATH.exists():
         try:
-            custom_only = fetch_df("""
+            cat_only = fetch_df("""
                 SELECT category AS Category, description AS Description,
-                       uom AS UOM, material_cost AS MaterialCost,
+                       uom AS UOM, unit_cost AS MaterialCost,
                        labour_cost AS LabourCost,
-                       COALESCE(sell_unit_rate,0) AS SellUnitRate
-                FROM custom_catalogue ORDER BY category, description
+                       ROUND(unit_cost+labour_cost,2) AS SellUnitRate
+                FROM catalogue_items ORDER BY category, description
             """)
-            if not custom_only.empty:
+            if not cat_only.empty:
                 for col in ["MaterialCost","LabourCost","SellUnitRate"]:
-                    custom_only[col] = pd.to_numeric(custom_only[col], errors="coerce").fillna(0.0)
-                return custom_only
+                    cat_only[col] = pd.to_numeric(cat_only[col], errors="coerce").fillna(0.0)
+                return cat_only
         except: pass
         raise FileNotFoundError(f"Catalogue file not found: {CATALOGUE_PATH}")
     try:
@@ -3819,74 +3819,59 @@ elif page == "Catalogue":
                         horizontal=True, key="bx_mode")
 
                     if st.button("📥 Import to My Catalogue", type="primary", key="bx_import"):
-                        if imp_mode == "Replace all existing items":
-                            execute("DELETE FROM catalogue_components")
-                            execute("DELETE FROM catalogue_items")
+                        # Parse hierarchy using depth
+                        bx_df["_depth"] = bx_df["DisplayedOrder"].astype(str).apply(lambda x: x.count("."))
+                        parents_bx = bx_df[bx_df["_depth"] == 1].copy()
+                        comps_bx   = bx_df[bx_df["_depth"] == 2].copy()
 
-                        # Parse hierarchy
-                        bx_df["_level"] = bx_df["DisplayedOrder"].apply(
-                            lambda x: len(str(x).split(".")) if pd.notna(x) else 0)
-                        bx_df["_parent"] = bx_df["DisplayedOrder"].apply(
-                            lambda x: ".".join(str(x).split(".")[:2]) if len(str(x).split(".")) > 2 else None)
+                        def _get_pid(d):
+                            p = str(d).split(".")
+                            return f"{p[0]}.{p[1]}"
+                        comps_bx["_parent"] = comps_bx["DisplayedOrder"].apply(_get_pid)
 
-                        parents_bx = bx_df[bx_df["_level"] == 2].copy()
-                        comps_bx   = bx_df[bx_df["_level"] == 3].copy()
-
-                        imported = 0
-                        skipped  = 0
-                        current_cat = ""
+                        imported = skipped = comp_added = 0
 
                         for _, prow in parents_bx.iterrows():
                             desc = str(prow.get("Description","") or "").strip()
+                            cat  = str(prow.get("CategoryDescription","General") or "General").strip()
+                            uom  = str(prow.get("UOM","lm") or "lm").strip() if pd.notna(prow.get("UOM")) else "lm"
+                            sell = float(pd.to_numeric(prow.get("UnitCost",0), errors="coerce") or 0)
+                            order = str(prow.get("DisplayedOrder",""))
                             if not desc: continue
 
-                            # Get category from nearest category row above
-                            cat = str(prow.get("CategoryDescription","") or current_cat or "General").strip()
-                            if cat: current_cat = cat
-                            uom = str(prow.get("UOM","lm") or "lm").strip()
-                            unit_cost = float(pd.to_numeric(prow.get("UnitCost",0), errors="coerce") or 0)
-                            order = str(prow.get("DisplayedOrder",""))
+                            comp_rows = comps_bx[comps_bx["_parent"]==order]
+                            lab_cost = sum(float(c.get("Units",1) or 1)*float(c.get("UnitCost",0) or 0)
+                                for _,c in comp_rows.iterrows() if "labour" in str(c.get("Description","")).lower())
+                            mat_cost = round(sell - lab_cost, 2)
 
-                            # Check exists
                             existing = fetch_df("SELECT id FROM catalogue_items WHERE description=? AND category=?", (desc, cat))
                             if not existing.empty and imp_mode == "Add new items only":
-                                skipped += 1
-                                continue
+                                skipped += 1; continue
 
                             if not existing.empty:
                                 item_id = int(existing.iloc[0]["id"])
+                                execute("UPDATE catalogue_items SET uom=?,unit_cost=?,labour_cost=? WHERE id=?",
+                                    (uom, mat_cost, round(lab_cost,2), item_id))
                                 execute("DELETE FROM catalogue_components WHERE item_id=?", (item_id,))
                             else:
-                                execute("""INSERT INTO catalogue_items
-                                    (category, description, uom, unit_cost, labour_cost, source, created_at)
+                                execute("""INSERT INTO catalogue_items (category,description,uom,unit_cost,labour_cost,source,created_at)
                                     VALUES (?,?,?,?,?,?,?)""",
-                                    (cat, desc, uom, 0, 0, "Buildxact", _today_aest().isoformat()))
-                                item_id = fetch_df("SELECT id FROM catalogue_items WHERE description=? AND category=?", (desc, cat)).iloc[0]["id"]
+                                    (cat, desc, uom, mat_cost, round(lab_cost,2), "Buildxact", _today_aest().isoformat()))
+                                new_row = fetch_df("SELECT id FROM catalogue_items WHERE description=? AND category=? ORDER BY id DESC LIMIT 1", (desc, cat))
+                                item_id = int(new_row.iloc[0]["id"]) if not new_row.empty else None
+                                imported += 1
 
-                            # Import components
-                            item_comps = comps_bx[comps_bx["_parent"] == order]
-                            mat_total = 0
-                            lab_total = 0
-                            for sort_i, (_, crow) in enumerate(item_comps.iterrows()):
-                                c_desc = str(crow.get("Description","") or "").strip()
-                                if not c_desc: continue
-                                c_qty  = float(pd.to_numeric(crow.get("Units",1), errors="coerce") or 1)
-                                c_uom  = str(crow.get("UOM","Ea") or "Ea").strip()
-                                c_uc   = float(pd.to_numeric(crow.get("UnitCost",0), errors="coerce") or 0)
-                                c_type = "Labour" if "labour" in c_desc.lower() else "Material"
-                                execute("""INSERT INTO catalogue_components
-                                    (item_id, description, item_type, qty, uom, unit_cost, sort_order)
-                                    VALUES (?,?,?,?,?,?,?)""",
-                                    (item_id, c_desc, c_type, c_qty, c_uom, c_uc, sort_i))
-                                if c_type == "Labour": lab_total += c_qty * c_uc
-                                else: mat_total += c_qty * c_uc
+                            if item_id:
+                                for si, (_,c) in enumerate(comp_rows.iterrows()):
+                                    cdesc = str(c.get("Description","") or "").strip()
+                                    ctype = "Labour" if "labour" in cdesc.lower() else "Material"
+                                    if cdesc:
+                                        execute("INSERT INTO catalogue_components (item_id,description,item_type,qty,uom,unit_cost,sort_order) VALUES (?,?,?,?,?,?,?)",
+                                            (item_id, cdesc, ctype, float(c.get("Units",1) or 1),
+                                             str(c.get("UOM","") or ""), float(c.get("UnitCost",0) or 0), si))
+                                        comp_added += 1
 
-                            # Update parent with calculated totals
-                            execute("UPDATE catalogue_items SET unit_cost=?, labour_cost=? WHERE id=?",
-                                (round(mat_total,2), round(lab_total,2), item_id))
-                            imported += 1
-
-                        st.success(f"✅ Imported {imported} items ({skipped} skipped). Go to My Catalogue to view and edit!")
+                        st.success(f"✅ {imported} new items, {skipped} skipped, {comp_added} components imported!")
                         st.rerun()
                 else:
                     st.warning("Doesn't look like a Buildxact export. Make sure it has DisplayedOrder and Description columns.")
@@ -3936,9 +3921,7 @@ elif page == "Catalogue":
                 hide_index=True, width="stretch")
 
 
-# ─────────────────────────────────────────────
-#  PAGE: JOBS
-# ─────────────────────────────────────────────
+
 elif page == "Jobs":
 
     STAGES = ["Lead", "Quoted", "Handover", "Live Job", "Completed"]
