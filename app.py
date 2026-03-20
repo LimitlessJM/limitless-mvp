@@ -870,6 +870,11 @@ def init_db():
             cur.execute("INSERT INTO material_finishes (finish_name,sort_order) VALUES (?,?)",(f,i))
         conn.commit()
 
+    # ── Add created_date to jobs if missing ──────────────────────────────
+    try:
+        cur.execute("ALTER TABLE jobs ADD COLUMN created_date TEXT DEFAULT ''")
+    except: pass
+
     # ── Add handover columns if missing ──────────────────────────────────
     for _col, _def in [
         ("handover_crew", "TEXT DEFAULT ''"),
@@ -2238,13 +2243,17 @@ def load_catalogue():
         custom = fetch_df("""
             SELECT category AS Category, description AS Description,
                    uom AS UOM, material_cost AS MaterialCost,
-                   labour_cost AS LabourCost, sell_unit_rate AS SellUnitRate
+                   labour_cost AS LabourCost,
+                   COALESCE(sell_unit_rate, 0) AS SellUnitRate
             FROM custom_catalogue ORDER BY category, description
         """)
         if not custom.empty:
+            # Ensure numeric columns match
+            for col in ["MaterialCost","LabourCost","SellUnitRate"]:
+                custom[col] = pd.to_numeric(custom[col], errors="coerce").fillna(0.0)
             df = pd.concat([df, custom], ignore_index=True)
-    except:
-        pass
+    except Exception as _cce:
+        pass  # Custom catalogue unavailable
     return df
 
 
@@ -3139,25 +3148,37 @@ if page == "Dashboard":
 
         # Today on site
         today_sched = fetch_df("""
-            SELECT da.job_id, da.employee, da.client, da.note
-            FROM day_assignments da WHERE da.date=? AND da.employee != '__unassigned__'
+            SELECT da.job_id, da.employee, da.client, da.note,
+                   COALESCE(j.address,'') AS address,
+                   COALESCE(da.start_time,'') AS start_time,
+                   COALESCE(da.end_time,'') AS end_time
+            FROM day_assignments da
+            LEFT JOIN jobs j ON j.job_id = da.job_id
+            WHERE da.date=? AND da.employee != '__unassigned__'
             ORDER BY da.employee
         """, (today_str,))
         st.markdown("<div style='font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#2dd4bf;margin:1.2rem 0 10px'>On site today</div>", unsafe_allow_html=True)
         if not today_sched.empty:
             for _, ts in today_sched.iterrows():
                 emp_init = "".join([w[0].upper() for w in str(ts["employee"]).split()])[:2]
+                _addr = str(ts.get('address','') or '')
+                _st_t = str(ts.get('start_time','') or '')
+                _en_t = str(ts.get('end_time','') or '')
+                _time = f"{_st_t[:5]}–{_en_t[:5]}" if _st_t and _en_t else ""
+                emp_color = emp_color_map.get(str(ts['employee']), "#2dd4bf")
                 onsite_html = (
                     "<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:9px;"
                     "padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px'>"
                     "<div style='width:36px;height:36px;border-radius:50%;background:#1a3a3a;"
-                    "border:2px solid #2dd4bf;display:flex;align-items:center;justify-content:center;"
-                    "font-size:13px;font-weight:700;color:#2dd4bf;flex-shrink:0'>" + str(emp_init) + "</div>"
-                    "<div>"
-                    "<div style='font-size:16px;font-weight:600;color:#e2e8f0'>" + str(ts['employee']) + "</div>"
-                    "<div style='font-size:14px;color:#64748b'>" + str(ts['job_id']) + " — " + str(ts.get('client','') or '') + "</div>"
+                    "border:2px solid " + emp_color + ";display:flex;align-items:center;justify-content:center;"
+                    "font-size:13px;font-weight:700;color:" + emp_color + ";flex-shrink:0'>" + str(emp_init) + "</div>"
+                    "<div style='flex:1'>"
+                    "<div style='font-size:15px;font-weight:700;color:#e2e8f0'>" + str(ts['employee']) + "</div>"
+                    "<div style='font-size:13px;color:#2dd4bf'>" + str(ts['job_id']) + " · " + str(ts.get('client','') or '') + "</div>"
+                    + (f"<div style='font-size:13px;color:#64748b'>📍 {_addr}</div>" if _addr else "") +
+                    + (f"<div style='font-size:12px;color:#f59e0b'>🕐 {_time}</div>" if _time else "") +
                     "</div>"
-                    "<div style='margin-left:auto;font-size:13px;color:#94a3b8'>" + str(ts.get('note','') or '') + "</div>"
+                    + (f"<div style='font-size:13px;color:#475569'>{ts.get('note','') or ''}</div>" if ts.get('note') else "") +
                     "</div>"
                 )
                 st.markdown(onsite_html, unsafe_allow_html=True)
@@ -6096,20 +6117,23 @@ No explanation, only JSON."""
                             var_pending = int(jrow.get("var_pending",0) or 0)
                             jtype = str(jrow.get("job_type","") or "Residential")
                             jtype_col = TYPE_COLORS.get(jtype, "#64748b")
+                            _created = _fmt_date(str(jrow.get("created_date","") or ""))
 
                             c1,c2,c3,c4,c5,c6 = st.columns([2,3,3,2,2,1])
                             with c1:
-                                badge = f" <span style='background:#f59e0b22;color:#f59e0b;font-size:13px;padding:1px 4px;border-radius:3px'>{var_pending}V</span>" if var_pending else ""
-                                st.markdown(f"<div style='font-weight:700;color:#f1f5f9;font-size:13px'>{jrow['job_id']}{badge}</div>", unsafe_allow_html=True)
+                                badge = f" <span style='background:#f59e0b22;color:#f59e0b;font-size:12px;padding:1px 4px;border-radius:3px'>{var_pending}V</span>" if var_pending else ""
+                                st.markdown(f"<div style='font-weight:800;color:#f1f5f9;font-size:16px'>{jrow['job_id']}{badge}</div>", unsafe_allow_html=True)
+                                if _created:
+                                    st.markdown(f"<div style='color:#334155;font-size:12px'>{_created}</div>", unsafe_allow_html=True)
                             with c2:
-                                st.markdown(f"<div style='color:#e2e8f0;font-size:13px'>{str(jrow.get('client') or '—')}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='color:#e2e8f0;font-size:15px;font-weight:600'>{str(jrow.get('client') or '—')}</div>", unsafe_allow_html=True)
                             with c3:
-                                st.markdown(f"<div style='color:#64748b;font-size:13px'>{str(jrow.get('address') or '—')[:35]}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='color:#64748b;font-size:14px'>📍 {str(jrow.get('address') or '—')[:35]}</div>", unsafe_allow_html=True)
                             with c4:
-                                st.markdown(f"<div style='color:#94a3b8;font-size:13px'>{str(jrow.get('estimator') or '—')}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='color:#94a3b8;font-size:14px'>{str(jrow.get('estimator') or '—')}</div>", unsafe_allow_html=True)
                             with c5:
                                 if sell > 0:
-                                    st.markdown(f"<div style='color:#2dd4bf;font-weight:700;font-size:13px'>${sell:,.0f}</div>", unsafe_allow_html=True)
+                                    st.markdown(f"<div style='color:#2dd4bf;font-weight:800;font-size:15px'>${sell:,.0f}</div>", unsafe_allow_html=True)
                             with c6:
                                 if st.button("Open →", key=f"open_{jrow['job_id']}", type="primary"):
                                     st.session_state["open_job"] = jrow["job_id"]
@@ -6463,21 +6487,23 @@ elif page == "Schedule Calendar":
                         hrs_disp = f" · {_h:.1f}h"
                     except: pass
 
-                st.markdown(f"""
-                <div style='background:#1e2d3d;border:1px solid #2a3d4f;
-                    border-left:4px solid {color};border-radius:10px;
-                    padding:14px 18px;margin-bottom:8px;
-                    display:flex;align-items:center;gap:16px'>
-                    <div style='min-width:120px'>
-                        <div style='color:{color};font-weight:700;font-size:14px'>{time_disp}</div>
-                        <div style='color:#475569;font-size:12px'>{hrs_disp}</div>
-                    </div>
-                    <div style='flex:1'>
-                        <div style='color:#e2e8f0;font-weight:700;font-size:15px'>{row.get('employee','')}</div>
-                        <div style='color:#2dd4bf;font-size:13px'>{row.get('job_id','')} — {row.get('client','')}</div>
-                        {f"<div style='color:#64748b;font-size:13px'>{row.get('note','')}</div>" if row.get('note') else ''}
-                    </div>
-                </div>""", unsafe_allow_html=True)
+                _note_html = f"<div style='color:#64748b;font-size:13px'>{row.get('note','')}</div>" if row.get('note') else ""
+                _day_card = (
+                    f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;"
+                    f"border-left:4px solid {color};border-radius:10px;"
+                    f"padding:14px 18px;margin-bottom:8px;"
+                    f"display:flex;align-items:center;gap:16px'>"
+                    f"<div style='min-width:120px'>"
+                    f"<div style='color:{color};font-weight:700;font-size:14px'>{time_disp}</div>"
+                    f"<div style='color:#475569;font-size:12px'>{hrs_disp}</div>"
+                    f"</div>"
+                    f"<div style='flex:1'>"
+                    f"<div style='color:#e2e8f0;font-weight:700;font-size:15px'>{row.get('employee','')}</div>"
+                    f"<div style='color:#2dd4bf;font-size:13px'>{row.get('job_id','')} — {row.get('client','')}</div>"
+                    f"{_note_html}"
+                    f"</div></div>"
+                )
+                st.markdown(_day_card, unsafe_allow_html=True)
 
         # Labour logged today
         if not day_labour_d.empty:
@@ -7432,8 +7458,12 @@ elif page == "Pipeline":
     # ── Add job form ──────────────────────────────────────────────────────
     with st.expander("+ Add job to pipeline", expanded=False):
         jobs_avail = fetch_df("""
-            SELECT j.job_id, j.client, j.sell_price
-            FROM jobs j WHERE j.archived=0 ORDER BY j.job_id
+            SELECT j.job_id, j.client, j.sell_price, j.stage,
+                   j.address, j.estimator
+            FROM jobs j
+            WHERE j.archived=0
+            AND j.stage IN ('Quoted','Pre-Live Handover','Handover','Live Job','Completed')
+            ORDER BY j.job_id
         """)
 
         # Job selector OUTSIDE form so value auto-updates
@@ -7441,14 +7471,30 @@ elif page == "Pipeline":
             jobs_avail["job_id"].tolist() if not jobs_avail.empty else [""],
             key="pipe_job_select")
 
-        # Auto-pull sell price and client when job changes
+        # Auto-pull sell price, client and contacts when job selected
         _pipe_sell   = 0.0
         _pipe_client = ""
+        _pipe_contact = ""
+        _pipe_phone   = ""
+        _pipe_email   = ""
         if p_job and not jobs_avail.empty and p_job in jobs_avail["job_id"].values:
             _prow = jobs_avail[jobs_avail["job_id"]==p_job].iloc[0]
             _pipe_client = str(_prow.get("client","") or "")
             if _prow.get("sell_price") and float(_prow.get("sell_price",0) or 0) > 0:
                 _pipe_sell = float(_prow["sell_price"])
+            # Pull contact from client register
+            _cli_rec = fetch_df("""
+                SELECT ca_name, ca_phone, ca_email,
+                       pm_name, pm_phone, pm_email,
+                       billing_name, billing_email, billing_phone, name, phone, email
+                FROM clients WHERE name=? OR company=?
+            """, (_pipe_client, _pipe_client))
+            if not _cli_rec.empty:
+                _cr = _cli_rec.iloc[0]
+                # Prefer CA, then PM, then main contact
+                _pipe_contact = str(_cr.get("ca_name","") or _cr.get("pm_name","") or _cr.get("name","") or "")
+                _pipe_phone   = str(_cr.get("ca_phone","") or _cr.get("pm_phone","") or _cr.get("phone","") or "")
+                _pipe_email   = str(_cr.get("ca_email","") or _cr.get("pm_email","") or _cr.get("email","") or "")
 
         # Show auto-filled value
         if _pipe_sell > 0:
@@ -7471,9 +7517,9 @@ elif page == "Pipeline":
                 p_month   = st.selectbox("Target month", months_p, index=today_p.month-1)
                 p_secured = st.checkbox("Secured / confirmed")
             with pc3:
-                p_contact = st.text_input("Contact name")
-                p_phone   = st.text_input("Contact phone")
-                p_email   = st.text_input("Contact email")
+                p_contact = st.text_input("Contact name", value=_pipe_contact)
+                p_phone   = st.text_input("Contact phone", value=_pipe_phone)
+                p_email   = st.text_input("Contact email", value=_pipe_email)
                 p_followup= st.date_input("Follow-up date", value=date.today())
                 p_notes   = st.text_area("Status notes", height=60,
                     placeholder="e.g. Verbally accepted — price may change")
@@ -7650,28 +7696,46 @@ elif page == "Pipeline":
                 overdue_badge = "<span style='background:#f43f5e22;color:#f43f5e;padding:1px 8px;border-radius:999px;font-size:13px;font-weight:700'>FOLLOW-UP OVERDUE</span>" if is_overdue else ""
                 due_badge = "<span style='background:#f59e0b22;color:#f59e0b;padding:1px 8px;border-radius:999px;font-size:13px;font-weight:700'>FOLLOW-UP TODAY</span>" if is_due_today else ""
 
-                _contact = ("<span style='color:#64748b;font-size:14px'>Contact: " + str(row.get('contact_name','') or '') + "</span>") if row.get('contact_name') else ""
-                _phone   = ("<span style='color:#64748b;font-size:14px'>" + str(row.get('contact_phone','') or '') + "</span>") if row.get('contact_phone') else ""
-                _fuspan  = ("<span style='color:#64748b;font-size:14px'>Follow-up: " + fu_date + "</span>") if fu_date else ""
-                _notes   = ("<div style='font-size:14px;color:#f59e0b;margin-top:6px;font-style:italic'>" + str(row.get('status_notes','') or '') + "</div>") if row.get('status_notes') else ""
+                _contact = str(row.get('contact_name','') or '')
+                _phone   = str(row.get('contact_phone','') or '')
+                _email   = str(row.get('contact_email','') or '')
+                _fuspan  = f"📅 {_fmt_date(fu_date)}" if fu_date else ""
+                _notes   = str(row.get('status_notes','') or '')
                 _month   = str(month_names_map.get(str(row['target_month']), row['target_month']))
+
+                # Probability bar
+                _bar = f"<div style='background:#0f172a;border-radius:999px;height:4px;margin-top:8px'><div style='background:{pc};width:{prob}%;height:4px;border-radius:999px'></div></div>"
+
+                _contact_section = ""
+                if _contact or _phone or _email:
+                    _contact_section = (
+                        "<div style='display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;"
+                        "padding:8px 12px;background:#111c27;border-radius:8px'>"
+                        + (f"<span style='color:#e2e8f0;font-size:14px;font-weight:600'>👤 {_contact}</span>" if _contact else "")
+                        + (f"<span style='color:#64748b;font-size:14px'>📞 {_phone}</span>" if _phone else "")
+                        + (f"<span style='color:#64748b;font-size:14px'>✉️ {_email}</span>" if _email else "")
+                        + "</div>"
+                    )
+
                 st.markdown(
                     "<div style='background:" + bg + ";border:" + border + ";border-radius:12px;"
-                    "padding:16px 20px;margin-bottom:10px'>"
-                    "<div style='display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap'>"
+                    "padding:16px 20px;margin-bottom:6px'>"
+                    "<div style='display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap'>"
                     "<span style='font-weight:800;font-size:18px;color:#f1f5f9'>" + str(row['job_id']) + "</span>"
-                    "<span style='font-size:16px;color:#94a3b8'>" + str(row.get('client','') or '') + "</span>"
+                    "<span style='font-size:15px;font-weight:600;color:#e2e8f0'>" + str(row.get('client','') or '') + "</span>"
                     "<span style='font-size:13px;background:#1a2d3a;color:#64748b;"
-                    "padding:3px 10px;border-radius:999px'>" + _month + "</span>"
+                    "padding:2px 10px;border-radius:999px'>" + _month + "</span>"
                     + sec_badge + overdue_badge + due_badge +
-                    "<span style='margin-left:auto;font-size:18px;font-weight:800;color:#2dd4bf'>$" + f"{float(row['value']):,.0f}" + "</span>"
+                    "<span style='margin-left:auto;font-size:20px;font-weight:800;color:#2dd4bf'>$" + f"{float(row['value']):,.0f}" + "</span>"
                     "</div>"
-                    "<div style='display:flex;gap:20px;font-size:15px;flex-wrap:wrap'>"
-                    "<span style='color:" + pc + ";font-weight:700'>" + str(prob) + "% probability</span>"
-                    + _contact + _phone + _fuspan +
+                    "<div style='display:flex;gap:16px;align-items:center;flex-wrap:wrap'>"
+                    "<span style='color:" + pc + ";font-weight:700;font-size:15px'>" + str(prob) + "%</span>"
+                    + (_bar) +
+                    (f"<span style='color:#475569;font-size:13px;margin-left:auto'>{_fuspan}</span>" if _fuspan else "") +
                     "</div>"
-                    + _notes +
-                    "</div>",
+                    + _contact_section
+                    + (f"<div style='font-size:13px;color:#f59e0b;margin-top:6px;font-style:italic'>{_notes}</div>" if _notes else "")
+                    + "</div>",
                     unsafe_allow_html=True)
 
                 # Quick action buttons
@@ -8401,49 +8465,53 @@ elif page == "Clients":
         if clients_df.empty:
             st.info("No clients yet — click + New Client to add your first one.")
         else:
-            # Group by type
-            for ctype in CLIENT_TYPES:
-                type_clients = clients_df[clients_df["client_type"]==ctype]
-                if type_clients.empty: continue
-                tc_col = {"Builder":"#7dd3fc","Developer":"#a78bfa","Owner":"#4ade80",
-                          "Property Manager":"#f59e0b","Insurance":"#fb923c","Other":"#64748b"}.get(ctype,"#64748b")
-                st.markdown(f"""<div style="display:flex;align-items:center;gap:10px;
-                    margin:1rem 0 .5rem"><span style="background:{tc_col}22;color:{tc_col};
-                    padding:3px 12px;border-radius:999px;font-size:13px;font-weight:700">
-                    {ctype}</span><span style="font-size:13px;color:#475569">
-                    {len(type_clients)}</span></div>""", unsafe_allow_html=True)
+            # Alphabetical full-width list
+            TYPE_COLORS_CLI = {"Builder":"#7dd3fc","Developer":"#a78bfa","Owner":"#4ade80",
+                               "Property Manager":"#f59e0b","Insurance":"#fb923c","Other":"#64748b"}
 
-                for i in range(0, len(type_clients), 3):
-                    chunk = type_clients.iloc[i:i+3]
-                    cols  = st.columns(3)
-                    for col,(_, cr) in zip(cols, chunk.iterrows()):
-                        with col:
-                            cid  = int(cr["id"])
-                            init = (cr.get("name") or "C")[0].upper()
-                            # Count jobs
-                            njobs = fetch_df("SELECT COUNT(*) AS n FROM jobs WHERE client=? AND archived=0",
-                                            (cr["name"],)).iloc[0]["n"]
-                            init = (cr.get("company") or cr.get("name") or "C")[0].upper()
-                            st.markdown(f"""
-                            <div style="background:#1e2d3d;border:1px solid #2a3d4f;
-                                border-radius:10px;padding:14px 16px;margin-bottom:8px">
-                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-                                    <div style="width:36px;height:36px;border-radius:50%;
-                                        background:#1a3a3a;border:1.5px solid {tc_col};
-                                        display:flex;align-items:center;justify-content:center;
-                                        font-size:14px;font-weight:800;color:{tc_col}">{init}</div>
-                                    <div>
-                                        <div style="font-weight:700;font-size:14px;color:#f1f5f9">{cr.get('company') or cr.get('name') or ''}</div>
-                                        <div style="font-size:13px;color:#94a3b8">{cr.get('name') or ''}</div>
-                                    </div>
-                                </div>
-                                <div style="font-size:13px;color:#475569">
-                                    {cr.get('phone') or ''}{' · ' if cr.get('phone') and cr.get('email') else ''}{cr.get('email') or ''}
-                                </div>
-                                <div style="font-size:13px;color:#2dd4bf;margin-top:4px">{njobs} job{'s' if njobs!=1 else ''}</div>
-                            </div>""", unsafe_allow_html=True)
-                            if st.button("Open", key=f"cli_{cid}"):
-                                st.session_state["open_client"] = cid; st.rerun()
+            # Sort alphabetically by company/name
+            clients_df["_sort"] = clients_df.apply(
+                lambda r: str(r.get("company") or r.get("name") or "").upper(), axis=1)
+            clients_df = clients_df.sort_values("_sort").reset_index(drop=True)
+
+            st.markdown(f"<div style='color:#475569;font-size:14px;margin-bottom:12px'>{len(clients_df)} clients</div>", unsafe_allow_html=True)
+
+            # Column headers
+            hc1,hc2,hc3,hc4,hc5,hc6 = st.columns([3,2,2,2,1,1])
+            hc1.markdown("<div style='color:#475569;font-size:13px;font-weight:700'>COMPANY / NAME</div>", unsafe_allow_html=True)
+            hc2.markdown("<div style='color:#475569;font-size:13px;font-weight:700'>TYPE</div>", unsafe_allow_html=True)
+            hc3.markdown("<div style='color:#475569;font-size:13px;font-weight:700'>PHONE</div>", unsafe_allow_html=True)
+            hc4.markdown("<div style='color:#475569;font-size:13px;font-weight:700'>EMAIL</div>", unsafe_allow_html=True)
+            hc5.markdown("<div style='color:#475569;font-size:13px;font-weight:700'>JOBS</div>", unsafe_allow_html=True)
+            hc6.markdown("", unsafe_allow_html=True)
+            st.divider()
+
+            for _, cr in clients_df.iterrows():
+                cid = int(cr["id"])
+                tc_col = TYPE_COLORS_CLI.get(str(cr.get("client_type","")), "#64748b")
+                njobs = fetch_df("SELECT COUNT(*) AS n FROM jobs WHERE client=? AND archived=0",
+                                (cr.get("name",""),)).iloc[0]["n"]
+
+                cl1,cl2,cl3,cl4,cl5,cl6 = st.columns([3,2,2,2,1,1])
+                with cl1:
+                    company = str(cr.get("company","") or cr.get("name","") or "")
+                    contact = str(cr.get("name","") or "")
+                    st.markdown(
+                        f"<div style='font-weight:700;font-size:15px;color:#f1f5f9'>{company}</div>"
+                        f"<div style='font-size:13px;color:#64748b'>{contact if contact != company else ''}</div>",
+                        unsafe_allow_html=True)
+                with cl2:
+                    st.markdown(f"<span style='background:{tc_col}22;color:{tc_col};border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700'>{cr.get('client_type','')}</span>", unsafe_allow_html=True)
+                with cl3:
+                    st.markdown(f"<div style='color:#94a3b8;font-size:14px'>{cr.get('phone','') or '—'}</div>", unsafe_allow_html=True)
+                with cl4:
+                    st.markdown(f"<div style='color:#94a3b8;font-size:13px'>{str(cr.get('email','') or '—')[:25]}</div>", unsafe_allow_html=True)
+                with cl5:
+                    st.markdown(f"<div style='color:#2dd4bf;font-weight:700;font-size:14px'>{njobs}</div>", unsafe_allow_html=True)
+                with cl6:
+                    if st.button("Open →", key=f"cli_{cid}", type="primary"):
+                        st.session_state["open_client"] = cid; st.rerun()
+                st.divider()
 
 # ─────────────────────────────────────────────
 #  PAGE: TIMESHEETS
@@ -8620,6 +8688,47 @@ elif page == "Timesheets":
             execute("INSERT INTO labour_logs (work_date,job_id,employee,hours,hourly_rate,note) VALUES (?,?,?,?,?,?)",
                     (qa_date.isoformat(), qa_job, qa_emp, qa_hrs, emp_rate, qa_note))
             st.success(f"Added {qa_hrs}h for {qa_emp} on {qa_job}."); st.rerun()
+
+    st.divider()
+
+    # ── CSV Export ────────────────────────────────────────────────────────
+    st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin-bottom:8px'>EXPORT FOR ACCOUNTANT</div>", unsafe_allow_html=True)
+    ex1, ex2, ex3 = st.columns(3)
+    with ex1:
+        export_from = st.date_input("From", value=monday, format="DD/MM/YYYY", key="ts_exp_from")
+    with ex2:
+        export_to = st.date_input("To", value=week_days[6], format="DD/MM/YYYY", key="ts_exp_to")
+    with ex3:
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        if st.button("📊 Generate CSV", type="primary"):
+            export_logs = fetch_df("""
+                SELECT ll.work_date AS Date, ll.employee AS Employee,
+                       ll.job_id AS Job, j.client AS Client,
+                       ll.hours AS Hours, ll.hourly_rate AS Rate,
+                       ROUND(ll.hours*ll.hourly_rate,2) AS Cost,
+                       ll.note AS Note
+                FROM labour_logs ll
+                LEFT JOIN jobs j ON j.job_id=ll.job_id
+                WHERE ll.work_date >= ? AND ll.work_date <= ?
+                ORDER BY ll.work_date, ll.employee
+            """, (export_from.isoformat(), export_to.isoformat()))
+            if not export_logs.empty:
+                # Format dates as Australian
+                export_logs["Date"] = export_logs["Date"].apply(_fmt_date)
+                csv_data = export_logs.to_csv(index=False)
+                st.download_button(
+                    "⬇️ Download Timesheet CSV",
+                    data=csv_data,
+                    file_name=f"timesheets_{export_from.strftime('%d%m%Y')}_{export_to.strftime('%d%m%Y')}.csv",
+                    mime="text/csv",
+                    type="primary"
+                )
+                # Summary stats
+                total_hrs = export_logs["Hours"].sum()
+                total_cost = export_logs["Cost"].sum()
+                st.success(f"{len(export_logs)} entries · {total_hrs:.1f}h total · ${total_cost:,.2f}")
+            else:
+                st.info("No hours logged in that date range.")
 
 # ─────────────────────────────────────────────
 #  PAGE: COMPANY SETTINGS
