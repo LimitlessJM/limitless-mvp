@@ -45,14 +45,18 @@ import os as _os
 
 # Railway PostgreSQL or SQLite fallback
 DATABASE_URL = _os.environ.get("DATABASE_URL", "")
+# Read from env vars first (Railway), fall back to st.secrets (Streamlit Cloud)
+SUPABASE_URL = _os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = _os.environ.get("SUPABASE_KEY", "")
 try:
-    SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
-    SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+    if not SUPABASE_URL:
+        SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+    if not SUPABASE_KEY:
+        SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
     if not DATABASE_URL:
         DATABASE_URL = st.secrets.get("DATABASE_URL", "")
 except:
-    SUPABASE_URL = ""
-    SUPABASE_KEY = ""
+    pass
 
 USE_POSTGRES = bool(DATABASE_URL)
 USE_SUPABASE = False
