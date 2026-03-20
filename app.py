@@ -9433,6 +9433,13 @@ CREATE TABLE IF NOT EXISTS jobs (job_id text PRIMARY KEY, client text, address t
 CREATE TABLE IF NOT EXISTS day_assignments (id bigint PRIMARY KEY, job_id text, client text, employee text, date text, note text, start_time text, end_time text);
 CREATE TABLE IF NOT EXISTS clock_events (id bigint generated always as identity PRIMARY KEY, employee text, job_id text, event_type text, event_time text, event_date text, note text, status text default 'Pending', approved_by text, approved_at text);
 CREATE TABLE IF NOT EXISTS mobile_variations (id bigint generated always as identity PRIMARY KEY, employee text, job_id text, description text, submitted_at text, status text default 'Pending');
+
+-- IMPORTANT: Disable RLS so mobile app can insert without authentication
+ALTER TABLE clock_events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mobile_variations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE employees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE jobs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE day_assignments DISABLE ROW LEVEL SECURITY;
                 """, language="sql")
             else:
                 st.success(f"✅ All {len(tables_ok)} tables exist")
