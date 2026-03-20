@@ -952,6 +952,14 @@ def init_db():
     try:
         cur.execute("DROP INDEX IF EXISTS idx_cat_items_desc")
     except: pass
+    # ── Add pin column to employees if missing ────────────────────────────
+    try:
+        cur.execute("ALTER TABLE employees ADD COLUMN pin TEXT DEFAULT ''")
+    except: pass
+    # ── Add phone column to employees if missing ──────────────────────────
+    try:
+        cur.execute("ALTER TABLE employees ADD COLUMN phone TEXT DEFAULT ''")
+    except: pass
     # ── Create clock_events table if missing ─────────────────────────────
     cur.execute("""CREATE TABLE IF NOT EXISTS clock_events (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1098,7 +1106,7 @@ def sync_to_mobile():
     try:
         # ── Employees — delete all then re-push clean list ────────────────
         _supa_client.table("employees").delete().neq("id", -999).execute()
-        emps = fetch_df("SELECT id, name, role, hourly_rate, active, pin FROM employees WHERE active=1")
+        emps = fetch_df("SELECT id, name, role, hourly_rate, active, COALESCE(pin,'') as pin FROM employees WHERE active=1")
         for _, r in emps.iterrows():
             supa_push("employees", {
                 "id": int(r["id"]), "name": str(r["name"]),
