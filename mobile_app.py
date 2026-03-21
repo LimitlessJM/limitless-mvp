@@ -490,7 +490,8 @@ elif page == "clock":
                     (today_str, selected_job, user, hours_worked, rate, clock_note or ""))
             errs = sync_to_supabase(user)
             if errs:
-                st.warning(f"⚠️ Sync issue: {errs[0]}")
+                for err in errs:
+                    st.error(f"⚠️ Sync error: {err}")
             else:
                 st.success(f"✅ Clocked out — {today_hours}h logged · Pending director approval")
             st.rerun()
@@ -587,28 +588,11 @@ elif page == "variation":
 elif page == "profile":
     st.markdown(f"<div style='font-size:22px;font-weight:800;color:#e2e8f0;margin-bottom:16px'>👤 {user}</div>", unsafe_allow_html=True)
 
-    # ── Connection status + diagnostics ───────────────────────────────────
+    # Connection status
     if USE_SUPABASE:
-        st.markdown("<div style='background:#0d2a1f;border:1px solid #2dd4bf;border-radius:8px;padding:8px 14px;font-size:13px;color:#2dd4bf;margin-bottom:12px'>🟢 Connected to Supabase</div>", unsafe_allow_html=True)
-        with st.expander("🔍 Sync Diagnostics"):
-            tables = ["employees","jobs","day_assignments","clock_events","mobile_variations","labour_logs","job_photos"]
-            for t in tables:
-                try:
-                    rows = supa_get(t)
-                    st.markdown(f"<span style='color:#2dd4bf'>✅ {t}</span> — {len(rows)} rows", unsafe_allow_html=True)
-                except Exception as _te:
-                    st.markdown(f"<span style='color:#f43f5e'>❌ {t} — {_te}</span>", unsafe_allow_html=True)
-            st.divider()
-            st.caption("Local unsynced:")
-            ce_u = local_fetch("SELECT COUNT(*) as n FROM clock_events WHERE synced=0")
-            ll_u = local_fetch("SELECT COUNT(*) as n FROM labour_logs WHERE synced=0")
-            ph_u = local_fetch("SELECT COUNT(*) as n FROM job_photos WHERE synced=0")
-            st.write(f"Clock events: {ce_u[0]['n']} | Labour logs: {ll_u[0]['n']} | Photos: {ph_u[0]['n']}")
-            st.caption(f"URL: {SUPABASE_URL[:40] if SUPABASE_URL else 'NOT SET'}")
+        st.markdown("<div style='background:#0d2a1f;border:1px solid #2dd4bf;border-radius:8px;padding:8px 14px;font-size:13px;color:#2dd4bf;margin-bottom:12px'>🟢 Connected to office</div>", unsafe_allow_html=True)
     else:
-        st.markdown("<div style='background:#2d0f0f;border:1px solid #f43f5e;border-radius:8px;padding:8px 14px;font-size:13px;color:#f43f5e;margin-bottom:12px'>🔴 No Supabase connection</div>", unsafe_allow_html=True)
-        st.warning(f"SUPABASE_URL set: {bool(SUPABASE_URL)} | SUPABASE_KEY set: {bool(SUPABASE_KEY)}")
-        st.info("Add SUPABASE_URL and SUPABASE_KEY to your Streamlit secrets or environment variables.")
+        st.markdown("<div style='background:#2d0f0f;border:1px solid #f43f5e;border-radius:8px;padding:8px 14px;font-size:13px;color:#f43f5e;margin-bottom:12px'>🔴 No office connection — check Supabase secrets in Streamlit settings</div>", unsafe_allow_html=True)
 
     week_total = local_fetch("SELECT SUM(hours) AS h FROM labour_logs WHERE employee=? AND work_date >= date('now','-7 days')", (user,))
     week_h = float(week_total[0]["h"] or 0) if week_total and week_total[0]["h"] else 0
@@ -626,8 +610,12 @@ elif page == "profile":
 
     if st.button("🔄 Sync with Office", use_container_width=True):
         sync_from_supabase()
-        sync_to_supabase(user)
-        st.success("✅ Synced!")
+        errs = sync_to_supabase(user)
+        if errs:
+            for err in errs:
+                st.error(f"⚠️ {err}")
+        else:
+            st.success("✅ Synced!")
 
     st.markdown("<div style='font-size:12px;font-weight:700;color:#2dd4bf;text-transform:uppercase;margin:20px 0 10px'>Change PIN</div>", unsafe_allow_html=True)
     new_pin = st.text_input("New PIN (4-6 digits)", type="password", max_chars=6)
