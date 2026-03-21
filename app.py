@@ -6395,7 +6395,17 @@ No explanation, only JSON."""
                                 import base64 as _b64ph
                                 ph_data = fetch_df("SELECT photo_data FROM job_photos WHERE id=?", (phid,))
                                 if not ph_data.empty and ph_data.iloc[0]["photo_data"]:
-                                    try: raw = _b64ph.b64decode(ph_data.iloc[0]["photo_data"])
+                                    try:
+                                        _pd = ph_data.iloc[0]["photo_data"]
+                                        # Handle both bytes and base64 string
+                                        if isinstance(_pd, (bytes, bytearray)):
+                                            try: raw = _b64ph.b64decode(_pd)
+                                            except: raw = bytes(_pd)
+                                        elif isinstance(_pd, str):
+                                            try: raw = _b64ph.b64decode(_pd)
+                                            except: raw = _pd.encode()
+                                        else:
+                                            raw = None
                                     except: raw = None
                             cap = f"{ph.get('category','')} — {ph.get('caption','')}"
                             if ph.get("uploaded_by"): cap += f" ({ph['uploaded_by']})"
