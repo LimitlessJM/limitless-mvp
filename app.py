@@ -2870,15 +2870,29 @@ if not st.session_state["authenticated_user"]:
 
         _lp_path = Path(__file__).with_name("landing_page_content.html")
         if _lp_path.exists():
-            st.markdown(_lp_path.read_text(encoding="utf-8"), unsafe_allow_html=True)
+            _lp_html = _lp_path.read_text(encoding="utf-8")
         else:
-            st.markdown("<div style='text-align:center;padding:80px;color:#2dd4bf;font-size:24px'>LIMITLESS JOB MANAGEMENT</div>", unsafe_allow_html=True)
+            _lp_html = "<div style='text-align:center;padding:80px;color:#2dd4bf;font-size:24px'>LIMITLESS JOB MANAGEMENT</div>"
 
-        bcol1, bcol2, bcol3 = st.columns([3, 2, 3])
-        with bcol2:
-            if st.button("\U0001F680 Get Started / Log In", type="primary", use_container_width=True):
-                st.session_state["show_login"] = True
-                st.rerun()
+        # Append a login button inside the HTML so it stays full-width
+        _lp_html += """
+        <div style="display:flex;justify-content:center;padding:40px 0 60px;background:#060d18;">
+            <a href="?login=1" style="background:#2dd4bf;color:#060d18;font-family:'Barlow Semi Condensed',sans-serif;
+                font-weight:800;font-size:18px;padding:18px 48px;border-radius:10px;text-decoration:none;
+                box-shadow:0 0 40px rgba(45,212,191,0.3);">
+                🚀 Get Started / Log In
+            </a>
+        </div>"""
+
+        import streamlit.components.v1 as _lp_components
+        _lp_components.html(_lp_html, height=6000, scrolling=False)
+
+        # Detect login click via query param
+        _qp = st.query_params
+        if _qp.get("login") == "1":
+            st.query_params.clear()
+            st.session_state["show_login"] = True
+            st.rerun()
 
         st.stop()
 
