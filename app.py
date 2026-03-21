@@ -2849,7 +2849,6 @@ if not st.session_state["authenticated_user"]:
         # LANDING PAGE
         # ══════════════════════════════════════════════════════════════════
 
-        # Hide Streamlit chrome for clean landing page
         st.markdown("""
         <style>
         header[data-testid="stHeader"] { display: none !important; }
@@ -2859,18 +2858,17 @@ if not st.session_state["authenticated_user"]:
         </style>
         """, unsafe_allow_html=True)
 
-        # Inject landing page styles + full HTML
-        st.markdown(f"""<style>{style}</style>""", unsafe_allow_html=True)
-        st.markdown(f"""{body_html}""", unsafe_allow_html=True)
+        _lp_path = Path(__file__).with_name("landing_page_content.html")
+        if _lp_path.exists():
+            st.markdown(_lp_path.read_text(encoding="utf-8"), unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='text-align:center;padding:80px;color:#2dd4bf;font-size:24px'>LIMITLESS JOB MANAGEMENT</div>", unsafe_allow_html=True)
 
-        # CTA buttons — Streamlit handles the actual navigation
-        st.markdown("<div id='login-section' style='display:flex;justify-content:center;gap:16px;padding:0 0 40px;background:var(--dark, #060d18)'>", unsafe_allow_html=True)
-        bcol1, bcol2, bcol3 = st.columns([3,2,3])
+        bcol1, bcol2, bcol3 = st.columns([3, 2, 3])
         with bcol2:
-            if st.button("🚀 Get Started / Log In", type="primary", use_container_width=True):
+            if st.button("\U0001F680 Get Started / Log In", type="primary", use_container_width=True):
                 st.session_state["show_login"] = True
                 st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
 
         st.stop()
 
