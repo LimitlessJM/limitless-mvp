@@ -1148,7 +1148,6 @@ def sync_from_mobile():
     """Pull clock events and variations from Supabase into local DB."""
     if not USE_SUPABASE:
         return
-    # Each table wrapped individually so one failure doesn't kill rest
     try:
         # Pull clock events — match on employee+date+type+time not id
         events = supa_pull("clock_events")
@@ -6332,12 +6331,20 @@ No explanation, only JSON."""
 
             PHOTO_CATS = ["Progress","Before","After","Defect","Damage","Delivery","Other"]
 
+            # Fetch both desktop-uploaded and mobile-synced photos
             photos_df = fetch_df(
-                "SELECT id,photo_date,caption,category,filename FROM job_photos WHERE job_id=? ORDER BY photo_date DESC",
+                """SELECT id, photo_date, caption,
+                    COALESCE(category,'Mobile') as category,
+                    COALESCE(filename,'') as filename,
+                    COALESCE(uploaded_by,'') as uploaded_by,
+                    CASE WHEN filedata IS NOT NULL THEN 'desktop'
+                         WHEN photo_data IS NOT NULL THEN 'mobile'
+                         ELSE 'unknown' END as source
+                   FROM job_photos WHERE job_id=? ORDER BY photo_date DESC""",
                 (open_job,)
             )
 
-            # Upload
+            # Upload from desktop
             ph_col1, ph_col2, ph_col3 = st.columns(3)
             with ph_col1: ph_date = st.date_input("Photo date", value=date.today(), key="ph_date")
             with ph_col2: ph_cat  = st.selectbox("Category", PHOTO_CATS, key="ph_cat")
@@ -6360,22 +6367,31 @@ No explanation, only JSON."""
             if photos_df.empty:
                 st.info("No photos uploaded yet.")
             else:
-                # Group by date
                 for pdate in photos_df["photo_date"].unique():
                     day_photos = photos_df[photos_df["photo_date"]==pdate]
-                    st.markdown(f"<div style='font-size:13px;font-weight:700;color:#2dd4bf;"
-                                f"margin:12px 0 8px'>📅 {pdate}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:12px 0 8px'>📅 {pdate}</div>", unsafe_allow_html=True)
                     pcols = st.columns(3)
                     for i, (_, ph) in enumerate(day_photos.iterrows()):
                         phid = int(ph["id"])
                         with pcols[i % 3]:
-                            ph_data = fetch_df("SELECT filedata,filename FROM job_photos WHERE id=?", (phid,))
-                            if not ph_data.empty:
-                                raw = ph_data.iloc[0]["filedata"]
-                                try:
-                                    st.image(raw, caption=f"{ph.get('category','')} — {ph.get('caption','')}", width="stretch")
-                                except:
-                                    st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;padding:20px;text-align:center;color:#64748b'>🖼️<br>{ph.get('filename','')}</div>", unsafe_allow_html=True)
+                            source = ph.get("source","unknown")
+                            raw = None
+                            if source == "desktop":
+                                ph_data = fetch_df("SELECT filedata FROM job_photos WHERE id=?", (phid,))
+                                if not ph_data.empty: raw = ph_data.iloc[0]["filedata"]
+                            elif source == "mobile":
+                                import base64 as _b64ph
+                                ph_data = fetch_df("SELECT photo_data FROM job_photos WHERE id=?", (phid,))
+                                if not ph_data.empty and ph_data.iloc[0]["photo_data"]:
+                                    try: raw = _b64ph.b64decode(ph_data.iloc[0]["photo_data"])
+                                    except: raw = None
+                            cap = f"{ph.get('category','')} — {ph.get('caption','')}"
+                            if ph.get("uploaded_by"): cap += f" ({ph['uploaded_by']})"
+                            if raw:
+                                try: st.image(raw, caption=cap, use_container_width=True)
+                                except: st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;padding:20px;text-align:center;color:#64748b'>🖼️ {cap}</div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;padding:20px;text-align:center;color:#64748b'>📱 Mobile photo<br><small>{cap}</small></div>", unsafe_allow_html=True)
                             if st.button("Delete", key=f"phdel_{phid}"):
                                 execute("DELETE FROM job_photos WHERE id=?", (phid,))
                                 st.rerun()
@@ -11325,4 +11341,3 @@ elif page == "StackCT Import":
     """)
     if not fr_df.empty:
         st.dataframe(fr_df, width="stretch", hide_index=True)
-        
