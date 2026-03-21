@@ -984,6 +984,15 @@ def init_db():
     try:
         cur.execute("ALTER TABLE clock_events ADD COLUMN approved_at TEXT DEFAULT ''")
     except: pass
+    try:
+        cur.execute("ALTER TABLE job_photos ADD COLUMN photo_data BLOB")
+    except: pass
+    try:
+        cur.execute("ALTER TABLE job_photos ADD COLUMN uploaded_by TEXT DEFAULT ''")
+    except: pass
+    try:
+        cur.execute("ALTER TABLE job_photos ADD COLUMN uploaded_at TEXT DEFAULT ''")
+    except: pass
 
     # ── Add handover columns if missing ──────────────────────────────────
     for _col, _def in [
@@ -2801,6 +2810,9 @@ if USE_POSTGRES:
             "ALTER TABLE day_assignments ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''",
             "ALTER TABLE site_diary ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT ''",
             "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS photo_data BYTEA",
+            "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS photo_data TEXT",
+            "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS uploaded_by TEXT DEFAULT ''",
+            "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS uploaded_at TEXT DEFAULT ''",
             "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS filedata BYTEA",
             "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS filetype TEXT DEFAULT ''",
             "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS uploaded_at TEXT DEFAULT ''",
