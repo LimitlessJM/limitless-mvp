@@ -1,0 +1,979 @@
+<style>
+  :root {
+    --teal: #2dd4bf;
+    --teal-dim: #2dd4bf22;
+    --teal-border: #2dd4bf44;
+    --dark: #060d18;
+    --dark2: #0a1525;
+    --dark3: #0f1e30;
+    --dark4: #1a2d42;
+    --slate: #94a3b8;
+    --slate-dim: #64748b;
+    --white: #f1f5f9;
+    --amber: #f59e0b;
+    --rose: #f43f5e;
+    --violet: #a78bfa;
+    --green: #4ade80;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--dark);
+    color: var(--white);
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    background: rgba(6,13,24,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(45,212,191,0.1);
+  }
+
+  .nav-logo {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: .1em;
+    color: var(--teal);
+  }
+
+  .nav-logo span {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .3em;
+    color: var(--slate-dim);
+    margin-top: -4px;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--slate);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    transition: color .2s;
+  }
+
+  .nav-links a:hover { color: var(--white); }
+
+  .nav-cta {
+    background: var(--teal);
+    color: var(--dark) !important;
+    font-weight: 700 !important;
+    padding: 10px 24px;
+    border-radius: 8px;
+    transition: opacity .2s !important;
+  }
+
+  .nav-cta:hover { opacity: 0.85 !important; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 48px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(45,212,191,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(45,212,191,0.04) 0%, transparent 60%),
+      linear-gradient(180deg, #060d18 0%, #0a1525 100%);
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(45,212,191,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(45,212,191,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+  }
+
+  .hero-content { position: relative; z-index: 1; max-width: 900px; }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--teal-dim);
+    border: 1px solid var(--teal-border);
+    border-radius: 999px;
+    padding: 7px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 32px;
+    animation: fadeUp .6s ease both;
+  }
+
+  .hero-title {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(56px, 8vw, 96px);
+    letter-spacing: -.02em;
+    line-height: .95;
+    color: var(--white);
+    margin-bottom: 8px;
+    animation: fadeUp .6s .1s ease both;
+  }
+
+  .hero-title .accent { color: var(--teal); }
+
+  .hero-title-sub {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 700;
+    font-size: clamp(18px, 2.5vw, 26px);
+    letter-spacing: .3em;
+    color: var(--slate-dim);
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    animation: fadeUp .6s .15s ease both;
+  }
+
+  .hero-desc {
+    font-size: 19px;
+    color: var(--slate);
+    line-height: 1.7;
+    max-width: 580px;
+    margin: 0 auto 48px;
+    font-weight: 400;
+    animation: fadeUp .6s .2s ease both;
+  }
+
+  .hero-desc strong { color: var(--white); font-weight: 600; }
+
+  .hero-ctas {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: fadeUp .6s .25s ease both;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--teal);
+    color: var(--dark);
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: .05em;
+    padding: 16px 36px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: transform .2s, box-shadow .2s;
+    box-shadow: 0 0 40px rgba(45,212,191,0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 60px rgba(45,212,191,0.4);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    color: var(--white);
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    padding: 16px 36px;
+    border-radius: 10px;
+    border: 1px solid var(--dark4);
+    text-decoration: none;
+    transition: border-color .2s, background .2s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--teal);
+    background: var(--teal-dim);
+  }
+
+  .hero-social-proof {
+    margin-top: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    animation: fadeUp .6s .35s ease both;
+  }
+
+  .hero-social-proof .avatars {
+    display: flex;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--dark);
+    background: var(--dark4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    margin-left: -8px;
+  }
+
+  .avatar:first-child { margin-left: 0; }
+
+  .social-text {
+    font-size: 14px;
+    color: var(--slate-dim);
+  }
+
+  .social-text strong { color: var(--teal); }
+
+  /* ── STATS ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid rgba(45,212,191,0.1);
+    border-bottom: 1px solid rgba(45,212,191,0.1);
+    background: var(--dark2);
+  }
+
+  .stat {
+    padding: 40px 32px;
+    text-align: center;
+    border-right: 1px solid rgba(45,212,191,0.08);
+    transition: background .3s;
+  }
+
+  .stat:last-child { border-right: none; }
+  .stat:hover { background: rgba(45,212,191,0.03); }
+
+  .stat-num {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--teal);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--slate-dim);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+
+  /* ── SECTION ── */
+  section {
+    padding: 100px 48px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(36px, 4vw, 56px);
+    line-height: 1.05;
+    color: var(--white);
+    margin-bottom: 16px;
+  }
+
+  .section-desc {
+    font-size: 18px;
+    color: var(--slate);
+    max-width: 560px;
+    line-height: 1.7;
+  }
+
+  /* ── FEATURES ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    background: rgba(45,212,191,0.06);
+    border: 1px solid rgba(45,212,191,0.1);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-top: 64px;
+  }
+
+  .feature-card {
+    background: var(--dark2);
+    padding: 36px 32px;
+    transition: background .3s;
+    position: relative;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent, var(--teal));
+    opacity: 0;
+    transition: opacity .3s;
+  }
+
+  .feature-card:hover { background: var(--dark3); }
+  .feature-card:hover::before { opacity: 1; }
+
+  .feature-icon {
+    font-size: 32px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .feature-title {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 10px;
+  }
+
+  .feature-desc {
+    font-size: 15px;
+    color: var(--slate-dim);
+    line-height: 1.65;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    margin-top: 64px;
+  }
+
+  .step {
+    position: relative;
+  }
+
+  .step-num {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 80px;
+    font-weight: 900;
+    color: rgba(45,212,191,0.08);
+    line-height: 1;
+    margin-bottom: -20px;
+  }
+
+  .step-title {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 10px;
+  }
+
+  .step-desc {
+    font-size: 15px;
+    color: var(--slate-dim);
+    line-height: 1.65;
+  }
+
+  /* ── WHO IT'S FOR ── */
+  .trades-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 48px;
+  }
+
+  .trade-card {
+    background: var(--dark2);
+    border: 1px solid var(--dark4);
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+    transition: border-color .3s, transform .2s;
+  }
+
+  .trade-card:hover {
+    border-color: var(--teal);
+    transform: translateY(-4px);
+  }
+
+  .trade-icon { font-size: 36px; margin-bottom: 12px; }
+  .trade-name {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  /* ── TESTIMONIAL ── */
+  .testimonial-block {
+    background: var(--dark2);
+    border: 1px solid rgba(45,212,191,0.15);
+    border-radius: 20px;
+    padding: 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .testimonial-block::before {
+    content: '"';
+    position: absolute;
+    top: -20px;
+    left: 40px;
+    font-size: 200px;
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 900;
+    color: rgba(45,212,191,0.05);
+    line-height: 1;
+  }
+
+  .testimonial-text {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--white);
+    line-height: 1.6;
+    max-width: 700px;
+    margin: 0 auto 32px;
+    position: relative;
+  }
+
+  .testimonial-author {
+    font-size: 15px;
+    color: var(--slate-dim);
+    font-weight: 600;
+  }
+
+  .testimonial-author strong {
+    color: var(--teal);
+    display: block;
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  /* ── PRICING ── */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 64px;
+  }
+
+  .pricing-card {
+    background: var(--dark2);
+    border: 1px solid var(--dark4);
+    border-radius: 16px;
+    padding: 40px 32px;
+    position: relative;
+    transition: transform .2s;
+  }
+
+  .pricing-card:hover { transform: translateY(-4px); }
+
+  .pricing-card.featured {
+    border-color: var(--teal);
+    background: linear-gradient(160deg, var(--dark3) 0%, var(--dark2) 100%);
+    box-shadow: 0 0 60px rgba(45,212,191,0.1);
+  }
+
+  .pricing-badge {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--teal);
+    color: var(--dark);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    padding: 4px 16px;
+    border-radius: 999px;
+  }
+
+  .pricing-name {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--slate-dim);
+    margin-bottom: 12px;
+  }
+
+  .pricing-price {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 56px;
+    font-weight: 900;
+    color: var(--white);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .pricing-price sup {
+    font-size: 24px;
+    vertical-align: top;
+    margin-top: 12px;
+  }
+
+  .pricing-period {
+    font-size: 14px;
+    color: var(--slate-dim);
+    margin-bottom: 32px;
+  }
+
+  .pricing-features {
+    list-style: none;
+    margin-bottom: 32px;
+  }
+
+  .pricing-features li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    color: var(--slate);
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .pricing-features li::before {
+    content: '✓';
+    color: var(--teal);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* ── CTA SECTION ── */
+  .cta-section {
+    background: linear-gradient(135deg, var(--dark2) 0%, var(--dark3) 100%);
+    border-top: 1px solid rgba(45,212,191,0.1);
+    border-bottom: 1px solid rgba(45,212,191,0.1);
+    padding: 100px 48px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .cta-title {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: clamp(40px, 5vw, 64px);
+    font-weight: 900;
+    color: var(--white);
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .cta-desc {
+    font-size: 18px;
+    color: var(--slate);
+    margin-bottom: 40px;
+    position: relative;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 40px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--dark4);
+  }
+
+  .footer-logo {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: .1em;
+    color: var(--teal);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+    list-style: none;
+  }
+
+  .footer-links a {
+    color: var(--slate-dim);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color .2s;
+  }
+
+  .footer-links a:hover { color: var(--white); }
+
+  .footer-copy {
+    font-size: 13px;
+    color: var(--slate-dim);
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .7s ease, transform .7s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 768px) {
+    nav { padding: 16px 24px; }
+    .nav-links { display: none; }
+    .hero { padding: 100px 24px 60px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    section { padding: 60px 24px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .trades-grid { grid-template-columns: repeat(2, 1fr); }
+    .pricing-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 16px; text-align: center; }
+    .footer-links { flex-wrap: wrap; justify-content: center; }
+  }
+</style>
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    LIMITLESS
+    <span>JOB MANAGEMENT</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#">Contact</a></li>
+    <li><a href="#" class="nav-cta">Get Started →</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-badge">⚒️ Built for tradies. By a tradie.</div>
+    <h1 class="hero-title">
+      Run a tighter<br><span class="accent">trade business.</span>
+    </h1>
+    <p class="hero-title-sub">Job Management Software</p>
+    <p class="hero-desc">
+      Quote faster. Win more jobs. Know your numbers — <strong>live</strong>.<br>
+      The all-in-one platform built for roofers, landscapers, plumbers and every trade in between.
+    </p>
+    <div class="hero-ctas">
+      <a href="#" class="btn-primary">
+        🚀 Book a Demo
+      </a>
+      <a href="#features" class="btn-secondary">
+        See how it works ↓
+      </a>
+    </div>
+    <div class="hero-social-proof">
+      <div class="avatars">
+        <div class="avatar">👷</div>
+        <div class="avatar">🔧</div>
+        <div class="avatar">⚡</div>
+        <div class="avatar">🏗️</div>
+      </div>
+      <p class="social-text">Trusted by trade businesses across Australia — <strong>try it free for 14 days</strong></p>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-num">5min</div>
+    <div class="stat-label">To build a quote</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">100%</div>
+    <div class="stat-label">Invoice accuracy</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">Live</div>
+    <div class="stat-label">Job P&L tracking</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">📱</div>
+    <div class="stat-label">Mobile app included</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="reveal">
+    <div class="section-label">Everything you need</div>
+    <h2 class="section-title">One platform.<br>No spreadsheets. No paper.</h2>
+    <p class="section-desc">From the first quote to the final invoice — every part of your business connected and working together.</p>
+  </div>
+
+  <div class="features-grid reveal">
+    <div class="feature-card" style="--accent: var(--teal)">
+      <span class="feature-icon">📋</span>
+      <div class="feature-title">Professional Quoting</div>
+      <div class="feature-desc">Build quotes from your materials catalogue in minutes. PDF quotes that look sharp and win jobs.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--amber)">
+      <span class="feature-icon">📅</span>
+      <div class="feature-title">Job Scheduling</div>
+      <div class="feature-desc">See your whole team on a calendar. Assign jobs and workers sync to their phones automatically.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--violet)">
+      <span class="feature-icon">💰</span>
+      <div class="feature-title">Invoice & Get Paid</div>
+      <div class="feature-desc">Issue invoices straight from the job. Track what's paid and what's outstanding in real time.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--green)">
+      <span class="feature-icon">📱</span>
+      <div class="feature-title">Mobile App for the Lads</div>
+      <div class="feature-desc">Clock in/out, log variations, upload site photos — all from their phone. PIN login, no fuss.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--rose)">
+      <span class="feature-icon">📊</span>
+      <div class="feature-title">Live Job P&L</div>
+      <div class="feature-desc">Know if you're making money on a job before it's finished. Quoted vs actual — always up to date.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--teal)">
+      <span class="feature-icon">⏱</span>
+      <div class="feature-title">Timesheets & Payroll</div>
+      <div class="feature-desc">Clock events flow from site to director approval. Hours feed straight into job costing and payroll.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--amber)">
+      <span class="feature-icon">🧾</span>
+      <div class="feature-title">AI Invoice Scanner</div>
+      <div class="feature-desc">Snap a supplier invoice. AI reads it and logs the materials cost against the right job automatically.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--violet)">
+      <span class="feature-icon">⚠️</span>
+      <div class="feature-title">Variations Management</div>
+      <div class="feature-desc">Workers log variations from site. Director prices and approves. Gets added to the job instantly.</div>
+    </div>
+    <div class="feature-card" style="--accent: var(--green)">
+      <span class="feature-icon">🔧</span>
+      <div class="feature-title">Works for Any Trade</div>
+      <div class="feature-desc">Roofing, landscaping, plumbing, electrical — build your own catalogue and labour rates.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="background: var(--dark2); max-width: 100%; border-top: 1px solid rgba(45,212,191,0.08); border-bottom: 1px solid rgba(45,212,191,0.08);">
+  <div style="max-width: 1200px; margin: 0 auto;">
+    <div class="reveal" style="text-align: center; margin-bottom: 0;">
+      <div class="section-label" style="text-align:center">Simple by design</div>
+      <h2 class="section-title" style="text-align:center">Up and running in a day</h2>
+      <p class="section-desc" style="margin: 0 auto;">No IT team. No 6-month rollout. You're live and your crew is clocking in by tomorrow.</p>
+    </div>
+
+    <div class="steps reveal">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3 class="step-title">Set up your business</h3>
+        <p class="step-desc">Add your employees, hourly rates, materials catalogue, and company details. Takes less than an hour.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3 class="step-title">Start quoting and scheduling</h3>
+        <p class="step-desc">Build quotes from your catalogue. Schedule jobs on the calendar. Workers see their day on their phone automatically.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3 class="step-title">Watch the numbers work</h3>
+        <p class="step-desc">Hours flow from site to timesheets. Costs update against jobs in real time. You always know where you stand.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHO IT'S FOR -->
+<section>
+  <div class="reveal">
+    <div class="section-label">Every trade</div>
+    <h2 class="section-title">Built for the tools,<br>not the boardroom.</h2>
+    <p class="section-desc">If you quote jobs, manage crews, and want to actually know your numbers — this is for you.</p>
+  </div>
+
+  <div class="trades-grid reveal">
+    <div class="trade-card"><div class="trade-icon">🏠</div><div class="trade-name">Roofing</div></div>
+    <div class="trade-card"><div class="trade-icon">🌿</div><div class="trade-name">Landscaping</div></div>
+    <div class="trade-card"><div class="trade-icon">🔧</div><div class="trade-name">Plumbing</div></div>
+    <div class="trade-card"><div class="trade-icon">⚡</div><div class="trade-name">Electrical</div></div>
+    <div class="trade-card"><div class="trade-icon">🧱</div><div class="trade-name">Concreting</div></div>
+    <div class="trade-card"><div class="trade-icon">🪟</div><div class="trade-name">Carpentry</div></div>
+    <div class="trade-card"><div class="trade-icon">❄️</div><div class="trade-name">HVAC</div></div>
+    <div class="trade-card"><div class="trade-icon">🎨</div><div class="trade-name">Painting</div></div>
+  </div>
+</section>
+
+<!-- TESTIMONIAL -->
+<section style="max-width: 900px;">
+  <div class="testimonial-block reveal">
+    <p class="testimonial-text">
+      "Most tradies don't know if they made money on a job until they sit down with their accountant six months later. Limitless tells you in real time."
+    </p>
+    <div class="testimonial-author">
+      <strong>Built by a tradie</strong>
+      For trade businesses that want to run tighter
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="reveal" style="text-align: center;">
+    <div class="section-label" style="text-align:center">Simple pricing</div>
+    <h2 class="section-title" style="text-align:center">No surprises.</h2>
+    <p class="section-desc" style="margin: 0 auto;">14-day free trial. No credit card required. Cancel any time.</p>
+  </div>
+
+  <div class="pricing-grid reveal">
+    <div class="pricing-card">
+      <div class="pricing-name">Starter</div>
+      <div class="pricing-price"><sup>$</sup>79</div>
+      <div class="pricing-period">per month + GST</div>
+      <ul class="pricing-features">
+        <li>Up to 3 employees</li>
+        <li>Job management</li>
+        <li>Quoting & invoicing</li>
+        <li>Mobile app</li>
+        <li>Basic reporting</li>
+      </ul>
+      <a href="#" class="btn-secondary" style="width:100%; justify-content:center;">Get started</a>
+    </div>
+
+    <div class="pricing-card featured">
+      <div class="pricing-badge">Most Popular</div>
+      <div class="pricing-name">Professional</div>
+      <div class="pricing-price"><sup>$</sup>149</div>
+      <div class="pricing-period">per month + GST</div>
+      <ul class="pricing-features">
+        <li>Up to 10 employees</li>
+        <li>Everything in Starter</li>
+        <li>Timesheets & payroll</li>
+        <li>Job P&L & costing</li>
+        <li>AI invoice scanner</li>
+        <li>Variations management</li>
+        <li>Schedule calendar</li>
+      </ul>
+      <a href="#" class="btn-primary" style="width:100%; justify-content:center;">Start free trial</a>
+    </div>
+
+    <div class="pricing-card">
+      <div class="pricing-name">Business</div>
+      <div class="pricing-price"><sup>$</sup>249</div>
+      <div class="pricing-period">per month + GST</div>
+      <ul class="pricing-features">
+        <li>Unlimited employees</li>
+        <li>Everything in Pro</li>
+        <li>Xero integration</li>
+        <li>Multi-user access</li>
+        <li>Priority support</li>
+        <li>Custom catalogue setup</li>
+      </ul>
+      <a href="#" class="btn-secondary" style="width:100%; justify-content:center;">Get started</a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <h2 class="cta-title reveal">Ready to run a tighter business?</h2>
+  <p class="cta-desc reveal">Start your free 14-day trial. No credit card required.</p>
+  <div class="reveal">
+    <a href="#" class="btn-primary" style="font-size:19px; padding:18px 48px;">
+      🚀 Book a Demo Today
+    </a>
+  </div>
+  <p style="margin-top: 20px; color: var(--slate-dim); font-size: 14px;" class="reveal">
+    Or email us at <a href="#" style="color: var(--teal);"><span class="__cf_email__" data-cfemail="94e4f1e0f1d4f8fdf9fde0f8f1e7e7e0f5fff1fbf2f2e7baf7fbf9">[email&#160;protected]</span></a>
+  </p>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">LIMITLESS <span style="font-size:10px; font-weight:600; letter-spacing:.2em; color: var(--slate-dim); margin-left: 4px;">JOB MANAGEMENT</span></div>
+  <ul class="footer-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#">Contact</a></li>
+  </ul>
+  <div class="footer-copy">© 2026 Limitless Job Management. All rights reserved.</div>
+</footer>
+<script>
+const reveals = document.querySelectorAll('.reveal');
+const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+reveals.forEach(r => obs.observe(r));
+</script>
