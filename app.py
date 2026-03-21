@@ -6392,21 +6392,17 @@ No explanation, only JSON."""
                                 ph_data = fetch_df("SELECT filedata FROM job_photos WHERE id=?", (phid,))
                                 if not ph_data.empty: raw = ph_data.iloc[0]["filedata"]
                             elif source == "mobile":
-                                import base64 as _b64ph
+                                import base64 as _b64ph, io as _io
                                 ph_data = fetch_df("SELECT photo_data FROM job_photos WHERE id=?", (phid,))
                                 if not ph_data.empty and ph_data.iloc[0]["photo_data"]:
                                     try:
                                         _pd = ph_data.iloc[0]["photo_data"]
-                                        # Postgres bytea comes back as memoryview/bytes
-                                        # The bytes ARE the base64 string (e.g. b"iVBOR...")
-                                        if isinstance(_pd, memoryview):
-                                            _pd = bytes(_pd)
+                                        if isinstance(_pd, memoryview): _pd = bytes(_pd)
                                         if isinstance(_pd, (bytes, bytearray)):
-                                            # bytes contain the base64 string — decode to str then b64decode
-                                            try: raw = _b64ph.b64decode(_pd.decode('utf-8'))
-                                            except: raw = bytes(_pd)
+                                            try: raw = _io.BytesIO(_b64ph.b64decode(_pd.decode('utf-8')))
+                                            except: raw = _io.BytesIO(bytes(_pd))
                                         elif isinstance(_pd, str):
-                                            try: raw = _b64ph.b64decode(_pd)
+                                            try: raw = _io.BytesIO(_b64ph.b64decode(_pd))
                                             except: raw = None
                                         else:
                                             raw = None
