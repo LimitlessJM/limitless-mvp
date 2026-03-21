@@ -6397,13 +6397,17 @@ No explanation, only JSON."""
                                 if not ph_data.empty and ph_data.iloc[0]["photo_data"]:
                                     try:
                                         _pd = ph_data.iloc[0]["photo_data"]
-                                        # Handle both bytes and base64 string
-                                        if isinstance(_pd, (bytes, bytearray)):
-                                            try: raw = _b64ph.b64decode(_pd)
-                                            except: raw = bytes(_pd)
+                                        # Postgres returns bytea as memoryview or bytes — use directly
+                                        if isinstance(_pd, memoryview):
+                                            raw = bytes(_pd)
+                                        elif isinstance(_pd, (bytes, bytearray)):
+                                            raw = bytes(_pd)
                                         elif isinstance(_pd, str):
+                                            # Try base64 first, then hex
                                             try: raw = _b64ph.b64decode(_pd)
-                                            except: raw = _pd.encode()
+                                            except:
+                                                try: raw = bytes.fromhex(_pd.replace('\\x','').replace(' ',''))
+                                                except: raw = None
                                         else:
                                             raw = None
                                     except: raw = None
