@@ -2848,51 +2848,258 @@ if not st.session_state["authenticated_user"]:
         # ══════════════════════════════════════════════════════════════════
         # LANDING PAGE
         # ══════════════════════════════════════════════════════════════════
-
         st.markdown("""
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;600;700;800;900&display=swap');
+        section[data-testid="stSidebar"] { display: none !important; }
         header[data-testid="stHeader"] { display: none !important; }
         [data-testid="stToolbar"] { display: none !important; }
-        [data-testid="stSidebar"] { display: none !important; }
-        .main .block-container {
-            padding: 0 !important;
-            max-width: 100% !important;
-            width: 100% !important;
-            margin: 0 !important;
+        .main .block-container { padding: 0 !important; max-width: 100% !important; }
+        .main { padding: 0 !important; background: #060d18 !important; }
+        .stApp { background: #060d18 !important; }
+
+        /* NAV */
+        .lp-nav {
+            position: sticky; top: 0; z-index: 999;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 48px;
+            background: rgba(6,13,24,0.95);
+            border-bottom: 1px solid rgba(45,212,191,0.12);
+            backdrop-filter: blur(16px);
         }
-        .main { padding: 0 !important; }
-        section.main > div { padding: 0 !important; max-width: 100% !important; }
-        .stApp { margin: 0 !important; }
-        #root > div { padding: 0 !important; }
-        iframe { width: 100% !important; }
+        .lp-logo { font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: .1em; color: #2dd4bf; }
+        .lp-logo-sub { font-size: 9px; font-weight: 600; letter-spacing: .3em; color: #64748b; display: block; margin-top: -4px; }
+
+        /* HERO */
+        .lp-hero {
+            text-align: center; padding: 100px 48px 80px;
+            background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(45,212,191,0.08) 0%, transparent 70%), #060d18;
+            position: relative; overflow: hidden;
+        }
+        .lp-hero-grid {
+            position: absolute; inset: 0;
+            background-image: linear-gradient(rgba(45,212,191,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(45,212,191,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+        }
+        .lp-badge {
+            display: inline-block; background: rgba(45,212,191,0.1); border: 1px solid rgba(45,212,191,0.25);
+            border-radius: 999px; padding: 7px 20px; font-size: 12px; font-weight: 700;
+            letter-spacing: .2em; text-transform: uppercase; color: #2dd4bf; margin-bottom: 28px;
+        }
+        .lp-h1 {
+            font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 900;
+            font-size: clamp(52px, 7vw, 88px); letter-spacing: -.02em; line-height: .95;
+            color: #f1f5f9; margin-bottom: 8px;
+        }
+        .lp-h1 .acc { color: #2dd4bf; }
+        .lp-h1-sub {
+            font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 700;
+            font-size: 22px; letter-spacing: .3em; color: #64748b;
+            text-transform: uppercase; margin-bottom: 28px;
+        }
+        .lp-desc { font-size: 18px; color: #94a3b8; line-height: 1.7; max-width: 560px; margin: 0 auto 48px; }
+        .lp-desc strong { color: #f1f5f9; }
+
+        /* STATS */
+        .lp-stats {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            background: #0a1525;
+            border-top: 1px solid rgba(45,212,191,0.1); border-bottom: 1px solid rgba(45,212,191,0.1);
+        }
+        .lp-stat { padding: 36px 24px; text-align: center; border-right: 1px solid rgba(45,212,191,0.07); }
+        .lp-stat:last-child { border-right: none; }
+        .lp-stat-num { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 48px; font-weight: 900; color: #2dd4bf; line-height: 1; }
+        .lp-stat-label { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .12em; margin-top: 6px; }
+
+        /* FEATURES */
+        .lp-section { padding: 80px 48px; max-width: 1200px; margin: 0 auto; }
+        .lp-section-label { font-size: 12px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; color: #2dd4bf; margin-bottom: 12px; }
+        .lp-section-title { font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 900; font-size: clamp(32px, 4vw, 52px); color: #f1f5f9; margin-bottom: 12px; line-height: 1.05; }
+        .lp-section-desc { font-size: 17px; color: #94a3b8; max-width: 520px; line-height: 1.7; margin-bottom: 48px; }
+        .lp-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: rgba(45,212,191,0.06); border-radius: 16px; overflow: hidden; border: 1px solid rgba(45,212,191,0.1); }
+        .lp-feat-card { background: #0a1525; padding: 32px 28px; transition: background .2s; }
+        .lp-feat-card:hover { background: #0f1e30; }
+        .lp-feat-icon { font-size: 30px; margin-bottom: 14px; }
+        .lp-feat-title { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 19px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+        .lp-feat-desc { font-size: 14px; color: #64748b; line-height: 1.6; }
+
+        /* HOW IT WORKS */
+        .lp-how { background: #0a1525; border-top: 1px solid rgba(45,212,191,0.08); border-bottom: 1px solid rgba(45,212,191,0.08); padding: 80px 48px; }
+        .lp-how-inner { max-width: 1200px; margin: 0 auto; }
+        .lp-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 48px; }
+        .lp-step-num { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 72px; font-weight: 900; color: rgba(45,212,191,0.07); line-height: 1; margin-bottom: -16px; }
+        .lp-step-title { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 20px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
+        .lp-step-desc { font-size: 14px; color: #64748b; line-height: 1.65; }
+
+        /* TRADES */
+        .lp-trades-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 40px; }
+        .lp-trade-card { background: #0a1525; border: 1px solid #1a2d42; border-radius: 12px; padding: 22px 16px; text-align: center; transition: border-color .2s, transform .2s; }
+        .lp-trade-card:hover { border-color: #2dd4bf; transform: translateY(-3px); }
+        .lp-trade-icon { font-size: 34px; margin-bottom: 10px; }
+        .lp-trade-name { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 15px; font-weight: 700; color: #f1f5f9; }
+
+        /* PRICING */
+        .lp-pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; }
+        .lp-price-card { background: #0a1525; border: 1px solid #1a2d42; border-radius: 16px; padding: 36px 28px; position: relative; transition: transform .2s; }
+        .lp-price-card:hover { transform: translateY(-4px); }
+        .lp-price-card.featured { border-color: #2dd4bf; background: linear-gradient(160deg, #0f1e30, #0a1525); box-shadow: 0 0 60px rgba(45,212,191,0.1); }
+        .lp-price-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: #2dd4bf; color: #060d18; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; padding: 3px 14px; border-radius: 999px; white-space: nowrap; }
+        .lp-price-name { font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #64748b; margin-bottom: 10px; }
+        .lp-price-amount { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 52px; font-weight: 900; color: #f1f5f9; line-height: 1; }
+        .lp-price-amount sup { font-size: 22px; vertical-align: top; margin-top: 10px; }
+        .lp-price-period { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+        .lp-price-features { list-style: none; margin-bottom: 28px; }
+        .lp-price-features li { font-size: 14px; color: #94a3b8; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; gap: 8px; }
+        .lp-price-features li::before { content: '✓'; color: #2dd4bf; font-weight: 700; flex-shrink: 0; }
+
+        /* CTA */
+        .lp-cta { background: linear-gradient(135deg, #0a1525, #0f1e30); border-top: 1px solid rgba(45,212,191,0.1); border-bottom: 1px solid rgba(45,212,191,0.1); padding: 100px 48px; text-align: center; }
+        .lp-cta-title { font-family: 'Barlow Semi Condensed', sans-serif; font-size: clamp(36px, 5vw, 60px); font-weight: 900; color: #f1f5f9; margin-bottom: 12px; }
+        .lp-cta-desc { font-size: 18px; color: #94a3b8; margin-bottom: 36px; }
+
+        /* FOOTER */
+        .lp-footer { padding: 32px 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #1a2d42; background: #060d18; }
+        .lp-footer-logo { font-family: 'Barlow Semi Condensed', sans-serif; font-weight: 900; font-size: 17px; letter-spacing: .1em; color: #2dd4bf; }
+        .lp-footer-copy { font-size: 13px; color: #475569; }
         </style>
+
+        <!-- NAV -->
+        <div class="lp-nav">
+            <div class="lp-logo">LIMITLESS<span class="lp-logo-sub">JOB MANAGEMENT</span></div>
+            <div style="display:flex;gap:28px;font-size:15px;">
+                <span style="color:#94a3b8;font-weight:500">Features</span>
+                <span style="color:#94a3b8;font-weight:500">How it works</span>
+                <span style="color:#94a3b8;font-weight:500">Pricing</span>
+            </div>
+        </div>
+
+        <!-- HERO -->
+        <div class="lp-hero">
+            <div class="lp-hero-grid"></div>
+            <div style="position:relative;z-index:1">
+                <div class="lp-badge">⚒️ Built for tradies. By a tradie.</div>
+                <h1 class="lp-h1">Run a tighter<br><span class="acc">trade business.</span></h1>
+                <p class="lp-h1-sub">Job Management Software</p>
+                <p class="lp-desc">Quote faster. Win more jobs. Know your numbers — <strong>live</strong>.<br>
+                The all-in-one platform for roofers, landscapers, plumbers and every trade in between.</p>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="lp-stats">
+            <div class="lp-stat"><div class="lp-stat-num">5min</div><div class="lp-stat-label">To build a quote</div></div>
+            <div class="lp-stat"><div class="lp-stat-num">100%</div><div class="lp-stat-label">Invoice accuracy</div></div>
+            <div class="lp-stat"><div class="lp-stat-num">Live</div><div class="lp-stat-label">Job P&L tracking</div></div>
+            <div class="lp-stat"><div class="lp-stat-num">📱</div><div class="lp-stat-label">Mobile app included</div></div>
+        </div>
+
+        <!-- FEATURES -->
+        <div class="lp-section">
+            <div class="lp-section-label">Everything you need</div>
+            <h2 class="lp-section-title">One platform.<br>No spreadsheets. No paper.</h2>
+            <p class="lp-section-desc">From the first quote to the final invoice — every part of your business connected.</p>
+            <div class="lp-feat-grid">
+                <div class="lp-feat-card"><div class="lp-feat-icon">📋</div><div class="lp-feat-title">Professional Quoting</div><div class="lp-feat-desc">Build quotes from your catalogue in minutes. PDF quotes that win jobs.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">📅</div><div class="lp-feat-title">Job Scheduling</div><div class="lp-feat-desc">See your whole team on a calendar. Workers sync to their phones automatically.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">💰</div><div class="lp-feat-title">Invoice & Get Paid</div><div class="lp-feat-desc">Issue invoices straight from the job. Track what's paid and what's outstanding.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">📱</div><div class="lp-feat-title">Mobile App for the Lads</div><div class="lp-feat-desc">Clock in/out, log variations, upload site photos — all from their phone.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">📊</div><div class="lp-feat-title">Live Job P&L</div><div class="lp-feat-desc">Know if you're making money before the job's finished. Quoted vs actual.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">⏱</div><div class="lp-feat-title">Timesheets & Payroll</div><div class="lp-feat-desc">Clock events flow from site to director approval into job costing.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">🧾</div><div class="lp-feat-title">AI Invoice Scanner</div><div class="lp-feat-desc">Snap a supplier invoice. AI reads it and logs costs against the right job.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">⚠️</div><div class="lp-feat-title">Variations Management</div><div class="lp-feat-desc">Workers log variations from site. Director prices and approves instantly.</div></div>
+                <div class="lp-feat-card"><div class="lp-feat-icon">🔧</div><div class="lp-feat-title">Works for Any Trade</div><div class="lp-feat-desc">Build your own catalogue and labour rates for any trade.</div></div>
+            </div>
+        </div>
+
+        <!-- HOW IT WORKS -->
+        <div class="lp-how">
+            <div class="lp-how-inner">
+                <div style="text-align:center">
+                    <div class="lp-section-label" style="text-align:center">Simple by design</div>
+                    <h2 class="lp-section-title" style="text-align:center">Up and running in a day</h2>
+                    <p class="lp-section-desc" style="margin:0 auto 0">No IT team. No 6-month rollout. Live tomorrow.</p>
+                </div>
+                <div class="lp-steps">
+                    <div><div class="lp-step-num">01</div><h3 class="lp-step-title">Set up your business</h3><p class="lp-step-desc">Add employees, rates, your materials catalogue and company details. Less than an hour.</p></div>
+                    <div><div class="lp-step-num">02</div><h3 class="lp-step-title">Quote and schedule</h3><p class="lp-step-desc">Build quotes from your catalogue. Schedule jobs. Workers see their day on their phone.</p></div>
+                    <div><div class="lp-step-num">03</div><h3 class="lp-step-title">Watch the numbers work</h3><p class="lp-step-desc">Hours flow from site to timesheets. Costs update against jobs in real time.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRADES -->
+        <div class="lp-section">
+            <div class="lp-section-label">Every trade</div>
+            <h2 class="lp-section-title">Built for the tools,<br>not the boardroom.</h2>
+            <div class="lp-trades-grid">
+                <div class="lp-trade-card"><div class="lp-trade-icon">🏠</div><div class="lp-trade-name">Roofing</div></div>
+                <div class="lp-trade-card"><div class="lp-trade-icon">🌿</div><div class="lp-trade-name">Landscaping</div></div>
+                <div class="lp-trade-card"><div class="lp-trade-icon">🔧</div><div class="lp-trade-name">Plumbing</div></div>
+                <div class="lp-trade-card"><div class="lp-trade-icon">⚡</div><div class="lp-trade-name">Electrical</div></div>
+                <div class="lp-trade-card"><div class="lp-trade-icon">🧱</div><div class="lp-trade-name">Concreting</div></div>
+                <div class="lp-trade-card"><div class="lp-trade-icon">🪟</div><div class="lp-trade-name">Carpentry</div></div>
+                <div class="lp-trade-card"><div class="lp-trade-icon">❄️</div><div class="lp-trade-name">HVAC</div></div>
+                <div class="lp-trade-card"><div class="lp-trade-icon">🎨</div><div class="lp-trade-name">Painting</div></div>
+            </div>
+        </div>
+
+        <!-- PRICING -->
+        <div class="lp-section" style="background:#060d18;max-width:100%;padding:80px 48px">
+            <div style="max-width:1200px;margin:0 auto">
+                <div style="text-align:center">
+                    <div class="lp-section-label" style="text-align:center">Simple pricing</div>
+                    <h2 class="lp-section-title" style="text-align:center">No surprises.</h2>
+                    <p class="lp-section-desc" style="margin:0 auto 0">14-day free trial. No credit card required.</p>
+                </div>
+                <div class="lp-pricing-grid">
+                    <div class="lp-price-card">
+                        <div class="lp-price-name">Starter</div>
+                        <div class="lp-price-amount"><sup>$</sup>79</div>
+                        <div class="lp-price-period">per month + GST</div>
+                        <ul class="lp-price-features">
+                            <li>Up to 3 employees</li><li>Quoting & invoicing</li><li>Job management</li><li>Mobile app</li><li>Basic reporting</li>
+                        </ul>
+                    </div>
+                    <div class="lp-price-card featured">
+                        <div class="lp-price-badge">Most Popular</div>
+                        <div class="lp-price-name">Professional</div>
+                        <div class="lp-price-amount"><sup>$</sup>149</div>
+                        <div class="lp-price-period">per month + GST</div>
+                        <ul class="lp-price-features">
+                            <li>Up to 10 employees</li><li>Everything in Starter</li><li>Timesheets & payroll</li><li>Live job P&L</li><li>AI invoice scanner</li><li>Variations</li><li>Schedule calendar</li>
+                        </ul>
+                    </div>
+                    <div class="lp-price-card">
+                        <div class="lp-price-name">Business</div>
+                        <div class="lp-price-amount"><sup>$</sup>249</div>
+                        <div class="lp-price-period">per month + GST</div>
+                        <ul class="lp-price-features">
+                            <li>Unlimited employees</li><li>Everything in Pro</li><li>Xero integration</li><li>Multi-user access</li><li>Priority support</li><li>Custom setup</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="lp-cta">
+            <h2 class="lp-cta-title">Ready to run a tighter business?</h2>
+            <p class="lp-cta-desc">Start your free 14-day trial. No credit card required.</p>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="lp-footer">
+            <div class="lp-footer-logo">LIMITLESS <span style="font-size:10px;font-weight:600;letter-spacing:.2em;color:#475569">JOB MANAGEMENT</span></div>
+            <div class="lp-footer-copy">© 2026 Limitless Job Management. All rights reserved.</div>
+        </div>
         """, unsafe_allow_html=True)
 
-        _lp_path = Path(__file__).with_name("landing_page_content.html")
-        if _lp_path.exists():
-            _lp_html = _lp_path.read_text(encoding="utf-8")
-        else:
-            _lp_html = "<div style='text-align:center;padding:80px;color:#2dd4bf;font-size:24px'>LIMITLESS JOB MANAGEMENT</div>"
-
-        # Append a login button inside the HTML so it stays full-width
-        _lp_html += """
-        <div style="display:flex;justify-content:center;padding:40px 0 60px;background:#060d18;">
-            <a href="?login=1" style="background:#2dd4bf;color:#060d18;font-family:'Barlow Semi Condensed',sans-serif;
-                font-weight:800;font-size:18px;padding:18px 48px;border-radius:10px;text-decoration:none;
-                box-shadow:0 0 40px rgba(45,212,191,0.3);">
-                🚀 Get Started / Log In
-            </a>
-        </div>"""
-
-        import streamlit.components.v1 as _lp_components
-        _lp_components.html(_lp_html, height=6000, scrolling=False)
-
-        # Detect login click via query param
-        _qp = st.query_params
-        if _qp.get("login") == "1":
-            st.query_params.clear()
-            st.session_state["show_login"] = True
-            st.rerun()
+        lc1, lc2, lc3 = st.columns([3, 2, 3])
+        with lc2:
+            if st.button("🚀 Get Started / Log In", type="primary", use_container_width=True):
+                st.session_state["show_login"] = True
+                st.rerun()
 
         st.stop()
 
