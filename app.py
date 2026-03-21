@@ -984,15 +984,6 @@ def init_db():
     try:
         cur.execute("ALTER TABLE clock_events ADD COLUMN approved_at TEXT DEFAULT ''")
     except: pass
-    try:
-        cur.execute("ALTER TABLE job_photos ADD COLUMN photo_data BLOB")
-    except: pass
-    try:
-        cur.execute("ALTER TABLE job_photos ADD COLUMN uploaded_by TEXT DEFAULT ''")
-    except: pass
-    try:
-        cur.execute("ALTER TABLE job_photos ADD COLUMN uploaded_at TEXT DEFAULT ''")
-    except: pass
 
     # ── Add handover columns if missing ──────────────────────────────────
     for _col, _def in [
@@ -2810,9 +2801,6 @@ if USE_POSTGRES:
             "ALTER TABLE day_assignments ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''",
             "ALTER TABLE site_diary ADD COLUMN IF NOT EXISTS created_by TEXT DEFAULT ''",
             "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS photo_data BYTEA",
-            "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS photo_data TEXT",
-            "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS uploaded_by TEXT DEFAULT ''",
-            "ALTER TABLE job_photos ADD COLUMN IF NOT EXISTS uploaded_at TEXT DEFAULT ''",
             "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS filedata BYTEA",
             "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS filetype TEXT DEFAULT ''",
             "ALTER TABLE job_files ADD COLUMN IF NOT EXISTS uploaded_at TEXT DEFAULT ''",
@@ -2860,206 +2848,29 @@ if not st.session_state["authenticated_user"]:
         # ══════════════════════════════════════════════════════════════════
         # LANDING PAGE
         # ══════════════════════════════════════════════════════════════════
+
+        # Hide Streamlit chrome for clean landing page
         st.markdown("""
         <style>
-        .hero { 
-            background: linear-gradient(135deg, #080f1e 0%, #0d1a2e 50%, #0a1f1f 100%);
-            border-bottom: 2px solid #1e2d3d;
-            padding: 80px 40px 60px;
-            text-align: center;
-        }
-        .hero-tag {
-            display: inline-block;
-            background: #2dd4bf22;
-            color: #2dd4bf;
-            border: 1px solid #2dd4bf44;
-            border-radius: 999px;
-            padding: 6px 20px;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: .15em;
-            text-transform: uppercase;
-            margin-bottom: 24px;
-        }
-        .hero-title {
-            font-size: 72px;
-            font-weight: 900;
-            color: #ffffff;
-            letter-spacing: -.04em;
-            line-height: 1;
-            margin-bottom: 12px;
-        }
-        .hero-sub {
-            font-size: 24px;
-            color: #2dd4bf;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-        .hero-desc {
-            font-size: 18px;
-            color: #94a3b8;
-            max-width: 600px;
-            margin: 0 auto 40px;
-            line-height: 1.7;
-        }
-        .cta-btn {
-            display: inline-block;
-            background: #2dd4bf;
-            color: #080f1e;
-            font-weight: 900;
-            font-size: 18px;
-            padding: 16px 40px;
-            border-radius: 10px;
-            text-decoration: none;
-            margin-right: 12px;
-            cursor: pointer;
-        }
-        .cta-btn-outline {
-            display: inline-block;
-            background: transparent;
-            color: #e2e8f0;
-            font-weight: 700;
-            font-size: 18px;
-            padding: 16px 40px;
-            border-radius: 10px;
-            border: 2px solid #2a3d4f;
-            cursor: pointer;
-        }
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            padding: 20px 0;
-        }
-        .feature-card {
-            background: #111c27;
-            border: 1px solid #1e2d3d;
-            border-top: 3px solid #2dd4bf;
-            border-radius: 12px;
-            padding: 28px 24px;
-        }
-        .feature-icon { font-size: 32px; margin-bottom: 12px; }
-        .feature-title { font-size: 18px; font-weight: 800; color: #f1f5f9; margin-bottom: 8px; }
-        .feature-desc { font-size: 15px; color: #64748b; line-height: 1.6; }
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            background: #0d1526;
-            border-top: 1px solid #1e2d3d;
-            border-bottom: 1px solid #1e2d3d;
-            padding: 40px;
-            text-align: center;
-        }
-        .stat-num { font-size: 42px; font-weight: 900; color: #2dd4bf; }
-        .stat-label { font-size: 14px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; }
+        header[data-testid="stHeader"] { display: none !important; }
+        [data-testid="stToolbar"] { display: none !important; }
+        .main .block-container { padding: 0 !important; max-width: 100% !important; }
+        #root > div:first-child { padding-top: 0 !important; }
         </style>
-
-        <!-- HERO -->
-        <div class="hero">
-            <div class="hero-tag">⚒️ Built for tradies. By a tradie.</div>
-            <div style="font-size:42px;font-weight:700;letter-spacing:.1em;color:#2dd4bf;font-family:'Barlow Semi Condensed',sans-serif;text-align:center">LIMITLESS</div><div style="font-size:14px;font-weight:600;letter-spacing:.25em;color:#64748b;font-family:'Barlow Semi Condensed',sans-serif;text-align:center">JOB MANAGEMENT</div>
-            <div class="hero-sub">Job Management for Trade Businesses</div>
-            <div class="hero-desc">
-                Quote faster. Win more jobs. Know your numbers.<br>
-                The all-in-one platform built for roofers, landscapers, plumbers and every trade in between.
-            </div>
-        </div>
         """, unsafe_allow_html=True)
 
-        # CTA buttons
-        btn1, btn2, btn3 = st.columns([2,1,2])
-        with btn2:
-            if st.button("🚀 Get Started", type="primary", use_container_width=True):
+        # Inject landing page styles + full HTML
+        st.markdown(f"""<style>{style}</style>""", unsafe_allow_html=True)
+        st.markdown(f"""{body_html}""", unsafe_allow_html=True)
+
+        # CTA buttons — Streamlit handles the actual navigation
+        st.markdown("<div id='login-section' style='display:flex;justify-content:center;gap:16px;padding:0 0 40px;background:var(--dark, #060d18)'>", unsafe_allow_html=True)
+        bcol1, bcol2, bcol3 = st.columns([3,2,3])
+        with bcol2:
+            if st.button("🚀 Get Started / Log In", type="primary", use_container_width=True):
                 st.session_state["show_login"] = True
                 st.rerun()
-
-        st.markdown("<div style='text-align:center;margin-top:8px'>", unsafe_allow_html=True)
-        st.markdown("""
-        <div style='text-align:center;padding:12px 0'>
-            <a href="mailto:pete@limitlesstakeoffs.com?subject=Book a Demo — Limitless Job Management" 
-               style='color:#64748b;font-size:15px;text-decoration:none'>
-               📧 Book a demo → pete@limitlesstakeoffs.com
-            </a>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Stats bar
-        st.markdown("""
-        <div class="stat-grid">
-            <div><div class="stat-num">5min</div><div class="stat-label">To build a quote</div></div>
-            <div><div class="stat-num">100%</div><div class="stat-label">Invoice accuracy</div></div>
-            <div><div class="stat-num">Live</div><div class="stat-label">Job tracking</div></div>
-            <div><div class="stat-num">📱</div><div class="stat-label">Mobile app included</div></div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Features
-        st.markdown("<div style='padding: 60px 40px'>", unsafe_allow_html=True)
-        st.markdown("<div style='text-align:center;font-size:36px;font-weight:900;color:#f1f5f9;margin-bottom:8px'>Everything your trade business needs</div>", unsafe_allow_html=True)
-        st.markdown("<div style='text-align:center;color:#64748b;font-size:18px;margin-bottom:40px'>One platform. No spreadsheets. No paper.</div>", unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="feature-grid">
-            <div class="feature-card">
-                <div class="feature-icon">📋</div>
-                <div class="feature-title">Professional Quoting</div>
-                <div class="feature-desc">Build quotes from your catalogue in minutes. Generate PDF quotes that win jobs.</div>
-            </div>
-            <div class="feature-card" style="border-top-color:#f59e0b">
-                <div class="feature-icon">📅</div>
-                <div class="feature-title">Job Scheduling</div>
-                <div class="feature-desc">See your whole team on a calendar. Assign jobs, track who's where, plan ahead.</div>
-            </div>
-            <div class="feature-card" style="border-top-color:#a78bfa">
-                <div class="feature-icon">💰</div>
-                <div class="feature-title">Invoice & Get Paid</div>
-                <div class="feature-desc">Issue invoices straight from the job. Track what's paid, what's outstanding.</div>
-            </div>
-            <div class="feature-card" style="border-top-color:#4ade80">
-                <div class="feature-icon">📱</div>
-                <div class="feature-title">Mobile App for the Lads</div>
-                <div class="feature-desc">Clock in/out, log variations, upload site photos — all from their phone.</div>
-            </div>
-            <div class="feature-card" style="border-top-color:#f43f5e">
-                <div class="feature-icon">📊</div>
-                <div class="feature-title">Know Your Numbers</div>
-                <div class="feature-desc">P&L, BAS, super — all calculated automatically. No surprises at tax time.</div>
-            </div>
-            <div class="feature-card" style="border-top-color:#60a5fa">
-                <div class="feature-icon">🔧</div>
-                <div class="feature-title">Works for Any Trade</div>
-                <div class="feature-desc">Roofing, landscaping, plumbing, electrical — build your own catalogue and rates.</div>
-            </div>
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Footer CTA
-        st.markdown("""
-        <div style='background:#0d1526;border-top:1px solid #1e2d3d;padding:60px 40px;text-align:center'>
-            <div style='font-size:36px;font-weight:900;color:#ffffff;margin-bottom:12px'>Ready to run a tighter business?</div>
-            <div style='color:#64748b;font-size:18px;margin-bottom:32px'>Start your free 14-day trial. No credit card required.</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        fc1, fc2, fc3 = st.columns([2,1,2])
-        with fc2:
-            if st.button("🚀 Start Free Trial", type="primary", use_container_width=True):
-                st.session_state["show_login"] = True
-                st.rerun()
-
-        st.markdown("""
-        <div style='text-align:center;padding:20px 0 40px;color:#475569;font-size:14px'>
-            Already have an account? 
-        </div>
-        """, unsafe_allow_html=True)
-
-        lc1, lc2, lc3 = st.columns([2,1,2])
-        with lc2:
-            if st.button("Log In →", use_container_width=True):
-                st.session_state["show_login"] = True
-                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
         st.stop()
 
@@ -6343,20 +6154,12 @@ No explanation, only JSON."""
 
             PHOTO_CATS = ["Progress","Before","After","Defect","Damage","Delivery","Other"]
 
-            # Fetch both desktop-uploaded and mobile-synced photos
             photos_df = fetch_df(
-                """SELECT id, photo_date, caption,
-                    COALESCE(category,'Mobile') as category,
-                    COALESCE(filename,'') as filename,
-                    COALESCE(uploaded_by,'') as uploaded_by,
-                    CASE WHEN filedata IS NOT NULL THEN 'desktop'
-                         WHEN photo_data IS NOT NULL THEN 'mobile'
-                         ELSE 'unknown' END as source
-                   FROM job_photos WHERE job_id=? ORDER BY photo_date DESC""",
+                "SELECT id,photo_date,caption,category,filename FROM job_photos WHERE job_id=? ORDER BY photo_date DESC",
                 (open_job,)
             )
 
-            # Upload from desktop
+            # Upload
             ph_col1, ph_col2, ph_col3 = st.columns(3)
             with ph_col1: ph_date = st.date_input("Photo date", value=date.today(), key="ph_date")
             with ph_col2: ph_cat  = st.selectbox("Category", PHOTO_CATS, key="ph_cat")
@@ -6379,41 +6182,22 @@ No explanation, only JSON."""
             if photos_df.empty:
                 st.info("No photos uploaded yet.")
             else:
+                # Group by date
                 for pdate in photos_df["photo_date"].unique():
                     day_photos = photos_df[photos_df["photo_date"]==pdate]
-                    st.markdown(f"<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:12px 0 8px'>📅 {pdate}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:13px;font-weight:700;color:#2dd4bf;"
+                                f"margin:12px 0 8px'>📅 {pdate}</div>", unsafe_allow_html=True)
                     pcols = st.columns(3)
                     for i, (_, ph) in enumerate(day_photos.iterrows()):
                         phid = int(ph["id"])
                         with pcols[i % 3]:
-                            source = ph.get("source","unknown")
-                            raw = None
-                            if source == "desktop":
-                                ph_data = fetch_df("SELECT filedata FROM job_photos WHERE id=?", (phid,))
-                                if not ph_data.empty: raw = ph_data.iloc[0]["filedata"]
-                            elif source == "mobile":
-                                import base64 as _b64ph, io as _io
-                                ph_data = fetch_df("SELECT photo_data FROM job_photos WHERE id=?", (phid,))
-                                if not ph_data.empty and ph_data.iloc[0]["photo_data"]:
-                                    try:
-                                        _pd = ph_data.iloc[0]["photo_data"]
-                                        if isinstance(_pd, memoryview): _pd = bytes(_pd)
-                                        if isinstance(_pd, (bytes, bytearray)):
-                                            try: raw = _io.BytesIO(_b64ph.b64decode(_pd.decode('utf-8')))
-                                            except: raw = _io.BytesIO(bytes(_pd))
-                                        elif isinstance(_pd, str):
-                                            try: raw = _io.BytesIO(_b64ph.b64decode(_pd))
-                                            except: raw = None
-                                        else:
-                                            raw = None
-                                    except: raw = None
-                            cap = f"{ph.get('category','')} — {ph.get('caption','')}"
-                            if ph.get("uploaded_by"): cap += f" ({ph['uploaded_by']})"
-                            if raw:
-                                try: st.image(raw, caption=cap, use_container_width=True)
-                                except: st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;padding:20px;text-align:center;color:#64748b'>🖼️ {cap}</div>", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;padding:20px;text-align:center;color:#64748b'>📱 Mobile photo<br><small>{cap}</small></div>", unsafe_allow_html=True)
+                            ph_data = fetch_df("SELECT filedata,filename FROM job_photos WHERE id=?", (phid,))
+                            if not ph_data.empty:
+                                raw = ph_data.iloc[0]["filedata"]
+                                try:
+                                    st.image(raw, caption=f"{ph.get('category','')} — {ph.get('caption','')}", width="stretch")
+                                except:
+                                    st.markdown(f"<div style='background:#1e2d3d;border:1px solid #2a3d4f;border-radius:8px;padding:20px;text-align:center;color:#64748b'>🖼️<br>{ph.get('filename','')}</div>", unsafe_allow_html=True)
                             if st.button("Delete", key=f"phdel_{phid}"):
                                 execute("DELETE FROM job_photos WHERE id=?", (phid,))
                                 st.rerun()
