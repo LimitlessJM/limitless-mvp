@@ -2853,8 +2853,18 @@ if not st.session_state["authenticated_user"]:
         <style>
         header[data-testid="stHeader"] { display: none !important; }
         [data-testid="stToolbar"] { display: none !important; }
-        .main .block-container { padding: 0 !important; max-width: 100% !important; }
-        #root > div:first-child { padding-top: 0 !important; }
+        [data-testid="stSidebar"] { display: none !important; }
+        .main .block-container {
+            padding: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+        }
+        .main { padding: 0 !important; }
+        section.main > div { padding: 0 !important; max-width: 100% !important; }
+        .stApp { margin: 0 !important; }
+        #root > div { padding: 0 !important; }
+        iframe { width: 100% !important; }
         </style>
         """, unsafe_allow_html=True)
 
