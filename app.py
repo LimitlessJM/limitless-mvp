@@ -5572,14 +5572,14 @@ No explanation, only JSON."""
                             ]
 
                         payload = _json.dumps({
-                            "model":      "claude-opus-4-5",
+                            "model":      "claude-sonnet-4-5-20251022",
                             "max_tokens": 400,
                             "messages":   [{"role":"user","content":content}]
                         }).encode()
 
                         _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
                         if not _api_key:
-                            st.error("❌ ANTHROPIC_API_KEY not set — add it to Railway environment variables.")
+                            st.error("❌ ANTHROPIC_API_KEY not set in Railway environment variables.")
                             st.stop()
 
                         req = _urlreq.Request(
@@ -10233,14 +10233,14 @@ No explanation, only JSON."""
                     ]
 
                 payload = _jsonexp.dumps({
-                    "model":      "claude-opus-4-5",
+                    "model":      "claude-sonnet-4-5-20251022",
                     "max_tokens": 400,
                     "messages":   [{"role":"user","content":content_msg}]
                 }).encode()
 
                 _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
                 if not _api_key:
-                    st.error("❌ ANTHROPIC_API_KEY not set — add it to Railway environment variables.")
+                    st.error("❌ ANTHROPIC_API_KEY not set in Railway environment variables.")
                     st.stop()
 
                 req = _urlreqexp.Request(
@@ -10274,7 +10274,7 @@ No explanation, only JSON."""
             padding:14px 18px;margin:8px 0">
             <div style="font-size:13px;font-weight:700;color:#2dd4bf;
                 text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">
-                🤖 AI extracted — review before saving
+                AI extracted — review before saving
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px">
                 <div><div style="color:#64748b">Supplier</div>
@@ -10314,7 +10314,7 @@ No explanation, only JSON."""
                 c_by   = st.text_input("Submitted by", value=str(current_user.get("full_name","") or current_user.get("username","")))
             cb1,cb2 = st.columns(2)
             with cb1:
-                if st.form_submit_button("✅ Confirm & Save", type="primary"):
+                if st.form_submit_button("Confirm & Save", type="primary"):
                     c_gst = round(c_amt / 11, 2)
                     job_id = "" if c_job.startswith("—") else c_job
                     execute("""INSERT INTO expenses
@@ -10324,9 +10324,9 @@ No explanation, only JSON."""
                          f"{c_supp} — {c_desc}".strip(" —"),
                          c_amt, c_gst, job_id, c_by, "Pending", "", _today_aest().isoformat()))
                     st.session_state.pop("exp_ai_data", None)
-                    st.success(f"✅ Expense saved — ${c_amt:,.2f}"); st.rerun()
+                    st.success(f"Expense saved — ${c_amt:,.2f}"); st.rerun()
             with cb2:
-                if st.form_submit_button("✗ Discard"):
+                if st.form_submit_button("Discard"):
                     st.session_state.pop("exp_ai_data", None); st.rerun()
 
     st.divider()
