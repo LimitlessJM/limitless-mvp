@@ -11776,14 +11776,15 @@ elif page == "Company Management":
                     st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:8px 0 4px'>Users</div>", unsafe_allow_html=True)
                     for _, ur in co_users.iterrows():
                         rc = {"Admin":"#f43f5e","Estimator":"#2dd4bf","Ops":"#f59e0b"}.get(str(ur["role"]),"#64748b")
+                        inactive_badge = "<span style='color:#f43f5e'>INACTIVE</span>" if not ur["active"] else ""
                         st.markdown(
-                            f"<div style='display:flex;gap:12px;align-items:center;padding:4px 0;"
-                            f"border-bottom:1px solid #1e2d3d;font-size:13px'>"
+                            "<div style='display:flex;gap:12px;align-items:center;padding:4px 0;"
+                            "border-bottom:1px solid #1e2d3d;font-size:13px'>"
                             f"<span style='color:#e2e8f0;font-weight:600'>{ur['username']}</span>"
                             f"<span style='color:#64748b'>{ur.get('full_name','')}</span>"
                             f"<span style='color:{rc}'>{ur['role']}</span>"
-                            f"{'<span style="color:#f43f5e">INACTIVE</span>' if not ur['active'] else ''}"
-                            f"</div>", unsafe_allow_html=True)
+                            f"{inactive_badge}"
+                            "</div>", unsafe_allow_html=True)
 
     st.divider()
 
