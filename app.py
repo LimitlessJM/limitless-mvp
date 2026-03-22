@@ -2471,14 +2471,14 @@ def verify_password(password, hashed):
     return _hashlib.sha256(password.encode()).hexdigest() == hashed
 
 def get_user(username):
-    df = fetch_df("SELECT * FROM users WHERE username=? AND active=1", (username,))
+    df = fetch_df("SELECT * FROM public.users WHERE username=? AND active=1", (username,))
     return None if df.empty else df.iloc[0].to_dict()
 
 def seed_admin():
     """Create default admin user if no users exist."""
-    count = fetch_df("SELECT COUNT(*) AS n FROM users").iloc[0]["n"]
+    count = fetch_df("SELECT COUNT(*) AS n FROM public.users").iloc[0]["n"]
     if count == 0:
-        execute("""INSERT INTO users (username, password_hash, full_name, role, active, created_date)
+        execute("""INSERT INTO public.users (username, password_hash, full_name, role, active, created_date)
                    VALUES (?,?,?,?,?,?)""",
                 ("admin", hash_password("LeviNashMikaela181889!"),
                  "Administrator", "Admin", 1, date.today().isoformat()))
@@ -2983,11 +2983,11 @@ if USE_POSTGRES:
                 _pgc.commit()
             except: pass
 
-        _pgcur.execute("SELECT COUNT(*) FROM users")
+        _pgcur.execute("SELECT COUNT(*) FROM public.users")
         if _pgcur.fetchone()[0] == 0:
             import hashlib as _hl
             _h = _hl.sha256("limitless2024".encode()).hexdigest()
-            _pgcur.execute("INSERT INTO users (username, password_hash, role, active, company_id) VALUES (%s,%s,%s,%s,%s)", ("admin", _h, "Admin", 1, 1))
+            _pgcur.execute("INSERT INTO public.users (username, password_hash, role, active, company_id) VALUES (%s,%s,%s,%s,%s)", ("admin", _h, "Admin", 1, 1))
         # Seed companies table
         try:
             _pgcur.execute("SELECT COUNT(*) FROM companies")
@@ -10209,7 +10209,7 @@ elif page == "User Management":
     ROLES = ["Admin", "Estimator", "Ops"]
 
     # ── Existing users ────────────────────────────────────────────────────
-    users_df = fetch_df("SELECT id, username, full_name, role, active, created_date FROM users ORDER BY id")
+    users_df = fetch_df("SELECT id, username, full_name, role, active, created_date FROM public.users ORDER BY id")
 
     if not users_df.empty:
         for _, ur in users_df.iterrows():
@@ -10251,7 +10251,7 @@ elif page == "User Management":
                                 updates.append("password_hash=?")
                                 vals.append(hash_password(e_pw.strip()))
                             vals.append(uid)
-                            execute(f"UPDATE users SET {', '.join(updates)} WHERE id=?", vals)
+                            execute(f"UPDATE public.users SET {', '.join(updates)} WHERE id=?", vals)
                             st.success("User updated.")
                             if is_self and e_pw.strip():
                                 st.info("Password changed — you'll need to log in again.")
@@ -10259,7 +10259,7 @@ elif page == "User Management":
                     with sb2:
                         if not is_self:
                             if st.form_submit_button("Deactivate"):
-                                execute("UPDATE users SET active=0 WHERE id=?", (uid,))
+                                execute("UPDATE public.users SET active=0 WHERE id=?", (uid,))
                                 st.rerun()
 
     st.divider()
@@ -10284,11 +10284,11 @@ elif page == "User Management":
             elif n_pw != n_pw2:
                 st.error("Passwords don't match.")
             else:
-                existing = fetch_df("SELECT id FROM users WHERE username=?", (n_uname.strip(),))
+                existing = fetch_df("SELECT id FROM public.users WHERE username=?", (n_uname.strip(),))
                 if not existing.empty:
                     st.error("Username already exists.")
                 else:
-                    execute("""INSERT INTO users (username, password_hash, full_name, role, active, created_date)
+                    execute("""INSERT INTO public.users (username, password_hash, full_name, role, active, created_date)
                                VALUES (?,?,?,?,?,?)""",
                             (n_uname.strip(), hash_password(n_pw.strip()),
                              n_fname.strip(), n_role, 1, date.today().isoformat()))
@@ -11761,7 +11761,7 @@ elif page == "Company Management":
             is_mine = coid == get_cid()
 
             # Count users and jobs for this company
-            u_count = fetch_df("SELECT COUNT(*) AS n FROM users WHERE company_id=?", (coid,), _raw=True)
+            u_count = fetch_df("SELECT COUNT(*) AS n FROM public.users WHERE company_id=?", (coid,), _raw=True)
             j_count = fetch_df("SELECT COUNT(*) AS n FROM jobs WHERE company_id=?", (coid,), _raw=True)
             n_users = int(u_count.iloc[0]["n"]) if not u_count.empty else 0
             n_jobs  = int(j_count.iloc[0]["n"]) if not j_count.empty else 0
@@ -11797,7 +11797,7 @@ elif page == "Company Management":
                             st.success("Saved."); st.rerun()
 
                 # Show users in this company
-                co_users = fetch_df("SELECT id,username,full_name,role,active FROM users WHERE company_id=? ORDER BY id",
+                co_users = fetch_df("SELECT id,username,full_name,role,active FROM public.users WHERE company_id=? ORDER BY id",
                                     (coid,), _raw=True)
                 if not co_users.empty:
                     st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:8px 0 4px'>Users</div>", unsafe_allow_html=True)
@@ -11842,7 +11842,7 @@ elif page == "Company Management":
                                   (new_co_name.strip(),), _raw=True)
                 new_coid = int(new_co.iloc[0]["id"]) if not new_co.empty else 1
                 # Create admin user for this company
-                execute("""INSERT INTO users (username,password_hash,full_name,role,active,created_date,company_id)
+                execute("""INSERT INTO public.users (username,password_hash,full_name,role,active,created_date,company_id)
                     VALUES (?,?,?,?,1,?,?)""",
                     (new_co_user.strip(), hash_password(new_co_pw.strip()),
                      new_co_fname.strip(), "Admin",
