@@ -824,7 +824,7 @@ def init_db():
 
     # ── Add company_id to all tables (idempotent) ────────────────────────
     _company_tables_list = [
-        "jobs","employees","clients","client_interactions","client_invoices",
+        "users","jobs","employees","clients","client_interactions","client_invoices",
         "day_assignments","labour_logs","material_invoices","estimate_lines",
         "pipeline","monthly_targets","job_files","recipes","recipe_items",
         "variations","payment_schedule","job_retention","site_diary",
