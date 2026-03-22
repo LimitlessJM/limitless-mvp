@@ -2965,6 +2965,24 @@ if USE_POSTGRES:
         _pgcur.execute("SELECT COUNT(*) FROM invoice_counter")
         if _pgcur.fetchone()[0] == 0:
             _pgcur.execute("INSERT INTO invoice_counter (last_number, company_id) VALUES (0, 1)")
+        # Force add company_id columns — belt and braces
+        for _force_tbl in ["users","jobs","employees","clients","day_assignments",
+                           "labour_logs","material_invoices","estimate_lines","pipeline",
+                           "variations","payment_schedule","client_invoices","expenses",
+                           "clock_events","invoice_counter","job_counter","monthly_targets",
+                           "custom_catalogue","companies"]:
+            try:
+                _pgcur.execute(f"ALTER TABLE {_force_tbl} ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1")
+                _pgc.commit()
+            except: pass
+        # Seed all existing rows to company_id=1
+        for _force_tbl in ["users","jobs","employees","clients","day_assignments",
+                           "labour_logs","material_invoices","pipeline","expenses","clock_events"]:
+            try:
+                _pgcur.execute(f"UPDATE {_force_tbl} SET company_id=1 WHERE company_id IS NULL OR company_id=0")
+                _pgc.commit()
+            except: pass
+
         _pgcur.execute("SELECT COUNT(*) FROM users")
         if _pgcur.fetchone()[0] == 0:
             import hashlib as _hl
