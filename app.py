@@ -2940,7 +2940,7 @@ if not st.session_state["authenticated_user"]:
         .lp-trade-name { font-family: 'Barlow Semi Condensed', sans-serif; font-size: 15px; font-weight: 700; color: #f1f5f9; }
 
         /* PRICING */
-        .lp-pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; }
+        .lp-pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 56px; }
         .lp-price-card { background: #0a1525; border: 1px solid #1a2d42; border-radius: 16px; padding: 36px 28px; position: relative; transition: transform .2s; }
         .lp-price-card:hover { transform: translateY(-4px); }
         .lp-price-card.featured { border-color: #2dd4bf; background: linear-gradient(160deg, #0f1e30, #0a1525); box-shadow: 0 0 60px rgba(45,212,191,0.1); }
@@ -3050,30 +3050,38 @@ if not st.session_state["authenticated_user"]:
                     <h2 class="lp-section-title" style="text-align:center">No surprises.</h2>
                     <p class="lp-section-desc" style="margin:0 auto 0">14-day free trial. No credit card required.</p>
                 </div>
-                <div class="lp-pricing-grid">
+                <div class="lp-pricing-grid" style="grid-template-columns:repeat(4,1fr);gap:16px">
                     <div class="lp-price-card">
                         <div class="lp-price-name">Starter</div>
-                        <div class="lp-price-amount"><sup>$</sup>79</div>
+                        <div class="lp-price-amount"><sup>$</sup>249</div>
                         <div class="lp-price-period">per month + GST</div>
                         <ul class="lp-price-features">
-                            <li>Up to 3 employees</li><li>Quoting & invoicing</li><li>Job management</li><li>Mobile app</li><li>Basic reporting</li>
+                            <li>0–5 employees</li><li>Quoting & invoicing</li><li>Job management</li><li>Mobile app</li><li>Schedule calendar</li><li>Basic reporting</li>
                         </ul>
                     </div>
                     <div class="lp-price-card featured">
                         <div class="lp-price-badge">Most Popular</div>
-                        <div class="lp-price-name">Professional</div>
-                        <div class="lp-price-amount"><sup>$</sup>149</div>
+                        <div class="lp-price-name">Small Business</div>
+                        <div class="lp-price-amount"><sup>$</sup>499</div>
                         <div class="lp-price-period">per month + GST</div>
                         <ul class="lp-price-features">
-                            <li>Up to 10 employees</li><li>Everything in Starter</li><li>Timesheets & payroll</li><li>Live job P&L</li><li>AI invoice scanner</li><li>Variations</li><li>Schedule calendar</li>
+                            <li>5–10 employees</li><li>Everything in Starter</li><li>Timesheets & payroll</li><li>Live job P&L</li><li>AI invoice scanner</li><li>Variations management</li>
                         </ul>
                     </div>
                     <div class="lp-price-card">
-                        <div class="lp-price-name">Business</div>
-                        <div class="lp-price-amount"><sup>$</sup>249</div>
+                        <div class="lp-price-name">Pro Business</div>
+                        <div class="lp-price-amount"><sup>$</sup>999</div>
                         <div class="lp-price-period">per month + GST</div>
                         <ul class="lp-price-features">
-                            <li>Unlimited employees</li><li>Everything in Pro</li><li>Xero integration</li><li>Multi-user access</li><li>Priority support</li><li>Custom setup</li>
+                            <li>10–15 employees</li><li>Everything in Small Business</li><li>Xero integration</li><li>Multi-user access</li><li>Priority support</li><li>Job costing reports</li>
+                        </ul>
+                    </div>
+                    <div class="lp-price-card">
+                        <div class="lp-price-name">Deluxe Business</div>
+                        <div class="lp-price-amount"><sup>$</sup>1,399</div>
+                        <div class="lp-price-period">per month + GST</div>
+                        <ul class="lp-price-features">
+                            <li>15+ employees</li><li>Everything in Pro</li><li>Unlimited users</li><li>Custom catalogue setup</li><li>Dedicated support</li><li>Custom onboarding</li>
                         </ul>
                     </div>
                 </div>
@@ -11374,4 +11382,3 @@ elif page == "StackCT Import":
     """)
     if not fr_df.empty:
         st.dataframe(fr_df, width="stretch", hide_index=True)
-    
