@@ -1120,22 +1120,19 @@ def fetch_df(query, params=(), _raw=False):
         q_lower = q.lower().strip()
         cid = get_cid()
         ph = "?" if not USE_POSTGRES else "%s"
-        # Only inject if company_id not already in query
         if "company_id" not in q_lower:
-            # Find the primary table alias — look for first FROM/JOIN table
-            # We inject into the main WHERE using the table alias if present
             where_match = _re.search(r'where', q_lower)
             if where_match:
-                # Insert "table.company_id=? AND" right after WHERE
-                insert_pos = where_match.end()
-                q = q[:insert_pos] + f" company_id={ph} AND " + q[insert_pos:]
+                # Has WHERE — inject right after it
+                pos = where_match.end()
+                q = q[:pos] + f" company_id={ph} AND " + q[pos:]
                 params = (cid,) + tuple(params)
             else:
-                # No WHERE — add one before GROUP BY / ORDER BY / LIMIT or at end
-                end_match = _re.search(r'(group by|order by|limit|offset)', q_lower)
-                if end_match:
-                    insert_pos = end_match.start()
-                    q = q[:insert_pos] + f" WHERE company_id={ph} " + q[insert_pos:]
+                # No WHERE — insert before ORDER BY / GROUP BY / LIMIT / HAVING, or at end
+                clause_match = _re.search(r'(order\s+by|group\s+by|limit|having|offset)', q_lower)
+                if clause_match:
+                    pos = clause_match.start()
+                    q = q[:pos].rstrip() + f" WHERE company_id={ph} " + q[pos:]
                 else:
                     q = q.rstrip() + f" WHERE company_id={ph}"
                 params = tuple(params) + (cid,)
