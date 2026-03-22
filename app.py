@@ -743,6 +743,16 @@ def init_db():
             state           TEXT DEFAULT 'NSW'
         );
 
+        CREATE TABLE IF NOT EXISTS companies (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            name            TEXT NOT NULL,
+            abn             TEXT DEFAULT '',
+            plan            TEXT DEFAULT 'Starter',
+            active          INTEGER DEFAULT 1,
+            created_date    TEXT DEFAULT '',
+            trial_end       TEXT DEFAULT ''
+        );
+
         CREATE TABLE IF NOT EXISTS users (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             username        TEXT UNIQUE NOT NULL,
@@ -750,7 +760,8 @@ def init_db():
             full_name       TEXT DEFAULT '',
             role            TEXT DEFAULT 'Ops',
             active          INTEGER DEFAULT 1,
-            created_date    TEXT DEFAULT ''
+            created_date    TEXT DEFAULT '',
+            company_id      INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS company_settings (
@@ -810,6 +821,35 @@ def init_db():
         );
     """)
     conn.commit()
+
+    # ── Add company_id to all tables (idempotent) ────────────────────────
+    _company_tables_list = [
+        "jobs","employees","clients","client_interactions","client_invoices",
+        "day_assignments","labour_logs","material_invoices","estimate_lines",
+        "pipeline","monthly_targets","job_files","recipes","recipe_items",
+        "variations","payment_schedule","job_retention","site_diary",
+        "job_photos","safety_docs","clock_events","timesheet_entries",
+        "payroll_rules","custom_catalogue","catalogue_items","catalogue_components",
+        "catalogue_overrides","invoice_counter","job_counter","expenses",
+        "assemblies","stackct_mapping","catalogue_finishes",
+    ]
+    for _ct in _company_tables_list:
+        try:
+            cur.execute(f"ALTER TABLE {_ct} ADD COLUMN company_id INTEGER DEFAULT 1")
+            conn.commit()
+        except: pass
+    # Seed all existing rows to company_id=1
+    for _ct in _company_tables_list:
+        try:
+            cur.execute(f"UPDATE {_ct} SET company_id=1 WHERE company_id IS NULL OR company_id=0")
+            conn.commit()
+        except: pass
+    # Seed default company if not exists
+    try:
+        if cur.execute("SELECT COUNT(*) FROM companies").fetchone()[0] == 0:
+            cur.execute("INSERT INTO companies (id,name,plan,active,created_date) VALUES (1,'Default Company','Starter',1,date('now'))")
+            conn.commit()
+    except: pass
 
     # ── Safe column additions (idempotent) ────────────────────────────────
     for table, col, defn in [
@@ -1035,9 +1075,67 @@ def init_db():
     conn.close()
 
 
-def fetch_df(query, params=()):
+def get_cid():
+    """Return current company_id from session, default 1 (backwards compat)."""
+    try:
+        return st.session_state.get("company_id", 1) or 1
+    except:
+        return 1
+
+
+# ── Tables that have a company_id column ──────────────────────────────────
+_COMPANY_TABLES = {
+    "jobs", "employees", "clients", "client_interactions", "client_invoices",
+    "day_assignments", "labour_logs", "material_invoices", "estimate_lines",
+    "pipeline", "monthly_targets", "job_files", "recipes", "recipe_items",
+    "variations", "payment_schedule", "job_retention", "site_diary",
+    "job_photos", "safety_docs", "clock_events", "timesheet_entries",
+    "payroll_rules", "custom_catalogue", "catalogue_items", "catalogue_components",
+    "catalogue_overrides", "invoice_counter", "job_counter", "expenses",
+    "assemblies", "stackct_mapping", "catalogue_finishes",
+}
+
+
+def _needs_company_filter(query):
+    """Check if this query targets a company-scoped table."""
+    import re
+    q_lower = query.lower()
+    # Find table names referenced — FROM/JOIN/UPDATE/INSERT INTO
+    tables = re.findall(
+        r'(?:from|join|update|into)\s+([a-z_]+)', q_lower
+    )
+    return any(t in _COMPANY_TABLES for t in tables)
+
+
+def fetch_df(query, params=(), _raw=False):
+    """Execute SELECT and return DataFrame.
+    _raw=True skips company_id injection (for internal/admin queries).
+    """
     conn = get_conn()
     q = adapt_query(query)
+
+    # Inject company_id filter automatically
+    if not _raw and _needs_company_filter(q):
+        import re
+        q_lower = q.lower().strip()
+        cid = get_cid()
+        # Only inject if company_id not already in query
+        if "company_id" not in q_lower:
+            if "where" in q_lower:
+                # Find the WHERE position and insert after it
+                idx = q_lower.index("where")
+                q = q[:idx+5] + " company_id=" + ("?" if not USE_POSTGRES else "%s") + " AND " + q[idx+6:]
+                params = (cid,) + tuple(params)
+            else:
+                # No WHERE — add one before GROUP BY / ORDER BY / LIMIT or at end
+                end_match = re.search(r'(group by|order by|limit|offset)', q_lower)
+                if end_match:
+                    idx = end_match.start()
+                    q = q[:idx] + " WHERE company_id=" + ("?" if not USE_POSTGRES else "%s") + " " + q[idx:]
+                else:
+                    q = q + " WHERE company_id=" + ("?" if not USE_POSTGRES else "%s")
+                params = tuple(params) + (cid,)
+
     try:
         if USE_POSTGRES:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -1050,9 +1148,32 @@ def fetch_df(query, params=()):
         release_conn(conn)
 
 
-def execute(query, params=()):
+def execute(query, params=(), _raw=False):
+    """Execute INSERT/UPDATE/DELETE.
+    Auto-injects company_id into INSERT statements.
+    _raw=True skips injection.
+    """
     conn = get_conn()
     q = adapt_query(query)
+
+    # Auto-inject company_id into INSERT statements
+    if not _raw and _needs_company_filter(q):
+        import re
+        q_lower = q.lower().strip()
+        cid = get_cid()
+        if q_lower.startswith("insert into") and "company_id" not in q_lower:
+            # Parse INSERT INTO table (cols) VALUES (vals)
+            m = re.match(
+                r'(insert\s+(?:or\s+\w+\s+)?into\s+\w+\s*\()([^)]+)(\)\s*values\s*\()([^)]+)(\).*)',
+                q_lower, re.IGNORECASE | re.DOTALL
+            )
+            if m:
+                placeholder = "?" if not USE_POSTGRES else "%s"
+                new_q = (q[:m.start(2)] + "company_id, " + q[m.start(2):m.end(2)] +
+                         q[m.end(2):m.start(4)] + str(cid) + ", " + q[m.start(4):m.end(4)] +
+                         q[m.end(4):])
+                q = new_q
+
     try:
         cur = conn.cursor()
         cur.execute(q, list(params) if params else None)
@@ -2358,7 +2479,7 @@ ROLE_PAGES = {
         "Dashboard","Jobs","Schedule Calendar","Clients","Employees","Timesheets",
         "Payroll Rules","Catalogue","Assemblies","StackCT Import","Pipeline","Budget Planner","Company P&L",
         "Financial Health","Job Costing Report","Expenses","Notifications",
-        "Company Settings","User Management",
+        "Company Settings","User Management","Company Management",
     ],
     "Estimator": [
         "Dashboard","Jobs","Clients","Catalogue","Assemblies","StackCT Import","Pipeline",
@@ -2735,7 +2856,8 @@ if USE_POSTGRES:
         _pgcur = _pgc.cursor()
         # Create all tables
         for _sql in [
-            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, role TEXT DEFAULT 'Estimator', full_name TEXT DEFAULT '', active INTEGER DEFAULT 1, created_at TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS companies (id SERIAL PRIMARY KEY, name TEXT NOT NULL, abn TEXT DEFAULT '', plan TEXT DEFAULT 'Starter', active INTEGER DEFAULT 1, created_date TEXT DEFAULT '', trial_end TEXT DEFAULT '')",
+            "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, role TEXT DEFAULT 'Estimator', full_name TEXT DEFAULT '', active INTEGER DEFAULT 1, created_at TEXT DEFAULT '', company_id INTEGER DEFAULT 1)",
             "CREATE TABLE IF NOT EXISTS jobs (job_id TEXT PRIMARY KEY, client TEXT DEFAULT '', address TEXT DEFAULT '', estimator TEXT DEFAULT '', stage TEXT DEFAULT 'Lead', sell_price REAL DEFAULT 0, archived INTEGER DEFAULT 0, job_type TEXT DEFAULT 'Residential', job_finish TEXT DEFAULT 'Steel', parent_job TEXT DEFAULT '', is_variation INTEGER DEFAULT 0, variation_title TEXT DEFAULT '', running_cost_pct REAL DEFAULT 0.11, tender_material_budget REAL DEFAULT 0, tender_labour_budget REAL DEFAULT 0, tender_profit_pct REAL DEFAULT 0)",
             "CREATE TABLE IF NOT EXISTS clients (id SERIAL PRIMARY KEY, company TEXT DEFAULT '', name TEXT DEFAULT '', email TEXT DEFAULT '', phone TEXT DEFAULT '', address TEXT DEFAULT '', client_type TEXT DEFAULT 'Builder', notes TEXT DEFAULT '')",
             "CREATE TABLE IF NOT EXISTS employees (id SERIAL PRIMARY KEY, name TEXT UNIQUE, role TEXT DEFAULT 'Roofer', hourly_rate REAL DEFAULT 0, phone TEXT DEFAULT '', active INTEGER DEFAULT 1, pin TEXT DEFAULT '')",
@@ -2793,6 +2915,24 @@ if USE_POSTGRES:
             "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS contact_name TEXT DEFAULT ''",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT ''",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS active INTEGER DEFAULT 1",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE day_assignments ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE labour_logs ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE material_invoices ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE estimate_lines ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE pipeline ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE variations ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE payment_schedule ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE client_invoices ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE clock_events ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE invoice_counter ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE job_counter ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE monthly_targets ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
+            "ALTER TABLE custom_catalogue ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1",
             "ALTER TABLE client_invoices ADD COLUMN IF NOT EXISTS amount_ex_gst REAL DEFAULT 0",
             "ALTER TABLE client_invoices ADD COLUMN IF NOT EXISTS milestone TEXT DEFAULT ''",
             "ALTER TABLE variations ADD COLUMN IF NOT EXISTS date_raised TEXT DEFAULT ''",
@@ -2815,12 +2955,26 @@ if USE_POSTGRES:
             _pgcur.execute("INSERT INTO company_settings (id) VALUES (1)")
         _pgcur.execute("SELECT COUNT(*) FROM invoice_counter")
         if _pgcur.fetchone()[0] == 0:
-            _pgcur.execute("INSERT INTO invoice_counter (last_number) VALUES (0)")
+            _pgcur.execute("INSERT INTO invoice_counter (last_number, company_id) VALUES (0, 1)")
         _pgcur.execute("SELECT COUNT(*) FROM users")
         if _pgcur.fetchone()[0] == 0:
             import hashlib as _hl
             _h = _hl.sha256("limitless2024".encode()).hexdigest()
-            _pgcur.execute("INSERT INTO users (username, password_hash, role, active) VALUES (%s,%s,%s,%s)", ("admin", _h, "Admin", 1))
+            _pgcur.execute("INSERT INTO users (username, password_hash, role, active, company_id) VALUES (%s,%s,%s,%s,%s)", ("admin", _h, "Admin", 1, 1))
+        # Seed companies table
+        try:
+            _pgcur.execute("SELECT COUNT(*) FROM companies")
+            if _pgcur.fetchone()[0] == 0:
+                _pgcur.execute("INSERT INTO companies (id, name, plan, active) VALUES (1, 'Default Company', 'Starter', 1)")
+        except: pass
+        # Seed all existing rows to company_id=1
+        for _seed_tbl in ["jobs","employees","clients","day_assignments","labour_logs",
+                          "material_invoices","estimate_lines","pipeline","variations",
+                          "payment_schedule","client_invoices","expenses","clock_events",
+                          "invoice_counter","job_counter","monthly_targets","custom_catalogue"]:
+            try:
+                _pgcur.execute(f"UPDATE {_seed_tbl} SET company_id=1 WHERE company_id IS NULL OR company_id=0")
+            except: pass
         _pgc.commit()
         release_conn(_pgc)
     except Exception as _pge:
@@ -3136,6 +3290,8 @@ if not st.session_state["authenticated_user"]:
                 user = get_user(username.strip())
                 if user and verify_password(password.strip(), user["password_hash"]):
                     st.session_state["authenticated_user"] = user
+                    # Set company_id in session — all DB queries use this
+                    st.session_state["company_id"] = int(user.get("company_id") or 1)
                     st.success(f"Welcome back, {user['full_name'] or user['username']}!")
                     # Sync from mobile on login
                     try: sync_from_mobile()
@@ -5581,7 +5737,6 @@ No explanation, only JSON."""
                         if not _api_key:
                             st.error("❌ ANTHROPIC_API_KEY not set in Railway environment variables.")
                             st.stop()
-
                         req = _urlreq.Request(
                             "https://api.anthropic.com/v1/messages",
                             data=payload,
@@ -10192,6 +10347,155 @@ elif page == "Expenses":
                 else:
                     st.error("Description and amount required.")
 
+
+    # ── AI Receipt Scanner ─────────────────────────────────────────────────
+    st.subheader("📸 AI Receipt Scanner")
+    st.caption("Snap a receipt or invoice — AI reads it and pre-fills the expense form.")
+
+    exp_ai_upload = st.file_uploader(
+        "Upload receipt",
+        type=["jpg","jpeg","png","pdf","webp"],
+        key="exp_ai_upload"
+    )
+
+    if exp_ai_upload:
+        import base64 as _b64exp
+        import json as _jsonexp
+        import urllib.request as _urlreqexp
+        import urllib.error as _urlerrexp
+
+        with st.spinner("🤖 Reading receipt..."):
+            try:
+                file_bytes = exp_ai_upload.read()
+                file_type  = exp_ai_upload.type
+                b64_data   = _b64exp.b64encode(file_bytes).decode()
+
+                extract_prompt = """Extract receipt/invoice details and return ONLY valid JSON:
+{
+  "supplier": "company or store name",
+  "description": "what was purchased",
+  "category": "one of: Tools & Equipment, Client Entertainment, Fuel & Vehicle, Phone & Subscriptions, Office & Admin, Travel & Accommodation, Training & Education, Marketing, Subcontractors, Other",
+  "receipt_date": "YYYY-MM-DD or null",
+  "amount_inc_gst": 0.00,
+  "gst_amount": 0.00,
+  "amount_ex_gst": 0.00
+}
+No explanation, only JSON."""
+
+                if "pdf" in file_type:
+                    content_msg = [
+                        {"type":"document","source":{"type":"base64","media_type":"application/pdf","data":b64_data}},
+                        {"type":"text","text":extract_prompt}
+                    ]
+                else:
+                    content_msg = [
+                        {"type":"image","source":{"type":"base64","media_type":file_type,"data":b64_data}},
+                        {"type":"text","text":extract_prompt}
+                    ]
+
+                _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
+                if not _api_key:
+                    st.error("❌ ANTHROPIC_API_KEY not set in Railway environment variables.")
+                    st.stop()
+
+                payload = _jsonexp.dumps({
+                    "model":    "claude-sonnet-4-5",
+                    "max_tokens": 400,
+                    "messages": [{"role":"user","content":content_msg}]
+                }).encode()
+
+                req = _urlreqexp.Request(
+                    "https://api.anthropic.com/v1/messages",
+                    data=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "anthropic-version": "2023-06-01",
+                        "x-api-key": _api_key,
+                    },
+                    method="POST"
+                )
+                with _urlreqexp.urlopen(req, timeout=30) as resp:
+                    result = _jsonexp.loads(resp.read().decode())
+
+                raw = result["content"][0]["text"].strip()
+                if "```" in raw:
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"): raw = raw[4:]
+                exp_extracted = _jsonexp.loads(raw.strip())
+                st.session_state["exp_ai_data"] = exp_extracted
+                st.success("✅ Receipt read!")
+
+            except Exception as e:
+                if isinstance(e, _urlerrexp.HTTPError):
+                    body = e.read().decode()
+                    st.error(f"API error {e.code}: {body}")
+                else:
+                    st.error(f"Could not read receipt: {e}")
+
+    if "exp_ai_data" in st.session_state:
+        ex = st.session_state["exp_ai_data"]
+        st.markdown(f"""
+        <div style="background:#0d2233;border:2px solid #2dd4bf;border-radius:12px;
+            padding:14px 18px;margin:8px 0">
+            <div style="font-size:13px;font-weight:700;color:#2dd4bf;
+                text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">
+                AI extracted — review before saving
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px">
+                <div><div style="color:#64748b">Supplier</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('supplier','—')}</div></div>
+                <div><div style="color:#64748b">Description</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('description','—')}</div></div>
+                <div><div style="color:#64748b">Category</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('category','—')}</div></div>
+                <div><div style="color:#64748b">Date</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('receipt_date','—')}</div></div>
+                <div><div style="color:#64748b">Amount (inc. GST)</div>
+                    <div style="color:#2dd4bf;font-weight:700">${float(ex.get('amount_inc_gst') or 0):,.2f}</div></div>
+                <div><div style="color:#64748b">GST</div>
+                    <div style="color:#f59e0b;font-weight:700">${float(ex.get('gst_amount') or 0):,.2f}</div></div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+        with st.form("exp_ai_confirm"):
+            jobs_exp_ai = fetch_df("SELECT job_id FROM jobs WHERE archived=0 ORDER BY job_id")
+            job_opts_ai = ["— Company expense —"] + (jobs_exp_ai["job_id"].tolist() if not jobs_exp_ai.empty else [])
+            cc1,cc2,cc3 = st.columns(3)
+            try:
+                ai_d = date.fromisoformat(str(ex.get("receipt_date","") or "")) if ex.get("receipt_date") else date.today()
+            except: ai_d = date.today()
+            with cc1:
+                c_date = st.date_input("Date", value=ai_d)
+                c_supp = st.text_input("Supplier", value=str(ex.get("supplier","") or ""))
+            with cc2:
+                c_desc = st.text_input("Description", value=str(ex.get("description","") or ""))
+                c_amt  = st.number_input("Amount (inc. GST)", min_value=0.0,
+                            value=float(ex.get("amount_inc_gst") or 0), step=1.0)
+            with cc3:
+                detected_cat = str(ex.get("category","Other") or "Other")
+                c_cat  = st.selectbox("Category", EXP_CATEGORIES,
+                            index=EXP_CATEGORIES.index(detected_cat) if detected_cat in EXP_CATEGORIES else len(EXP_CATEGORIES)-1)
+                c_job  = st.selectbox("Link to job", job_opts_ai)
+                c_by   = st.text_input("Submitted by", value=str(current_user.get("full_name","") or current_user.get("username","")))
+            cb1,cb2 = st.columns(2)
+            with cb1:
+                if st.form_submit_button("✅ Confirm & Save", type="primary"):
+                    c_gst = round(c_amt / 11, 2)
+                    job_id = "" if c_job.startswith("—") else c_job
+                    execute("""INSERT INTO expenses
+                        (expense_date,category,description,amount,gst,job_id,submitted_by,status,notes,created_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                        (c_date.isoformat(), c_cat,
+                         f"{c_supp} — {c_desc}".strip(" —"),
+                         c_amt, c_gst, job_id, c_by, "Pending", "", _today_aest().isoformat()))
+                    st.session_state.pop("exp_ai_data", None)
+                    st.success(f"✅ Expense saved — ${c_amt:,.2f}"); st.rerun()
+            with cb2:
+                if st.form_submit_button("✗ Discard"):
+                    st.session_state.pop("exp_ai_data", None); st.rerun()
+
+    st.divider()
+
     # ── Filter ─────────────────────────────────────────────────────────────
     fc1, fc2, fc3 = st.columns(3)
     with fc1: exp_cat_f = st.selectbox("Category", ["All"] + EXP_CATEGORIES, key="exp_cf")
@@ -11397,3 +11701,128 @@ elif page == "StackCT Import":
     """)
     if not fr_df.empty:
         st.dataframe(fr_df, width="stretch", hide_index=True)
+
+
+# ─────────────────────────────────────────────
+#  PAGE: COMPANY MANAGEMENT (Super Admin)
+# ─────────────────────────────────────────────
+elif page == "Company Management":
+    if user_role != "Admin":
+        st.error("Admin access required."); st.stop()
+
+    st.title("Company Management")
+    st.caption("Manage all companies on the platform. Each company's data is fully isolated.")
+
+    # ── Stats ──────────────────────────────────────────────────────────────
+    companies_df = fetch_df("SELECT * FROM companies ORDER BY id", _raw=True)
+    total_companies = len(companies_df) if not companies_df.empty else 0
+    active_companies = len(companies_df[companies_df["active"]==1]) if not companies_df.empty else 0
+
+    cm1,cm2,cm3 = st.columns(3)
+    cm1.metric("Total companies", total_companies)
+    cm2.metric("Active",          active_companies)
+    cm3.metric("Your company ID", get_cid())
+
+    st.divider()
+
+    # ── Company list ───────────────────────────────────────────────────────
+    PLANS = ["Starter","Small Business","Pro Business","Deluxe Business"]
+
+    if not companies_df.empty:
+        for _, co in companies_df.iterrows():
+            coid    = int(co["id"])
+            is_mine = coid == get_cid()
+
+            # Count users and jobs for this company
+            u_count = fetch_df("SELECT COUNT(*) AS n FROM users WHERE company_id=?", (coid,), _raw=True)
+            j_count = fetch_df("SELECT COUNT(*) AS n FROM jobs WHERE company_id=?", (coid,), _raw=True)
+            n_users = int(u_count.iloc[0]["n"]) if not u_count.empty else 0
+            n_jobs  = int(j_count.iloc[0]["n"]) if not j_count.empty else 0
+
+            plan    = str(co.get("plan","Starter") or "Starter")
+            active  = bool(int(co.get("active",1) or 1))
+            plan_colors = {"Starter":"#64748b","Small Business":"#2dd4bf",
+                           "Pro Business":"#a78bfa","Deluxe Business":"#f59e0b"}
+            pc = plan_colors.get(plan,"#64748b")
+
+            with st.expander(
+                f"{'🟢' if active else '🔴'} [{coid}] {co['name']} — {plan} "
+                f"{'(YOU)' if is_mine else ''} | {n_users} users | {n_jobs} jobs",
+                expanded=False
+            ):
+                with st.form(f"edit_co_{coid}"):
+                    ec1,ec2 = st.columns(2)
+                    with ec1:
+                        e_name   = st.text_input("Company name", value=str(co.get("name","") or ""))
+                        e_abn    = st.text_input("ABN",          value=str(co.get("abn","") or ""))
+                        e_plan   = st.selectbox("Plan", PLANS,
+                                    index=PLANS.index(plan) if plan in PLANS else 0)
+                    with ec2:
+                        e_active = st.checkbox("Active", value=active)
+                        e_trial  = st.text_input("Trial end date", value=str(co.get("trial_end","") or ""),
+                                    placeholder="YYYY-MM-DD")
+
+                    sb1,sb2 = st.columns(2)
+                    with sb1:
+                        if st.form_submit_button("Save", type="primary"):
+                            execute("UPDATE companies SET name=?,abn=?,plan=?,active=?,trial_end=? WHERE id=?",
+                                    (e_name,e_abn,e_plan,int(e_active),e_trial,coid), _raw=True)
+                            st.success("Saved."); st.rerun()
+
+                # Show users in this company
+                co_users = fetch_df("SELECT id,username,full_name,role,active FROM users WHERE company_id=? ORDER BY id",
+                                    (coid,), _raw=True)
+                if not co_users.empty:
+                    st.markdown("<div style='font-size:13px;font-weight:700;color:#2dd4bf;margin:8px 0 4px'>Users</div>", unsafe_allow_html=True)
+                    for _, ur in co_users.iterrows():
+                        rc = {"Admin":"#f43f5e","Estimator":"#2dd4bf","Ops":"#f59e0b"}.get(str(ur["role"]),"#64748b")
+                        st.markdown(
+                            f"<div style='display:flex;gap:12px;align-items:center;padding:4px 0;"
+                            f"border-bottom:1px solid #1e2d3d;font-size:13px'>"
+                            f"<span style='color:#e2e8f0;font-weight:600'>{ur['username']}</span>"
+                            f"<span style='color:#64748b'>{ur.get('full_name','')}</span>"
+                            f"<span style='color:{rc}'>{ur['role']}</span>"
+                            f"{'<span style="color:#f43f5e">INACTIVE</span>' if not ur['active'] else ''}"
+                            f"</div>", unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Add new company ────────────────────────────────────────────────────
+    st.subheader("Add new company")
+    with st.form("add_company_form"):
+        nc1,nc2 = st.columns(2)
+        with nc1:
+            new_co_name  = st.text_input("Company name *")
+            new_co_abn   = st.text_input("ABN")
+            new_co_plan  = st.selectbox("Plan", PLANS)
+        with nc2:
+            new_co_trial = st.text_input("Trial end", placeholder="YYYY-MM-DD")
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            st.markdown("**First admin user for this company:**")
+            new_co_user  = st.text_input("Username")
+            new_co_pw    = st.text_input("Password", type="password")
+            new_co_fname = st.text_input("Full name")
+
+        if st.form_submit_button("Create Company + Admin User", type="primary"):
+            if new_co_name.strip() and new_co_user.strip() and new_co_pw.strip():
+                # Create company
+                execute("INSERT INTO companies (name,abn,plan,active,created_date,trial_end) VALUES (?,?,?,1,?,?)",
+                        (new_co_name.strip(),new_co_abn,new_co_plan,
+                         date.today().isoformat(),new_co_trial), _raw=True)
+                # Get new company ID
+                new_co = fetch_df("SELECT id FROM companies WHERE name=? ORDER BY id DESC LIMIT 1",
+                                  (new_co_name.strip(),), _raw=True)
+                new_coid = int(new_co.iloc[0]["id"]) if not new_co.empty else 1
+                # Create admin user for this company
+                execute("""INSERT INTO users (username,password_hash,full_name,role,active,created_date,company_id)
+                    VALUES (?,?,?,?,1,?,?)""",
+                    (new_co_user.strip(), hash_password(new_co_pw.strip()),
+                     new_co_fname.strip(), "Admin",
+                     date.today().isoformat(), new_coid), _raw=True)
+                # Seed invoice/job counters for new company
+                execute("INSERT INTO invoice_counter (last_number,company_id) VALUES (0,?)", (new_coid,), _raw=True)
+                execute("INSERT INTO job_counter (prefix,last_number,company_id) VALUES (?,0,?)", ("LES",new_coid), _raw=True)
+                st.success(f"✅ Company '{new_co_name}' created (ID: {new_coid}) with admin user '{new_co_user}'")
+                st.rerun()
+            else:
+                st.error("Company name, username and password are required.")
