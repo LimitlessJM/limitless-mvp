@@ -1116,28 +1116,12 @@ def fetch_df(query, params=(), _raw=False):
 
     # Inject company_id filter automatically
     if not _raw and _needs_company_filter(q):
-        q_lower = q.lower().strip()
         cid = get_cid()
         ph = "?" if not USE_POSTGRES else "%s"
-        if "company_id" not in q_lower:
-            # Find WHERE keyword using simple string search
-            where_pos = q_lower.find(" where ")
-            if where_pos >= 0:
-                # Has WHERE — inject right after the WHERE keyword
-                actual_pos = where_pos + len(" where ")
-                q = q[:actual_pos] + "company_id=" + ph + " AND " + q[actual_pos:]
-                params = (cid,) + tuple(params)
-            else:
-                # No WHERE — insert before ORDER BY / GROUP BY / LIMIT or at end
-                for clause in [" order by ", " group by ", " limit ", " having ", " offset "]:
-                    cp = q_lower.find(clause)
-                    if cp >= 0:
-                        q = q[:cp] + " WHERE company_id=" + ph + q[cp:]
-                        params = tuple(params) + (cid,)
-                        break
-                else:
-                    q = q.rstrip() + " WHERE company_id=" + ph
-                    params = tuple(params) + (cid,)
+        if "company_id" not in q.lower():
+            # Wrap as subquery — works regardless of WHERE/ORDER BY structure
+            q = f"SELECT * FROM ({q}) _t WHERE _t.company_id={ph}"
+            params = tuple(params) + (cid,)
 
     try:
         if USE_POSTGRES:
