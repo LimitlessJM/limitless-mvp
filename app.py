@@ -2898,7 +2898,7 @@ if not st.session_state["authenticated_user"]:
             font-size: 22px; letter-spacing: .3em; color: #64748b;
             text-transform: uppercase; margin-bottom: 28px;
         }
-        .lp-desc { font-size: 18px; color: #94a3b8; line-height: 1.7; max-width: 560px; margin: 0 auto 48px; }
+        .lp-desc { font-size: 18px; color: #94a3b8; line-height: 1.7; max-width: 560px; margin: 0 auto 48px; text-align: center; }
         .lp-desc strong { color: #f1f5f9; }
 
         /* STATS */
