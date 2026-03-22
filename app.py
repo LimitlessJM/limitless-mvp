@@ -2996,9 +2996,9 @@ if not st.session_state["authenticated_user"]:
 
         <!-- FEATURES -->
         <div class="lp-section">
-            <div class="lp-section-label">Everything you need</div>
-            <h2 class="lp-section-title">One platform.<br>No spreadsheets. No paper.</h2>
-            <p class="lp-section-desc">From the first quote to the final invoice — every part of your business connected.</p>
+            <div class="lp-section-label" style="text-align:center">Everything you need</div>
+            <h2 class="lp-section-title" style="text-align:center">One platform.<br>No spreadsheets. No paper.</h2>
+            <p class="lp-section-desc" style="text-align:center;margin:0 auto 48px">From the first quote to the final invoice — every part of your business connected.</p>
             <div class="lp-feat-grid">
                 <div class="lp-feat-card"><div class="lp-feat-icon">📋</div><div class="lp-feat-title">Professional Quoting</div><div class="lp-feat-desc">Build quotes from your catalogue in minutes. PDF quotes that win jobs.</div></div>
                 <div class="lp-feat-card"><div class="lp-feat-icon">📅</div><div class="lp-feat-title">Job Scheduling</div><div class="lp-feat-desc">See your whole team on a calendar. Workers sync to their phones automatically.</div></div>
@@ -3030,8 +3030,8 @@ if not st.session_state["authenticated_user"]:
 
         <!-- TRADES -->
         <div class="lp-section">
-            <div class="lp-section-label">Every trade</div>
-            <h2 class="lp-section-title">Built for the tools,<br>not the boardroom.</h2>
+            <div class="lp-section-label" style="text-align:center">Every trade</div>
+            <h2 class="lp-section-title" style="text-align:center">Built for the tools,<br>not the boardroom.</h2>
             <div class="lp-trades-grid">
                 <div class="lp-trade-card"><div class="lp-trade-icon">🏠</div><div class="lp-trade-name">Roofing</div></div>
                 <div class="lp-trade-card"><div class="lp-trade-icon">🌿</div><div class="lp-trade-name">Landscaping</div></div>
