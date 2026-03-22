@@ -824,7 +824,7 @@ def init_db():
 
     # ── Add company_id to all tables (idempotent) ────────────────────────
     _company_tables_list = [
-        "users","jobs","employees","clients","client_interactions","client_invoices",
+        "jobs","employees","clients","client_interactions","client_invoices",
         "day_assignments","labour_logs","material_invoices","estimate_lines",
         "pipeline","monthly_targets","job_files","recipes","recipe_items",
         "variations","payment_schedule","job_retention","site_diary",
@@ -1094,6 +1094,9 @@ _COMPANY_TABLES = {
     "catalogue_overrides", "invoice_counter", "job_counter", "expenses",
     "assemblies", "stackct_mapping", "catalogue_finishes",
 }
+# Tables that should NEVER have company_id injected (cross-company queries)
+_NO_FILTER_TABLES = {"users", "companies", "public_holidays", "company_settings",
+                     "material_finishes", "payroll_rules"}
 
 
 def _needs_company_filter(query):
@@ -1119,7 +1122,9 @@ def fetch_df(query, params=(), _raw=False):
         import re as _re2
         cid = get_cid()
         ph = "?" if not USE_POSTGRES else "%s"
-        if "company_id" not in q.lower():
+        # Skip injection for cross-company tables
+        _skip = any(t in q.lower() for t in _NO_FILTER_TABLES)
+        if "company_id" not in q.lower() and not _skip:
             q_flat = " ".join(q.split())
             fm = _re2.search(r"FROM\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?", q_flat, _re2.IGNORECASE)
             if fm:
@@ -2471,12 +2476,12 @@ def verify_password(password, hashed):
     return _hashlib.sha256(password.encode()).hexdigest() == hashed
 
 def get_user(username):
-    df = fetch_df("SELECT * FROM users WHERE username=? AND active=1", (username,))
+    df = fetch_df("SELECT * FROM users WHERE username=? AND active=1", (username,), _raw=True)
     return None if df.empty else df.iloc[0].to_dict()
 
 def seed_admin():
     """Create default admin user if no users exist."""
-    count = fetch_df("SELECT COUNT(*) AS n FROM users").iloc[0]["n"]
+    count = fetch_df("SELECT COUNT(*) AS n FROM users", _raw=True).iloc[0]["n"]
     if count == 0:
         execute("""INSERT INTO users (username, password_hash, full_name, role, active, created_date)
                    VALUES (?,?,?,?,?,?)""",
@@ -10209,7 +10214,7 @@ elif page == "User Management":
     ROLES = ["Admin", "Estimator", "Ops"]
 
     # ── Existing users ────────────────────────────────────────────────────
-    users_df = fetch_df("SELECT id, username, full_name, role, active, created_date FROM users ORDER BY id")
+    users_df = fetch_df("SELECT id, username, full_name, role, active, created_date FROM users ORDER BY id", _raw=True)
 
     if not users_df.empty:
         for _, ur in users_df.iterrows():
