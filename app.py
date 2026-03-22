@@ -48,6 +48,7 @@ DATABASE_URL = _os.environ.get("DATABASE_URL", "")
 # Read from env vars first (Railway), fall back to st.secrets (Streamlit Cloud)
 SUPABASE_URL = _os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = _os.environ.get("SUPABASE_KEY", "")
+ANTHROPIC_API_KEY = _os.environ.get("ANTHROPIC_API_KEY", "")
 try:
     if not SUPABASE_URL:
         SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
@@ -5576,10 +5577,19 @@ No explanation, only JSON."""
                             "messages":   [{"role":"user","content":content}]
                         }).encode()
 
+                        _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
+                        if not _api_key:
+                            st.error("❌ ANTHROPIC_API_KEY not set — add it to Railway environment variables.")
+                            st.stop()
+
                         req = _urlreq.Request(
                             "https://api.anthropic.com/v1/messages",
                             data=payload,
-                            headers={"Content-Type":"application/json","anthropic-version":"2023-06-01"},
+                            headers={
+                                "Content-Type": "application/json",
+                                "anthropic-version": "2023-06-01",
+                                "x-api-key": _api_key,
+                            },
                             method="POST"
                         )
                         with _urlreq.urlopen(req, timeout=30) as resp:
@@ -10176,6 +10186,150 @@ elif page == "Expenses":
                     st.rerun()
                 else:
                     st.error("Description and amount required.")
+
+
+    # ── AI Receipt Scanner ─────────────────────────────────────────────────
+    st.subheader("📸 AI Receipt Scanner")
+    st.caption("Snap a receipt or invoice — AI reads it and pre-fills the expense form.")
+
+    exp_ai_upload = st.file_uploader(
+        "Upload receipt",
+        type=["jpg","jpeg","png","pdf","webp"],
+        key="exp_ai_upload"
+    )
+
+    if exp_ai_upload:
+        import base64 as _b64exp
+        import json as _jsonexp
+        import urllib.request as _urlreqexp
+
+        with st.spinner("🤖 Reading receipt..."):
+            try:
+                file_bytes = exp_ai_upload.read()
+                file_type  = exp_ai_upload.type
+                b64_data   = _b64exp.b64encode(file_bytes).decode()
+
+                extract_prompt = """Extract receipt/invoice details and return ONLY valid JSON:
+{
+  "supplier": "company or store name",
+  "description": "what was purchased",
+  "category": "one of: Tools & Equipment, Client Entertainment, Fuel & Vehicle, Phone & Subscriptions, Office & Admin, Travel & Accommodation, Training & Education, Marketing, Subcontractors, Other",
+  "receipt_date": "YYYY-MM-DD or null",
+  "amount_inc_gst": 0.00,
+  "gst_amount": 0.00,
+  "amount_ex_gst": 0.00
+}
+No explanation, only JSON."""
+
+                if "pdf" in file_type:
+                    content_msg = [
+                        {"type":"document","source":{"type":"base64","media_type":"application/pdf","data":b64_data}},
+                        {"type":"text","text":extract_prompt}
+                    ]
+                else:
+                    content_msg = [
+                        {"type":"image","source":{"type":"base64","media_type":file_type,"data":b64_data}},
+                        {"type":"text","text":extract_prompt}
+                    ]
+
+                payload = _jsonexp.dumps({
+                    "model":      "claude-opus-4-5",
+                    "max_tokens": 400,
+                    "messages":   [{"role":"user","content":content_msg}]
+                }).encode()
+
+                _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
+                if not _api_key:
+                    st.error("❌ ANTHROPIC_API_KEY not set — add it to Railway environment variables.")
+                    st.stop()
+
+                req = _urlreqexp.Request(
+                    "https://api.anthropic.com/v1/messages",
+                    data=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "anthropic-version": "2023-06-01",
+                        "x-api-key": _api_key,
+                    },
+                    method="POST"
+                )
+                with _urlreqexp.urlopen(req, timeout=30) as resp:
+                    result = _jsonexp.loads(resp.read().decode())
+
+                raw = result["content"][0]["text"].strip()
+                if "```" in raw:
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"): raw = raw[4:]
+                exp_extracted = _jsonexp.loads(raw.strip())
+                st.session_state["exp_ai_data"] = exp_extracted
+                st.success("✅ Receipt read!")
+
+            except Exception as e:
+                st.error(f"Could not read receipt: {e}")
+
+    if "exp_ai_data" in st.session_state:
+        ex = st.session_state["exp_ai_data"]
+        st.markdown(f"""
+        <div style="background:#0d2233;border:2px solid #2dd4bf;border-radius:12px;
+            padding:14px 18px;margin:8px 0">
+            <div style="font-size:13px;font-weight:700;color:#2dd4bf;
+                text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">
+                🤖 AI extracted — review before saving
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px">
+                <div><div style="color:#64748b">Supplier</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('supplier','—')}</div></div>
+                <div><div style="color:#64748b">Description</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('description','—')}</div></div>
+                <div><div style="color:#64748b">Category</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('category','—')}</div></div>
+                <div><div style="color:#64748b">Date</div>
+                    <div style="color:#e2e8f0;font-weight:600">{ex.get('receipt_date','—')}</div></div>
+                <div><div style="color:#64748b">Amount (inc. GST)</div>
+                    <div style="color:#2dd4bf;font-weight:700">${float(ex.get('amount_inc_gst') or 0):,.2f}</div></div>
+                <div><div style="color:#64748b">GST</div>
+                    <div style="color:#f59e0b;font-weight:700">${float(ex.get('gst_amount') or 0):,.2f}</div></div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+        with st.form("exp_ai_confirm"):
+            jobs_exp_ai = fetch_df("SELECT job_id FROM jobs WHERE archived=0 ORDER BY job_id")
+            job_opts_ai = ["— Company expense —"] + (jobs_exp_ai["job_id"].tolist() if not jobs_exp_ai.empty else [])
+            cc1,cc2,cc3 = st.columns(3)
+            try:
+                ai_d = date.fromisoformat(str(ex.get("receipt_date","") or "")) if ex.get("receipt_date") else date.today()
+            except: ai_d = date.today()
+            with cc1:
+                c_date = st.date_input("Date", value=ai_d)
+                c_supp = st.text_input("Supplier", value=str(ex.get("supplier","") or ""))
+            with cc2:
+                c_desc = st.text_input("Description", value=str(ex.get("description","") or ""))
+                c_amt  = st.number_input("Amount (inc. GST)", min_value=0.0,
+                            value=float(ex.get("amount_inc_gst") or 0), step=1.0)
+            with cc3:
+                detected_cat = str(ex.get("category","Other") or "Other")
+                c_cat  = st.selectbox("Category", EXP_CATEGORIES,
+                            index=EXP_CATEGORIES.index(detected_cat) if detected_cat in EXP_CATEGORIES else len(EXP_CATEGORIES)-1)
+                c_job  = st.selectbox("Link to job", job_opts_ai)
+                c_by   = st.text_input("Submitted by", value=str(current_user.get("full_name","") or current_user.get("username","")))
+            cb1,cb2 = st.columns(2)
+            with cb1:
+                if st.form_submit_button("✅ Confirm & Save", type="primary"):
+                    c_gst = round(c_amt / 11, 2)
+                    job_id = "" if c_job.startswith("—") else c_job
+                    execute("""INSERT INTO expenses
+                        (expense_date,category,description,amount,gst,job_id,submitted_by,status,notes,created_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                        (c_date.isoformat(), c_cat,
+                         f"{c_supp} — {c_desc}".strip(" —"),
+                         c_amt, c_gst, job_id, c_by, "Pending", "", _today_aest().isoformat()))
+                    st.session_state.pop("exp_ai_data", None)
+                    st.success(f"✅ Expense saved — ${c_amt:,.2f}"); st.rerun()
+            with cb2:
+                if st.form_submit_button("✗ Discard"):
+                    st.session_state.pop("exp_ai_data", None); st.rerun()
+
+    st.divider()
 
     # ── Filter ─────────────────────────────────────────────────────────────
     fc1, fc2, fc3 = st.columns(3)
