@@ -2981,7 +2981,7 @@ if not st.session_state["authenticated_user"]:
                 <div class="lp-badge">⚒️ Built for tradies. By a tradie.</div>
                 <h1 class="lp-h1">Run a tighter<br><span class="acc">trade business.</span></h1>
                 <p class="lp-h1-sub">Job Management Software</p>
-                <p class="lp-desc">Quote faster. Win more jobs. Know your numbers — <strong>live</strong>.<br>
+                <p class="lp-desc" style="text-align:center">Quote faster. Win more jobs. Know your numbers — <strong>live</strong>.<br>
                 The all-in-one platform for roofers, landscapers, plumbers and every trade in between.</p>
             </div>
         </div>
