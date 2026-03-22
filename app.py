@@ -3400,7 +3400,7 @@ SIDEBAR_GROUPS = {
     "👥 PEOPLE":     ["Clients","Employees","Timesheets","Payroll Rules"],
     "📐 ESTIMATING": ["Catalogue","Assemblies","StackCT Import"],
     "💰 FINANCIALS": ["Pipeline","Budget Planner","Company P&L","Financial Health","Job Costing Report","Expenses"],
-    "⚙️ SETTINGS":   ["Notifications","Company Settings","User Management"],
+    "⚙️ SETTINGS":   ["Notifications","Company Settings","User Management","Company Management"],
 }
 
 # Build filtered page list respecting user role
