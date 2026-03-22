@@ -1116,12 +1116,37 @@ def fetch_df(query, params=(), _raw=False):
 
     # Inject company_id filter automatically
     if not _raw and _needs_company_filter(q):
+        import re as _re2
         cid = get_cid()
         ph = "?" if not USE_POSTGRES else "%s"
         if "company_id" not in q.lower():
-            # Wrap as subquery — works regardless of WHERE/ORDER BY structure
-            q = f"SELECT * FROM ({q}) _t WHERE _t.company_id={ph}"
-            params = tuple(params) + (cid,)
+            # Find primary table + optional alias from FROM clause
+            # e.g. "FROM jobs" or "FROM day_assignments da"
+            fm = _re2.search(r'FROM\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?', q, _re2.IGNORECASE)
+            if fm:
+                tbl_alias = fm.group(2) if fm.group(2) and fm.group(2).upper() not in (
+                    'WHERE','ON','JOIN','LEFT','INNER','RIGHT','ORDER','GROUP','LIMIT','HAVING') else fm.group(1)
+                prefix = tbl_alias + ".company_id=" + ph
+            else:
+                prefix = "company_id=" + ph
+
+            # Now inject into query — find WHERE or inject before ORDER BY/GROUP BY
+            # Normalize to handle multiline
+            q_flat = " ".join(q.split())
+            wm = _re2.search(r'WHERE', q_flat, _re2.IGNORECASE)
+            if wm:
+                pos = wm.end()
+                q_flat = q_flat[:pos] + " " + prefix + " AND " + q_flat[pos:]
+                params = (cid,) + tuple(params)
+            else:
+                cm = _re2.search(r'(ORDER\s+BY|GROUP\s+BY|LIMIT|HAVING|OFFSET)', q_flat, _re2.IGNORECASE)
+                if cm:
+                    pos = cm.start()
+                    q_flat = q_flat[:pos].rstrip() + " WHERE " + prefix + " " + q_flat[pos:]
+                else:
+                    q_flat = q_flat.rstrip() + " WHERE " + prefix
+                params = tuple(params) + (cid,)
+            q = q_flat
 
     try:
         if USE_POSTGRES:
