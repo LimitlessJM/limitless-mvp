@@ -1116,26 +1116,28 @@ def fetch_df(query, params=(), _raw=False):
 
     # Inject company_id filter automatically
     if not _raw and _needs_company_filter(q):
-        import re as _re
         q_lower = q.lower().strip()
         cid = get_cid()
         ph = "?" if not USE_POSTGRES else "%s"
         if "company_id" not in q_lower:
-            where_match = _re.search(r'where', q_lower)
-            if where_match:
-                # Has WHERE — inject right after it
-                pos = where_match.end()
-                q = q[:pos] + f" company_id={ph} AND " + q[pos:]
+            # Find WHERE keyword using simple string search
+            where_pos = q_lower.find(" where ")
+            if where_pos >= 0:
+                # Has WHERE — inject right after the WHERE keyword
+                actual_pos = where_pos + len(" where ")
+                q = q[:actual_pos] + "company_id=" + ph + " AND " + q[actual_pos:]
                 params = (cid,) + tuple(params)
             else:
-                # No WHERE — insert before ORDER BY / GROUP BY / LIMIT / HAVING, or at end
-                clause_match = _re.search(r'(order\s+by|group\s+by|limit|having|offset)', q_lower)
-                if clause_match:
-                    pos = clause_match.start()
-                    q = q[:pos].rstrip() + f" WHERE company_id={ph} " + q[pos:]
+                # No WHERE — insert before ORDER BY / GROUP BY / LIMIT or at end
+                for clause in [" order by ", " group by ", " limit ", " having ", " offset "]:
+                    cp = q_lower.find(clause)
+                    if cp >= 0:
+                        q = q[:cp] + " WHERE company_id=" + ph + q[cp:]
+                        params = tuple(params) + (cid,)
+                        break
                 else:
-                    q = q.rstrip() + f" WHERE company_id={ph}"
-                params = tuple(params) + (cid,)
+                    q = q.rstrip() + " WHERE company_id=" + ph
+                    params = tuple(params) + (cid,)
 
     try:
         if USE_POSTGRES:
