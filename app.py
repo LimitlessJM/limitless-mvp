@@ -5571,16 +5571,16 @@ No explanation, only JSON."""
                                 {"type":"text","text":extract_prompt}
                             ]
 
+                        _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
+                        if not _api_key:
+                            st.error("❌ ANTHROPIC_API_KEY not set in Railway environment variables.")
+                            st.stop()
+
                         payload = _json.dumps({
                             "model":      "claude-sonnet-4-5-20251022",
                             "max_tokens": 400,
                             "messages":   [{"role":"user","content":content}]
                         }).encode()
-
-                        _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
-                        if not _api_key:
-                            st.error("❌ ANTHROPIC_API_KEY not set in Railway environment variables.")
-                            st.stop()
 
                         req = _urlreq.Request(
                             "https://api.anthropic.com/v1/messages",
@@ -5604,7 +5604,12 @@ No explanation, only JSON."""
                         st.success("✅ Invoice read!")
 
                     except Exception as e:
-                        st.error(f"Could not read invoice: {e}")
+                        import urllib.error as _urlerr
+                        if isinstance(e, _urlerr.HTTPError):
+                            body = e.read().decode()
+                            st.error(f"API error {e.code}: {body}")
+                        else:
+                            st.error(f"Could not read invoice: {e}")
                         st.info("Add manually below.")
 
             # Confirmation form
@@ -10202,6 +10207,7 @@ elif page == "Expenses":
         import base64 as _b64exp
         import json as _jsonexp
         import urllib.request as _urlreqexp
+        import urllib.error as _urlerrexp
 
         with st.spinner("🤖 Reading receipt..."):
             try:
@@ -10232,16 +10238,16 @@ No explanation, only JSON."""
                         {"type":"text","text":extract_prompt}
                     ]
 
-                payload = _jsonexp.dumps({
-                    "model":      "claude-sonnet-4-5-20251022",
-                    "max_tokens": 400,
-                    "messages":   [{"role":"user","content":content_msg}]
-                }).encode()
-
                 _api_key = _os.environ.get("ANTHROPIC_API_KEY", "")
                 if not _api_key:
                     st.error("❌ ANTHROPIC_API_KEY not set in Railway environment variables.")
                     st.stop()
+
+                payload = _jsonexp.dumps({
+                    "model":    "claude-sonnet-4-5-20251022",
+                    "max_tokens": 400,
+                    "messages": [{"role":"user","content":content_msg}]
+                }).encode()
 
                 req = _urlreqexp.Request(
                     "https://api.anthropic.com/v1/messages",
@@ -10265,7 +10271,11 @@ No explanation, only JSON."""
                 st.success("✅ Receipt read!")
 
             except Exception as e:
-                st.error(f"Could not read receipt: {e}")
+                if isinstance(e, _urlerrexp.HTTPError):
+                    body = e.read().decode()
+                    st.error(f"API error {e.code}: {body}")
+                else:
+                    st.error(f"Could not read receipt: {e}")
 
     if "exp_ai_data" in st.session_state:
         ex = st.session_state["exp_ai_data"]
